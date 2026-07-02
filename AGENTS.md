@@ -1,0 +1,309 @@
+# AGENTS.md
+
+本文档用于指导 AI 代码助手（Codex、Claude Code、Cursor、Copilot 等）理解本项目的结构、运行方式和开发约束。后续继续开发时，先读本文件，再读相关源码。
+
+## 项目定位
+
+本项目是一个本地优先的个人 AI 电台原型，当前目标不是正式商用上线，而是先跑通 MVP：
+
+- 读取用户音乐口味、作息、歌单和情绪规则。
+- 组装上下文 prompt。
+- 调用大模型生成 DJ 文案、推荐歌曲、推荐理由和衔接方式。
+- 通过音乐适配器解析可播放音源。
+- 在 Web 播放器里播放歌曲，并保留播放历史 / 推荐记录。
+
+当前产品名在界面中使用 `Redio`，项目名为 `AI Radio`。
+
+## 当前技术栈
+
+- 前端：React 19 + Vite + TypeScript。
+- 后端：Node.js 原生 HTTP server + TypeScript，通过 `tsx` 运行。
+- 大模型：OpenAI-compatible HTTP adapter，当前用于接入阿里云百炼 / 千问。
+- 音乐：本地测试音频 + 可选 `NeteaseCloudMusicApi` 本地服务。
+- 状态：本地 JSON 文件，主要写入 `data/history.json`。
+
+## 目录结构
+
+```text
+.
+├── web/src/              # 主前端代码
+│   ├── App.tsx           # 当前主播放器、聊天浮窗、播放记忆入口
+│   ├── main.tsx
+│   └── styles.css
+├── server/               # 本地 API server
+│   ├── index.ts          # HTTP server 入口
+│   ├── router.ts         # API 路由
+│   ├── context.ts        # prompt 上下文组装
+│   ├── brain.ts          # 大模型 adapter
+│   ├── music.ts          # 音乐 adapter
+│   ├── state.ts          # 当前播放状态
+│   ├── history.ts        # 播放历史 / 推荐记录
+│   ├── scheduler.ts      # 后续节目调度
+│   └── tts.ts            # 后续 TTS 管线
+├── user/                 # 用户个人资料
+│   ├── taste.md
+│   ├── routines.md
+│   ├── mood-rules.md
+│   └── playlists.json
+├── prompts/              # 系统提示词
+│   └── dj-persona.md
+├── public/audio/         # 本地测试音频
+├── data/                 # 本地持久化数据
+└── cache/                # 后续音频缓存
+```
+
+## 本地启动
+
+需要两个基础服务：
+
+```bash
+npm run dev:api
+npm run dev
+```
+
+- 前端地址：`http://127.0.0.1:5173/`
+- 本地 API：`http://127.0.0.1:8787`
+
+如果启用网易云音乐解析，还需要单独启动 `NeteaseCloudMusicApi`：
+
+```bash
+npx NeteaseCloudMusicApi
+```
+
+默认地址应为：
+
+```text
+http://127.0.0.1:3000
+```
+
+## 环境变量
+
+不要把真实密钥写进代码、README、截图或提交记录。只允许写在本地 `.env`。
+
+`.env.example` 当前约定：
+
+```env
+AI_RADIO_BRAIN_PROVIDER=custom-http
+AI_RADIO_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+AI_RADIO_MODEL_NAME=qwen-plus
+AI_RADIO_MODEL_API_KEY=
+
+AI_RADIO_MUSIC_PROVIDER=local
+AI_RADIO_NETEASE_API_BASE_URL=http://127.0.0.1:3000
+
+AI_RADIO_QWEATHER_HOST=https://api.qweather.com
+AI_RADIO_QWEATHER_LOCATION=
+AI_RADIO_QWEATHER_API_KEY=
+AI_RADIO_QWEATHER_TOKEN=
+```
+
+说明：
+
+- `AI_RADIO_BRAIN_PROVIDER=custom-http`：走 OpenAI-compatible 接口。
+- `AI_RADIO_MODEL_BASE_URL`：模型服务 base URL。
+- `AI_RADIO_MODEL_NAME`：模型名，例如 `qwen-plus`。
+- `AI_RADIO_MODEL_API_KEY`：本地填写，不要提交。
+- `AI_RADIO_MUSIC_PROVIDER=local | netease`：音乐来源。
+- `AI_RADIO_NETEASE_API_BASE_URL`：网易云本地服务地址。
+- `AI_RADIO_QWEATHER_LOCATION`：和风天气 location，可填城市 ID 或经纬度。
+- `AI_RADIO_QWEATHER_API_KEY`：和风天气 API KEY，本地填写即可。
+- `AI_RADIO_QWEATHER_TOKEN`：和风天气 JWT Token，可选；本项目优先使用 API KEY。
+
+## 当前 API 契约
+
+后端路由集中在 `server/router.ts`。
+
+```text
+GET  /api/profile       # 读取 user/ 下的用户资料
+GET  /api/now           # 当前播放状态
+GET  /api/history       # 播放历史 / 推荐记录
+GET  /api/context       # 当前组装后的 prompt 上下文
+POST /api/plan          # 根据用户输入生成新节目段落
+```
+
+`POST /api/plan` 请求体：
+
+```json
+{
+  "message": "给我来一段适合晚上放松的电台"
+}
+```
+
+大模型应返回的核心结构：
+
+```json
+{
+  "say": "DJ 文案",
+  "play": [
+    {
+      "title": "歌曲名",
+      "artist": "歌手"
+    }
+  ],
+  "reason": "推荐原因",
+  "segue": "fade"
+}
+```
+
+`segue` 只允许：
+
+- `fade`
+- `cut`
+- `silence`
+
+后端会补充：
+
+- `episode`
+- `audioUrl`
+- `audioLabel`
+- `source`
+- `matchedTitle`
+- `matchedArtist`
+- `externalUrl`
+
+## 当前已完成能力
+
+- 前端播放器主界面。
+- 聊天输入和发送。
+- 调用千问生成 DJ 文案和歌曲推荐。
+- `custom-http` 大模型 adapter。
+- `local` 音乐 adapter。
+- `netease` 音乐 adapter，依赖本地 `NeteaseCloudMusicApi`。
+- `macos-say` TTS adapter，通过 macOS `say` 生成语音，再用 `afconvert` 转成本地 M4A 音频。
+- 歌曲播放、暂停、上一首、下一首、进度条、音量浮层。
+- DJ 文案播报按钮，生成节目后会尝试自动播报。
+- 播放历史 / 推荐记录写入 `data/history.json`。
+- 前端“播放记忆”面板展示最近记录。
+
+## 当前限制
+
+- 网易云返回的直链可能只有试听片段，版权完整播放后续再处理。
+- 当前没有正式用户登录和云端账号系统。
+- 播放历史存在本地 JSON，不是云数据库。
+- 当前 TTS 依赖 macOS 自带 `say` 命令，还不是云端拟人声音。
+- 现在重点是验证 MVP，不要提前做复杂部署和权限系统。
+
+## 推荐的下一步
+
+建议下一步把播放队列升级成真正的电台节目流：
+
+1. 将队列从“歌曲列表”升级为“节目片段列表”。
+2. 播放顺序变成：DJ 语音 -> 歌曲 -> DJ 衔接语 -> 下一首歌。
+3. 让 `/api/plan` 返回的 DJ 文案和歌曲共同进入播放队列。
+4. 后续再考虑 Fish Audio / 阿里云 TTS / 火山 TTS 等更自然声音。
+
+## 开发原则
+
+- 先保证 MVP 跑通，再做视觉 polish 和云部署。
+- 不要把 API Key 写入源码。
+- 不要为了未来扩展提前写复杂抽象。
+- 优先修改最小范围文件。
+- 涉及大模型返回结构时，必须保持 JSON 校验。
+- 涉及音乐播放时，必须保留本地音频 fallback。
+- 前端中文界面优先，避免中英文混杂，除非是品牌名或技术名。
+- 修改后至少运行：
+
+```bash
+npm run build
+```
+
+## 每次功能完成后的自查要求
+
+每次完成一个功能、修复一个 Bug 或调整 UI 后，必须做真实自查，而不是只口头说明。自查目标是尽早发现影响用户使用的问题。
+
+最低检查项：
+
+1. 前端构建
+   - 运行 `npm run build`。
+   - 如果 TypeScript 或 Vite 构建失败，先修复再交付。
+
+2. 后端接口
+   - 对本次涉及的接口做实际请求验证。
+   - 重点检查 500、404、JSON 结构不一致、模型调用失败、音乐解析失败等问题。
+   - 常用接口包括 `/api/now`、`/api/plan`、`/api/history`、`/api/profile`、`/api/context`。
+
+3. 页面 UI
+   - 打开 `http://127.0.0.1:5173/` 实际查看页面。
+   - 检查明显错位、内容遮挡、文字溢出、按钮被盖住、浮层位置异常、移动宽度下布局崩坏。
+
+4. 核心交互
+   - 验证本次改动相关按钮可以点击。
+   - 验证输入框可以输入和提交。
+   - 验证生成节目、播放 / 暂停、切歌、音量、聊天、播放记忆等关键路径没有失效。
+
+5. AI 生成链路
+   - 如果本次改动涉及大模型、prompt、context 或 `/api/plan`，必须实际触发一次生成。
+   - 检查是否返回合法 JSON、是否有 DJ 文案、推荐歌曲、推荐原因和衔接方式。
+
+6. 音乐播放链路
+   - 如果本次改动涉及音乐 adapter 或播放器，必须确认至少一种音源可以播放。
+   - 网易云不可播放时，必须确认本地音频 fallback 仍然可用。
+
+发现明确 Bug 时，可以直接修复；修复后重新执行相关自查。最终回复用户时输出简短检测报告，至少包含：
+
+- 改了什么。
+- 检查了什么。
+- 是否发现并修复 Bug。
+- 仍然存在的限制或未验证项。
+
+## 常见故障排查
+
+### 前端打不开
+
+确认：
+
+```bash
+npm run dev
+```
+
+然后访问：
+
+```text
+http://127.0.0.1:5173/
+```
+
+### API 请求失败
+
+确认：
+
+```bash
+npm run dev:api
+```
+
+然后检查：
+
+```text
+http://127.0.0.1:8787/api/now
+```
+
+### 大模型没有回复
+
+检查 `.env`：
+
+```env
+AI_RADIO_BRAIN_PROVIDER=custom-http
+AI_RADIO_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+AI_RADIO_MODEL_NAME=qwen-plus
+AI_RADIO_MODEL_API_KEY=
+```
+
+不要把密钥打印到聊天里。
+
+### 网易云音乐不能播放
+
+确认本地网易云 API 服务：
+
+```text
+http://127.0.0.1:3000/search?keywords=周杰伦&limit=1
+```
+
+如果 `/song/url` 没有返回可播放 URL，系统应 fallback 到本地测试音频。
+
+## 给后续 AI 助手的注意事项
+
+- 先读 `AGENTS.md`、`README.md`、`server/README.md`、`web/README.md`。
+- 不要默认用户想要上线部署；当前阶段默认本地 MVP。
+- 不要改 `.env` 或泄露 `.env` 内容。
+- 如果需要新增 provider，优先在 `server/brain.ts` 或 `server/music.ts` 做 adapter，不要把 provider 逻辑散落到前端。
+- 如果新增持久化字段，同时更新 `server/history.ts` 的类型和前端展示。
+- 如果要改 UI，先确认是否是产品功能必需；当前优先级低于“能对话、能推荐、能播放、能发声”。

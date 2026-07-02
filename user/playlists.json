@@ -1,0 +1,7179 @@
+{
+  "playlists": [
+    {
+      "id": "qq-tagged-library",
+      "name": "QQ音乐标注歌单",
+      "description": "从 qq_songs_final.json 导入的个人结构化歌库，包含歌曲、歌手、情绪、场景、能量、人声、语言和 DJ 角度标签。",
+      "source": "qq_songs_final.json",
+      "tracks": [
+        {
+          "title": "We Never",
+          "artist": "Hi Noise",
+          "neteaseKeyword": "We Never Hi Noise",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "适合派对高潮或运动时注入能量的时刻"
+        },
+        {
+          "title": "月下煮茶",
+          "artist": "李思潼",
+          "neteaseKeyword": "月下煮茶 李思潼",
+          "moods": [
+            "平静",
+            "温柔",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "适合深夜安静独处或冥想放松时播放"
+        },
+        {
+          "title": "月下煮茶",
+          "artist": "陈佳",
+          "neteaseKeyword": "月下煮茶 陈佳",
+          "moods": [
+            "平静",
+            "温柔",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "电影原声版，适合安静的雨夜或咖啡馆慢时光"
+        },
+        {
+          "title": "来去打工",
+          "artist": "王以诺",
+          "neteaseKeyword": "来去打工 王以诺",
+          "moods": [
+            "伤感",
+            "思念",
+            "忧郁"
+          ],
+          "scenes": [
+            "通勤路上",
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "适合在外打拼的人通勤路上聆听，唤起乡愁"
+        },
+        {
+          "title": "为爱痴狂",
+          "artist": "金志文",
+          "neteaseKeyword": "为爱痴狂 金志文",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "情侣约会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "经典翻唱，适合深夜独处或情侣安静约会时播放"
+        },
+        {
+          "title": "纵此生",
+          "artist": "泽国同学",
+          "neteaseKeyword": "纵此生 泽国同学",
+          "moods": [
+            "振奋",
+            "释然",
+            "愉悦"
+          ],
+          "scenes": [
+            "开车",
+            "户外散步",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "节奏洒脱，适合开车兜风或户外散步时播放"
+        },
+        {
+          "title": "电台情歌",
+          "artist": "莫文蔚",
+          "neteaseKeyword": "电台情歌 莫文蔚",
+          "moods": [
+            "伤感",
+            "温柔",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "经典情歌，适合深夜独处或睡前安静聆听"
+        },
+        {
+          "title": "Don't Break My Heart",
+          "artist": "李宇春",
+          "neteaseKeyword": "Don't Break My Heart 李宇春",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "国乐改编版，节奏轻快适合开车或咖啡馆背景"
+        },
+        {
+          "title": "劫",
+          "artist": "黄霄雲",
+          "neteaseKeyword": "劫 黄霄雲",
+          "moods": [
+            "激昂",
+            "伤感",
+            "振奋"
+          ],
+          "scenes": [
+            "深夜独处",
+            "运动",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "高音爆发力强，适合运动或情绪需要释放的时刻"
+        },
+        {
+          "title": "FRIDAY9 II",
+          "artist": "可可爱kkluv",
+          "neteaseKeyword": "FRIDAY9 II 可可爱kkluv",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "聚会",
+            "情侣约会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "氛围感电子流行，适合咖啡馆或情侣约会背景"
+        },
+        {
+          "title": "诗仙",
+          "artist": "郁可唯/早安",
+          "neteaseKeyword": "诗仙 郁可唯 早安",
+          "moods": [
+            "振奋",
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "户外散步",
+            "开车",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "国风与现代碰撞，适合户外出行或聚会时提升氛围"
+        },
+        {
+          "title": "末班车",
+          "artist": "萧煌奇",
+          "neteaseKeyword": "末班车 萧煌奇",
+          "moods": [
+            "伤感",
+            "孤独",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "盲人歌手深情演绎，适合深夜独自思念的时刻"
+        },
+        {
+          "title": "Sign of the Times",
+          "artist": "Harry Styles",
+          "neteaseKeyword": "Sign of the Times Harry Styles",
+          "moods": [
+            "振奋",
+            "释然",
+            "愉悦"
+          ],
+          "scenes": [
+            "开车",
+            "户外散步",
+            "清晨起床"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "史诗感流行摇滚，适合清晨出门或开车时提振精神"
+        },
+        {
+          "title": "Childhood Keepsake, Circa 1991",
+          "artist": "MYFEVER",
+          "neteaseKeyword": "Childhood Keepsake Circa 1991 MYFEVER",
+          "moods": [
+            "平静",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "纯音乐怀旧氛围曲，适合雨天或深夜独处时安静播放"
+        },
+        {
+          "title": "Shall We Talk",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "Shall We Talk 陈奕迅",
+          "moods": [
+            "伤感",
+            "温柔",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "经典粤语走心歌，适合深夜独自聆听或通勤路上"
+        },
+        {
+          "title": "Beauty and a Beat",
+          "artist": "Grimmmz",
+          "neteaseKeyword": "Beauty and a Beat Grimmmz",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "高能量电子翻唱，适合运动或派对DJ炸场时刻"
+        },
+        {
+          "title": "表态",
+          "artist": "梁博",
+          "neteaseKeyword": "表态 梁博",
+          "moods": [
+            "激昂",
+            "振奋",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "摇滚力量感，适合需要打气或开车兜风时播放"
+        },
+        {
+          "title": "人间共鸣",
+          "artist": "李健",
+          "neteaseKeyword": "人间共鸣 李健",
+          "moods": [
+            "温柔",
+            "平静",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "春晚级温暖嗓音，适合清晨或深夜安静时刻"
+        },
+        {
+          "title": "爱在西元前",
+          "artist": "周杰伦",
+          "neteaseKeyword": "爱在西元前 周杰伦",
+          "moods": [
+            "浪漫",
+            "思念",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "R&B中国风经典，适合情侣约会或咖啡馆浪漫氛围"
+        },
+        {
+          "title": "Fly Me To The Moon",
+          "artist": "小野丽莎",
+          "neteaseKeyword": "Fly Me To The Moon 小野丽莎",
+          "moods": [
+            "浪漫",
+            "慵懒",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Bossa Nova翻唱经典，完美适配咖啡馆或酒吧氛围"
+        },
+        {
+          "title": "The More I See You",
+          "artist": "Eliane Elias",
+          "neteaseKeyword": "The More I See You Eliane Elias",
+          "moods": [
+            "浪漫",
+            "慵懒",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Bossa Nova风格爵士，适合咖啡馆浪漫午后"
+        },
+        {
+          "title": "The Way You Look Tonight",
+          "artist": "Cecilia Dale",
+          "neteaseKeyword": "The Way You Look Tonight Cecilia Dale",
+          "moods": [
+            "浪漫",
+            "慵懒",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "海滩Bossa风经典情歌，适合情侣约会或海滩酒吧"
+        },
+        {
+          "title": "Somebody That I Used to Know",
+          "artist": "Brasil 690",
+          "neteaseKeyword": "Somebody That I Used to Know Brasil 690",
+          "moods": [
+            "慵懒",
+            "伤感",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "雨天",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "经典流行曲的Bossa改编，适合咖啡馆悠闲氛围"
+        },
+        {
+          "title": "FOR YOU",
+          "artist": "铃木重子",
+          "neteaseKeyword": "FOR YOU 铃木重子",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "深夜独处",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "日本Bossa女声轻柔演绎，适合深夜独坐咖啡馆"
+        },
+        {
+          "title": "Waiting Of The Willow",
+          "artist": "Rita Calypso",
+          "neteaseKeyword": "Waiting Of The Willow Rita Calypso",
+          "moods": [
+            "慵懒",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "雨天",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "迷幻Bossa风格，适合雨天或深夜独处的迷离氛围"
+        },
+        {
+          "title": "Here It Is",
+          "artist": "Roberto Menescal E Seu Conjunto",
+          "neteaseKeyword": "Here It Is Roberto Menescal E Seu Conjunto",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "开车",
+            "聚会"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "纯器乐Bossa Nova，适合开车或咖啡馆轻松背景"
+        },
+        {
+          "title": "Lucky",
+          "artist": "Cris Delanno",
+          "neteaseKeyword": "Lucky Cris Delanno",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "轻快Bossa节奏，适合情侣约会或咖啡馆午后"
+        },
+        {
+          "title": "I Will Survive",
+          "artist": "Juliana Aquino",
+          "neteaseKeyword": "I Will Survive Juliana Aquino",
+          "moods": [
+            "振奋",
+            "释然",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "运动"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "经典Disco的Lounge改编，适合派对或开车时释放"
+        },
+        {
+          "title": "L-O-V-E",
+          "artist": "Olivia Ong",
+          "neteaseKeyword": "L-O-V-E Olivia Ong",
+          "moods": [
+            "浪漫",
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "经典爵士标准的Bossa翻唱，适合浪漫约会或咖啡馆"
+        },
+        {
+          "title": "Green Flower Porcelain",
+          "artist": "Marcela Mangabeira",
+          "neteaseKeyword": "Green Flower Porcelain Marcela Mangabeira",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "雨天",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Bossa翻唱，适合咖啡馆安静放松"
+        },
+        {
+          "title": "The Girl From Ipanema",
+          "artist": "Stan Getz",
+          "neteaseKeyword": "The Girl From Ipanema Stan Getz",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "开车",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Bossa Nova史上经典，任何需要慵懒氛围的场景都适合"
+        },
+        {
+          "title": "Misty Roses",
+          "artist": "Rita Calypso",
+          "neteaseKeyword": "Misty Roses Rita Calypso",
+          "moods": [
+            "忧郁",
+            "慵懒",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "迷幻Bossa演绎民谣经典，适合深夜雨天的孤独时刻"
+        },
+        {
+          "title": "Yellow",
+          "artist": "Ive Mendes",
+          "neteaseKeyword": "Yellow Ive Mendes",
+          "moods": [
+            "慵懒",
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Coldplay经典的Bossa改编，适合咖啡馆或雨天浪漫"
+        },
+        {
+          "title": "I Don't Wanna Know",
+          "artist": "Ive Mendes",
+          "neteaseKeyword": "I Don't Wanna Know Ive Mendes",
+          "moods": [
+            "慵懒",
+            "忧郁",
+            "温柔"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "柔和Bossa女声，适合咖啡馆或深夜独处的安静时光"
+        },
+        {
+          "title": "Primavera",
+          "artist": "Paula Morelenbaum/Celso Fonseca",
+          "neteaseKeyword": "Primavera Paula Morelenbaum Celso Fonseca",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "户外散步",
+            "清晨起床"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "葡语Bossa经典，适合清晨或咖啡馆的轻松氛围"
+        },
+        {
+          "title": "Week-end à Rome",
+          "artist": "Nouvelle Vague/Vanessa Paradis",
+          "neteaseKeyword": "Week-end à Rome Nouvelle Vague Vanessa Paradis",
+          "moods": [
+            "慵懒",
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "法式新浪潮改编，适合咖啡馆或开车兜风的悠闲时刻"
+        },
+        {
+          "title": "Every Breath You Take",
+          "artist": "Karen Souza",
+          "neteaseKeyword": "Every Breath You Take Karen Souza",
+          "moods": [
+            "慵懒",
+            "忧郁",
+            "浪漫"
+          ],
+          "scenes": [
+            "深夜独处",
+            "咖啡馆",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "深夜Bossa风版经典，适合独处或微醺时细细品味"
+        },
+        {
+          "title": "All Around",
+          "artist": "Bebel Gilberto",
+          "neteaseKeyword": "All Around Bebel Gilberto",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "户外散步",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "巴西Bossa慵懒女声，适合午后咖啡馆的背景音乐"
+        },
+        {
+          "title": "Only You",
+          "artist": "Lisa Ekdahl",
+          "neteaseKeyword": "Only You Lisa Ekdahl",
+          "moods": [
+            "浪漫",
+            "温柔",
+            "慵懒"
+          ],
+          "scenes": [
+            "情侣约会",
+            "咖啡馆",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "瑞典爵士女声的温柔演绎，适合情侣约会或咖啡馆"
+        },
+        {
+          "title": "The Shadow of Your Smile",
+          "artist": "Carmen Cuesta",
+          "neteaseKeyword": "The Shadow of Your Smile Carmen Cuesta",
+          "moods": [
+            "浪漫",
+            "慵懒",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "爵士标准曲的柔美演绎，适合浪漫约会或深夜咖啡馆"
+        },
+        {
+          "title": "Eu Sei Que Vou Te Amar",
+          "artist": "Clementine",
+          "neteaseKeyword": "Eu Sei Que Vou Te Amar Clementine",
+          "moods": [
+            "浪漫",
+            "慵懒",
+            "忧郁"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "雨天",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "法日混血Bossa风格，适合雨天咖啡馆的异域感"
+        },
+        {
+          "title": "So Nice",
+          "artist": "Bebel Gilberto",
+          "neteaseKeyword": "So Nice Summer Samba Bebel Gilberto",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "户外散步",
+            "清晨起床"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "夏日Bossa经典，适合清晨或户外的轻松愉悦时刻"
+        },
+        {
+          "title": "Retrato Em Branco e Preto",
+          "artist": "Clementine",
+          "neteaseKeyword": "Retrato Em Branco e Preto Clementine",
+          "moods": [
+            "慵懒",
+            "平静",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "雨天",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "葡语经典的法式演绎，适合咖啡馆或雨天独处"
+        },
+        {
+          "title": "Call Me",
+          "artist": "Eliane Elias",
+          "neteaseKeyword": "Call Me Eliane Elias",
+          "moods": [
+            "浪漫",
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "爵士钢琴女声经典，适合情侣约会或咖啡馆背景"
+        },
+        {
+          "title": "Paper Mache",
+          "artist": "Rita Calypso",
+          "neteaseKeyword": "Paper Mache Rita Calypso",
+          "moods": [
+            "忧郁",
+            "慵懒",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "迷幻慵懒风格，适合深夜雨天的内省时刻"
+        },
+        {
+          "title": "I Wish I Could Go Travelling Again",
+          "artist": "Stacey Kent",
+          "neteaseKeyword": "I Wish I Could Go Travelling Again Stacey Kent",
+          "moods": [
+            "思念",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "雨天",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "爵士女声思念旅行的情怀，适合下午咖啡馆"
+        },
+        {
+          "title": "Kinky Love",
+          "artist": "Rita Calypso",
+          "neteaseKeyword": "Kinky Love Rita Calypso",
+          "moods": [
+            "慵懒",
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "深夜独处",
+            "咖啡馆",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "性感慵懒Bossa风格，适合深夜或情侣暧昧氛围"
+        },
+        {
+          "title": "Colour My Eyes",
+          "artist": "Os Digitalistas",
+          "neteaseKeyword": "Colour My Eyes Os Digitalistas",
+          "moods": [
+            "慵懒",
+            "平静",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "工作专注",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "电子Bossa融合，适合工作专注或咖啡馆背景音"
+        },
+        {
+          "title": "Ran into a Bookstore",
+          "artist": "Naomi & Goro",
+          "neteaseKeyword": "Ran into a Bookstore Naomi Goro",
+          "moods": [
+            "愉悦",
+            "温柔",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "工作专注",
+            "清晨起床"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "日式Bossa轻松感，适合咖啡馆或书店的慵懒午后"
+        },
+        {
+          "title": "GRRRLS",
+          "artist": "AViVA",
+          "neteaseKeyword": "GRRRLS AViVA",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "充满力量的女性主题电音，适合运动或派对燃起来"
+        },
+        {
+          "title": "Sunflower",
+          "artist": "Post Malone/Swae Lee",
+          "neteaseKeyword": "Sunflower Post Malone Swae Lee",
+          "moods": [
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "开车",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "旋律抓耳的流行说唱，开场就能点燃派对氛围"
+        },
+        {
+          "title": "粉红法拉利",
+          "artist": "404 RAPPER/AZ啊之",
+          "neteaseKeyword": "粉红法拉利 404 RAPPER AZ啊之",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "开车",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "中文说唱带点俏皮感，适合酒吧热场"
+        },
+        {
+          "title": "Temple",
+          "artist": "Zerky/Liu",
+          "neteaseKeyword": "Temple Zerky Liu",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "电子舞曲纯音乐，重低音轰炸舞池的利器"
+        },
+        {
+          "title": "Where Is Your Love",
+          "artist": "J Lisk",
+          "neteaseKeyword": "Where Is Your Love J Lisk",
+          "moods": [
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "氛围感电子，深夜酒吧慢摇首选"
+        },
+        {
+          "title": "Umbrella",
+          "artist": "Rihanna/Jay-Z",
+          "neteaseKeyword": "Umbrella Rihanna Jay-Z",
+          "moods": [
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "情侣约会",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "经典流行R&B，全场大合唱的国民级曲目"
+        },
+        {
+          "title": "Lost Control",
+          "artist": "Tyron Hapi/Bianca",
+          "neteaseKeyword": "Lost Control Tyron Hapi Bianca",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Future Bass燃曲，Drop部分让全场沸腾"
+        },
+        {
+          "title": "RAVE",
+          "artist": "Dxrk ダーク",
+          "neteaseKeyword": "RAVE Dxrk ダーク",
+          "moods": [
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "硬核电子纯音乐，节奏炸裂的派对核弹"
+        },
+        {
+          "title": "Drunk Groove",
+          "artist": "BOOSIN/MARUV",
+          "neteaseKeyword": "Drunk Groove BOOSIN MARUV",
+          "moods": [
+            "慵懒",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "慵懒性感的Deep House，微醺氛围拉满"
+        },
+        {
+          "title": "Betty Boop",
+          "artist": "吴岱林",
+          "neteaseKeyword": "Betty Boop 吴岱林",
+          "moods": [
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "情侣约会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "复古舞曲风中文歌，律动感极强适合热场"
+        },
+        {
+          "title": "Look What You Made Me Do",
+          "artist": "Taylor Swift",
+          "neteaseKeyword": "Look What You Made Me Do Taylor Swift",
+          "moods": [
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "暗黑流行电音，霸气十足的酒吧控场曲目"
+        },
+        {
+          "title": "PlainJane",
+          "artist": "Roberto Kan",
+          "neteaseKeyword": "PlainJane Roberto Kan",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "节奏明快的电子舞曲，舞池必备BGM"
+        },
+        {
+          "title": "COCO",
+          "artist": "Pochito",
+          "neteaseKeyword": "COCO Pochito",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "拉丁风电子舞曲，节奏欢快让人忍不住摇摆"
+        },
+        {
+          "title": "Cyka Blyat",
+          "artist": "Dj Blyatman/Russian Village Boys",
+          "neteaseKeyword": "Cyka Blyat Dj Blyatman Russian Village Boys",
+          "moods": [
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "俄罗斯电音硬曲，极度炸场的派对神曲"
+        },
+        {
+          "title": "Brass",
+          "artist": "Dirty Rush & Gregor Es",
+          "neteaseKeyword": "Brass Dirty Rush Gregor Es",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "铜管元素电子舞曲，力量感十足的DJ利器"
+        },
+        {
+          "title": "Sea Shanty Medley",
+          "artist": "Home Free",
+          "neteaseKeyword": "Sea Shanty Medley Home Free",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "无伴奏合唱版水手歌谣，独特风格引人注目"
+        },
+        {
+          "title": "Party Till We Die",
+          "artist": "MAKJ/Timmy Trumpet/Andrew W.K.",
+          "neteaseKeyword": "Party Till We Die MAKJ Timmy Trumpet",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "小号电音狂轰滥炸，不死狂欢的派对anthem"
+        },
+        {
+          "title": "Blah Blah Blah",
+          "artist": "Armin Van Buuren",
+          "neteaseKeyword": "Blah Blah Blah Armin Van Buuren",
+          "moods": [
+            "愉悦",
+            "激昂"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Trance大师的燃向电音，节拍层层递进推向高潮"
+        },
+        {
+          "title": "Blame",
+          "artist": "Calvin Harris/John Newman",
+          "neteaseKeyword": "Blame Calvin Harris John Newman",
+          "moods": [
+            "伤感",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "电子与灵魂嗓音完美结合，情感充沛的舞池金曲"
+        },
+        {
+          "title": "Summertime Sadness",
+          "artist": "Behmer/Lana Del Rey",
+          "neteaseKeyword": "Summertime Sadness Behmer Lana Del Rey",
+          "moods": [
+            "伤感",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Remix版夏日忧伤，迷幻电子包裹的伤感旋律"
+        },
+        {
+          "title": "Times",
+          "artist": "Itro",
+          "neteaseKeyword": "Times Itro",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "uplifting trance风格纯音乐，能量爆棚"
+        },
+        {
+          "title": "China-2",
+          "artist": "Sand",
+          "neteaseKeyword": "China-2 Sand",
+          "moods": [
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "中国风电音融合，异域音色碰撞强劲节拍"
+        },
+        {
+          "title": "时间里的流浪",
+          "artist": "雅妹",
+          "neteaseKeyword": "时间里的流浪 雅妹",
+          "moods": [
+            "伤感",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "抒情中文慢歌，酒吧打烊前的温柔收尾"
+        },
+        {
+          "title": "Sweet but Psycho",
+          "artist": "Ava Max",
+          "neteaseKeyword": "Sweet but Psycho Ava Max",
+          "moods": [
+            "愉悦",
+            "激昂"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "流行舞曲炸弹，甜酷反转魅力无限"
+        },
+        {
+          "title": "Maps",
+          "artist": "Maroon 5/J Balvin",
+          "neteaseKeyword": "Maps Maroon 5 J Balvin",
+          "moods": [
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "开车",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "拉丁混音版流行摇滚，热情洋溢的派对曲目"
+        },
+        {
+          "title": "All For Love",
+          "artist": "Denny Roger",
+          "neteaseKeyword": "All For Love Denny Roger",
+          "moods": [
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "电子舞曲情歌，甜蜜节拍让人想跟着摇摆"
+        },
+        {
+          "title": "Nevada",
+          "artist": "Vicetone/Cozi Zuehlsdorff",
+          "neteaseKeyword": "Nevada Vicetone Cozi Zuehlsdorff",
+          "moods": [
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "经典电音燃曲，Drop一出全场沸腾"
+        },
+        {
+          "title": "Waiting for Love",
+          "artist": "Avicii",
+          "neteaseKeyword": "Waiting for Love Avicii",
+          "moods": [
+            "振奋",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Avicii式温暖电音，充满希望与力量的经典"
+        },
+        {
+          "title": "Rumors",
+          "artist": "Jake Miller",
+          "neteaseKeyword": "Rumors Jake Miller",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "开车",
+            "聚会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "轻快流行说唱，松弛有度的派对过渡曲"
+        },
+        {
+          "title": "Normal No More",
+          "artist": "TYSM",
+          "neteaseKeyword": "Normal No More TYSM",
+          "moods": [
+            "忧郁",
+            "振奋"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "电子流行融合，情绪从低沉走向爆发的张力曲"
+        },
+        {
+          "title": "One Last Time",
+          "artist": "Ariana Grande",
+          "neteaseKeyword": "One Last Time Ariana Grande",
+          "moods": [
+            "伤感",
+            "释然"
+          ],
+          "scenes": [
+            "睡前",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Ariana经典抒情舞曲，感性嗓音打动人心"
+        },
+        {
+          "title": "Toxic",
+          "artist": "Britney Spears",
+          "neteaseKeyword": "Toxic Britney Spears",
+          "moods": [
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "经典流行舞曲，弦乐前奏一出无人不识"
+        },
+        {
+          "title": "Summertime Sadness",
+          "artist": "Lana Del Rey",
+          "neteaseKeyword": "Summertime Sadness Lana Del Rey",
+          "moods": [
+            "伤感",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "原版慵懒忧伤，烟嗓演绎夏日的告别与惆怅"
+        },
+        {
+          "title": "ENEMY",
+          "artist": "Imagine Dragons/JID",
+          "neteaseKeyword": "ENEMY Imagine Dragons JID",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "摇滚说唱跨界燃曲，力量感十足的酒吧核弹"
+        },
+        {
+          "title": "STAY",
+          "artist": "The Kid LAROI/Justin Bieber",
+          "neteaseKeyword": "STAY The Kid LAROI Justin Bieber",
+          "moods": [
+            "伤感",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "快节奏伤感流行，全场合唱的青春热单"
+        },
+        {
+          "title": "Tuesday",
+          "artist": "Burak Yeter/Danelle Sandoval",
+          "neteaseKeyword": "Tuesday Burak Yeter Danelle Sandoval",
+          "moods": [
+            "慵懒",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Deep House经典，迷幻女声营造深夜微醺感"
+        },
+        {
+          "title": "Dancin",
+          "artist": "Aaron Smith/Luvli",
+          "neteaseKeyword": "Dancin Aaron Smith Luvli",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Krono Remix版灵魂舞曲，磁性嗓音让人微醺"
+        },
+        {
+          "title": "Love You Like A Love Song",
+          "artist": "Selena Gomez",
+          "neteaseKeyword": "Love You Like A Love Song Selena Gomez",
+          "moods": [
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "流行电子甜歌，少女感满满的派对曲目"
+        },
+        {
+          "title": "The Monster",
+          "artist": "Eminem/Rihanna",
+          "neteaseKeyword": "The Monster Eminem Rihanna",
+          "moods": [
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "开车",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "说唱与流行碰撞的暗黑经典，张力十足"
+        },
+        {
+          "title": "Teeth",
+          "artist": "5 Seconds Of Summer",
+          "neteaseKeyword": "Teeth 5 Seconds Of Summer",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "黑暗流行摇滚，迷幻躁动适合夜场高潮"
+        },
+        {
+          "title": "Love Me",
+          "artist": "Justin Bieber",
+          "neteaseKeyword": "Love Me Justin Bieber",
+          "moods": [
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "聚会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "小贾斯汀甜蜜情歌，轻松愉快的派对调味曲"
+        },
+        {
+          "title": "Solo Dance",
+          "artist": "Martin Jensen",
+          "neteaseKeyword": "Solo Dance Martin Jensen",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Future House神曲，一个人也要跳起来的洗脑电音"
+        },
+        {
+          "title": "小城夏天",
+          "artist": "LBI利比",
+          "neteaseKeyword": "小城夏天 LBI利比",
+          "moods": [
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "开车",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "清新中文流行，夏日开车窗吹风的完美BGM"
+        },
+        {
+          "title": "Relax",
+          "artist": "Junona Boys",
+          "neteaseKeyword": "Relax Junona Boys",
+          "moods": [
+            "慵懒",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "轻柔慢节奏，酒吧间隙放松情绪的过渡曲"
+        },
+        {
+          "title": "3 Strikes",
+          "artist": "Terror Jr",
+          "neteaseKeyword": "3 Strikes Terror Jr",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "慵懒性感的流行电子，派对中场缓冲必备"
+        },
+        {
+          "title": "神魂颠倒",
+          "artist": "邓典",
+          "neteaseKeyword": "神魂颠倒 邓典",
+          "moods": [
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "中文情歌电子风，迷人旋律让气氛暧昧升温"
+        },
+        {
+          "title": "Play",
+          "artist": "K-391/Alan Walker",
+          "neteaseKeyword": "Play K-391 Alan Walker",
+          "moods": [
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Alan Walker招牌电音，游戏主题燃曲轰炸全场"
+        },
+        {
+          "title": "Girl",
+          "artist": "Alexander 23",
+          "neteaseKeyword": "Girl Alexander 23",
+          "moods": [
+            "浪漫",
+            "温柔"
+          ],
+          "scenes": [
+            "情侣约会",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "轻柔indie流行情歌，酒吧氛围慢下来的温柔插曲"
+        },
+        {
+          "title": "Stay The Night",
+          "artist": "Just Kiddin/Camden Cox",
+          "neteaseKeyword": "Stay The Night Just Kiddin Camden Cox",
+          "moods": [
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "深夜浪漫电子，慵懒氛围中暗流涌动"
+        },
+        {
+          "title": "Dancing in My Room",
+          "artist": "347aidan",
+          "neteaseKeyword": "Dancing in My Room 347aidan",
+          "moods": [
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "清晨起床",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "轻盈可爱的卧室流行，带来好心情的小清新"
+        },
+        {
+          "title": "Larg",
+          "artist": "Elgit Doda",
+          "neteaseKeyword": "Larg Elgit Doda",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "东欧电音动感节奏，异域风情的派对燃曲"
+        },
+        {
+          "title": "爱人错过",
+          "artist": "告五人",
+          "neteaseKeyword": "爱人错过 告五人",
+          "moods": [
+            "浪漫",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "情侣约会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立摇滚质感的主副歌对比，适合酒吧前场热身破冰"
+        },
+        {
+          "title": "Watch Me Work",
+          "artist": "Tinashe",
+          "neteaseKeyword": "Watch Me Work Tinashe",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "深夜独处",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "性感R&B律动，中速groove适合酒吧中段氛围过渡"
+        },
+        {
+          "title": "Hey Mama",
+          "artist": "David Guetta/Afrojack/Nicki Minaj/Bebe Rexha",
+          "neteaseKeyword": "Hey Mama David Guetta",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "激昂"
+          ],
+          "scenes": [
+            "聚会",
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "EDM大制作高能量舞曲，酒吧后场炸场必选"
+        },
+        {
+          "title": "Move Your Body",
+          "artist": "Sia",
+          "neteaseKeyword": "Move Your Body Sia",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "激昂"
+          ],
+          "scenes": [
+            "聚会",
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "高BPM电子舞曲，Sia标志性爆发力人声带动全场节奏"
+        },
+        {
+          "title": "Cheap Thrills",
+          "artist": "Sia",
+          "neteaseKeyword": "Cheap Thrills Sia",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "咖啡馆"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "节奏感强烈的流行舞曲，适合酒吧中后场升温"
+        },
+        {
+          "title": "11:11",
+          "artist": "Vini Vici/Pawan Nair",
+          "neteaseKeyword": "11:11 Vini Vici",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "聚会",
+            "运动",
+            "深夜独处"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "en",
+          "djAngle": "迷幻trance电音，酒吧高潮段落利器"
+        },
+        {
+          "title": "Alone",
+          "artist": "Marshmello",
+          "neteaseKeyword": "Alone Marshmello",
+          "moods": [
+            "孤独",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Future bass经典曲目，drop部分能量十足适合酒吧中段推高"
+        },
+        {
+          "title": "We Will Rock You",
+          "artist": "Queen",
+          "neteaseKeyword": "We Will Rock You Queen",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "聚会",
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "永恒摇滚经典，标志性跺脚节拍瞬间点燃酒吧全场互动"
+        },
+        {
+          "title": "How To Love",
+          "artist": "Cash Cash/Sofia Reyes",
+          "neteaseKeyword": "How To Love Cash Cash",
+          "moods": [
+            "浪漫",
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "情侣约会",
+            "咖啡馆",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "热带浩室风格的轻松舞曲，酒吧前场或中场过渡佳选"
+        },
+        {
+          "title": "There For You",
+          "artist": "Martin Garrix/Troye Sivan",
+          "neteaseKeyword": "There For You Martin Garrix",
+          "moods": [
+            "浪漫",
+            "伤感",
+            "温柔"
+          ],
+          "scenes": [
+            "情侣约会",
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Progressive house与空灵嗓音结合，酒吧中场情感铺垫"
+        },
+        {
+          "title": "Welcome To New York",
+          "artist": "Taylor Swift",
+          "neteaseKeyword": "Welcome To New York Taylor Swift",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "通勤路上"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "合成器流行upbeat曲风，酒吧前场轻松入场氛围营造"
+        },
+        {
+          "title": "bad guy",
+          "artist": "Billie Eilish",
+          "neteaseKeyword": "bad guy Billie Eilish",
+          "moods": [
+            "慵懒",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "暗黑流行极简贝斯线，酒吧后场降温时保持酷感氛围"
+        },
+        {
+          "title": "We Wanna Party",
+          "artist": "TJR/Savage",
+          "neteaseKeyword": "We Wanna Party TJR",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "聚会",
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Electro house派对anthem，DJ炸场过渡的万能牌"
+        },
+        {
+          "title": "All Night Alone",
+          "artist": "Josement/Chris Lake",
+          "neteaseKeyword": "All Night Alone Josement",
+          "moods": [
+            "孤独",
+            "伤感",
+            "慵懒"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "睡前"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Tech house搭配melancholic人声，酒吧深夜时段情绪沉淀"
+        },
+        {
+          "title": "Rolling in the Deep",
+          "artist": "Adele",
+          "neteaseKeyword": "Rolling in the Deep Adele",
+          "moods": [
+            "伤感",
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "雨天"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "灵魂流行摇滚，Adele爆发式vocal适合酒吧中场情绪拉升"
+        },
+        {
+          "title": "等不来花开",
+          "artist": "傅梦彤",
+          "neteaseKeyword": "等不来花开 傅梦彤",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "抒情慢歌情绪浓度高，酒吧深夜安静时段情感共鸣"
+        },
+        {
+          "title": "就忘了吧",
+          "artist": "1K",
+          "neteaseKeyword": "就忘了吧 1K",
+          "moods": [
+            "伤感",
+            "释然",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "网络流行抒情ballad，酒吧后场收尾走心选曲"
+        },
+        {
+          "title": "不甘在平庸面前低头",
+          "artist": "一条淡水鱼",
+          "neteaseKeyword": "不甘在平庸面前低头 一条淡水鱼",
+          "moods": [
+            "激昂",
+            "振奋",
+            "忧郁"
+          ],
+          "scenes": [
+            "开车",
+            "运动",
+            "深夜独处"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "车载DJ remix风格，强烈节拍适合酒吧中段气氛组"
+        },
+        {
+          "title": "酒吧抖腿气氛组硬曲",
+          "artist": "阮斯羽",
+          "neteaseKeyword": "酒吧抖腿气氛组硬曲 阮斯羽",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "激昂"
+          ],
+          "scenes": [
+            "聚会",
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "纯电子舞曲节拍型硬曲，酒吧高潮段落纯能量输出"
+        },
+        {
+          "title": "酒吧后场",
+          "artist": "歌者阿文",
+          "neteaseKeyword": "酒吧后场 歌者阿文",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "深夜独处",
+            "聚会",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "酒吧场景定制曲，中慢节奏适合后场社交聊天时段"
+        },
+        {
+          "title": "清吧中场氛围曲",
+          "artist": "秦仙人",
+          "neteaseKeyword": "清吧中场氛围曲 秦仙人",
+          "moods": [
+            "平静",
+            "慵懒",
+            "温柔"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "深夜独处",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "清吧专属氛围bgm，轻柔和缓适合中场降速过渡"
+        },
+        {
+          "title": "Shape Of You",
+          "artist": "潮音锦式",
+          "neteaseKeyword": "Shape Of You 潮音锦式",
+          "moods": [
+            "愉悦",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "咖啡馆"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "en",
+          "djAngle": "经典流行曲电音remix纯音乐版，酒吧全场通用百搭曲目"
+        },
+        {
+          "title": "崩溃的世界",
+          "artist": "潮音锦式",
+          "neteaseKeyword": "崩溃的世界 潮音锦式",
+          "moods": [
+            "激昂",
+            "伤感",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "电音remix instrumental，情绪张力强适合酒吧情绪爆发段落"
+        },
+        {
+          "title": "Every Time We Touch",
+          "artist": "Various Artists",
+          "neteaseKeyword": "Every Time We Touch",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Euro dance经典，高BPM旋律线酒吧全场大合唱潜力曲目"
+        },
+        {
+          "title": "清吧中场氛围曲",
+          "artist": "潮牌电音",
+          "neteaseKeyword": "清吧中场氛围曲 潮牌电音",
+          "moods": [
+            "平静",
+            "慵懒",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "深夜独处",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "电子氛围纯音乐，清吧中段不抢对话的BGM首选"
+        },
+        {
+          "title": "遇见我",
+          "artist": "曹方",
+          "neteaseKeyword": "遇见我 曹方",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "平静"
+          ],
+          "scenes": [
+            "户外散步",
+            "咖啡馆",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立民谣清新质感，音乐节午后温暖治愈时段"
+        },
+        {
+          "title": "男孩别哭",
+          "artist": "海龟先生",
+          "neteaseKeyword": "男孩别哭 海龟先生",
+          "moods": [
+            "忧郁",
+            "释然",
+            "温柔"
+          ],
+          "scenes": [
+            "户外散步",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "Reggae摇滚律动，音乐节黄昏时段慵懒摇摆"
+        },
+        {
+          "title": "要死就一定要死在你手里",
+          "artist": "莫西子诗/郑钧",
+          "neteaseKeyword": "要死就一定要死在你手里 莫西子诗",
+          "moods": [
+            "伤感",
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "户外散步",
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民谣摇滚张力十足，音乐节主舞台情绪高潮曲目"
+        },
+        {
+          "title": "Billy Cannot Stop",
+          "artist": "重塑雕像的权利",
+          "neteaseKeyword": "Billy Cannot Stop 重塑雕像的权利",
+          "moods": [
+            "孤独",
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "开车",
+            "运动",
+            "深夜独处"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "后朋克冷峻节拍循环推进，音乐节暗场氛围利器"
+        },
+        {
+          "title": "玛卡瑞纳",
+          "artist": "海龟先生",
+          "neteaseKeyword": "玛卡瑞纳 海龟先生",
+          "moods": [
+            "愉悦",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "户外散步",
+            "聚会",
+            "情侣约会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "雷鬼节奏轻松摇摆，音乐节阳光草地午后标配"
+        },
+        {
+          "title": "离我远去的时间和你",
+          "artist": "张萱",
+          "neteaseKeyword": "离我远去的时间和你 张萱",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立民谣女声细腻吟唱，音乐节小舞台安静时刻"
+        },
+        {
+          "title": "我在人民广场吃炸鸡",
+          "artist": "阿肆",
+          "neteaseKeyword": "我在人民广场吃炸鸡 阿肆",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "释然"
+          ],
+          "scenes": [
+            "户外散步",
+            "咖啡馆",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立流行俏皮可爱，音乐节轻松互动时段人气曲目"
+        },
+        {
+          "title": "世界末日的某个角落",
+          "artist": "卡奇社",
+          "neteaseKeyword": "世界末日的某个角落 卡奇社",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "电子民谣梦幻质感，音乐节黄昏日落氛围"
+        },
+        {
+          "title": "孤鸟的歌",
+          "artist": "马頔",
+          "neteaseKeyword": "孤鸟的歌 马頔",
+          "moods": [
+            "孤独",
+            "伤感",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民谣诗人式独白，音乐节深夜安静舞台走心选曲"
+        },
+        {
+          "title": "我在太原和谁一起假装悲伤",
+          "artist": "贰佰",
+          "neteaseKeyword": "我在太原和谁一起假装悲伤 贰佰",
+          "moods": [
+            "伤感",
+            "孤独",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "西北民谣粗粝叙事，音乐节篝火晚会情感共鸣"
+        },
+        {
+          "title": "阿拉善",
+          "artist": "贰佰",
+          "neteaseKeyword": "阿拉善 贰佰",
+          "moods": [
+            "孤独",
+            "释然",
+            "平静"
+          ],
+          "scenes": [
+            "户外散步",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "草原意象民谣，音乐节开阔场地辽阔感十足"
+        },
+        {
+          "title": "金色年华，无限伤感",
+          "artist": "刺猬",
+          "neteaseKeyword": "金色年华 无限伤感 刺猬",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "思念"
+          ],
+          "scenes": [
+            "户外散步",
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "Indie rock青春回望，音乐节傍晚nostalgia时段"
+        },
+        {
+          "title": "狗日的青春",
+          "artist": "贰佰",
+          "neteaseKeyword": "狗日的青春 贰佰",
+          "moods": [
+            "激昂",
+            "伤感",
+            "释然"
+          ],
+          "scenes": [
+            "开车",
+            "户外散步",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民谣摇滚愤怒与释然交织，音乐节全场合唱名场面"
+        },
+        {
+          "title": "Watch Out, Climate Has Changed",
+          "artist": "重塑雕像的权利",
+          "neteaseKeyword": "Watch Out Climate Has Changed 重塑雕像的权利",
+          "moods": [
+            "激昂",
+            "孤独",
+            "忧郁"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "后朋克实验摇滚，音乐节主舞台先锋感满溢"
+        },
+        {
+          "title": "美丽山",
+          "artist": "彭坦",
+          "neteaseKeyword": "美丽山 彭坦",
+          "moods": [
+            "浪漫",
+            "温柔",
+            "平静"
+          ],
+          "scenes": [
+            "户外散步",
+            "清晨起床",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "西南民谣温柔诗意，音乐节清晨或午后户外小舞台"
+        },
+        {
+          "title": "墨荭潮",
+          "artist": "彭坦/CNdY",
+          "neteaseKeyword": "墨荭潮 彭坦",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "浪漫"
+          ],
+          "scenes": [
+            "聚会",
+            "户外散步",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民谣与电子融合跨界，音乐节夜场另类狂欢"
+        },
+        {
+          "title": "预谋邂逅",
+          "artist": "阿肆",
+          "neteaseKeyword": "预谋邂逅 阿肆",
+          "moods": [
+            "浪漫",
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立流行浪漫情调，音乐节傍晚情侣漫步时段"
+        },
+        {
+          "title": "最后一班车",
+          "artist": "刺猬",
+          "neteaseKeyword": "最后一班车 刺猬",
+          "moods": [
+            "伤感",
+            "释然",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "通勤路上",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "Indie rock告别意象，音乐节收场前的情绪收尾"
+        },
+        {
+          "title": "Surrender",
+          "artist": "重塑雕像的权利",
+          "neteaseKeyword": "Surrender 重塑雕像的权利",
+          "moods": [
+            "孤独",
+            "忧郁",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "工作专注",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "冷静克制的后朋克，音乐节实验性舞台氛围曲"
+        },
+        {
+          "title": "像艳遇一样忧伤",
+          "artist": "钟立风",
+          "neteaseKeyword": "像艳遇一样忧伤 钟立风",
+          "moods": [
+            "伤感",
+            "浪漫",
+            "忧郁"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民谣诗人浪漫忧伤，音乐节小剧场式亲密演出"
+        },
+        {
+          "title": "白日梦蓝",
+          "artist": "刺猬",
+          "neteaseKeyword": "白日梦蓝 刺猬",
+          "moods": [
+            "振奋",
+            "释然",
+            "愉悦"
+          ],
+          "scenes": [
+            "户外散步",
+            "清晨起床",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "Indie rock明亮高潮，音乐节阳光午后最具感染力时段"
+        },
+        {
+          "title": "最后,我们会一起去海边",
+          "artist": "刺猬",
+          "neteaseKeyword": "最后我们会一起去海边 刺猬",
+          "moods": [
+            "释然",
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "户外散步",
+            "情侣约会",
+            "清晨起床"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "治愈indie rock画面感极强，音乐节落日收场完美终曲"
+        },
+        {
+          "title": "安和桥",
+          "artist": "宋冬野",
+          "neteaseKeyword": "安和桥 宋冬野",
+          "moods": [
+            "伤感",
+            "思念",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民谣经典代表作，音乐节深夜最能引发集体情感共鸣"
+        },
+        {
+          "title": "If the Monkey Becomes the King",
+          "artist": "重塑雕像的权利",
+          "neteaseKeyword": "If the Monkey Becomes the King 重塑雕像的权利",
+          "moods": [
+            "孤独",
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "运动",
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "后朋克实验吉他，音乐节先锋场地的标志性开场"
+        },
+        {
+          "title": "住在春天",
+          "artist": "曹方",
+          "neteaseKeyword": "住在春天 曹方",
+          "moods": [
+            "温柔",
+            "平静",
+            "释然"
+          ],
+          "scenes": [
+            "户外散步",
+            "清晨起床",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立民谣春意盎然，音乐节清晨第一首适合治愈开场"
+        },
+        {
+          "title": "慢慢飞",
+          "artist": "龙神道",
+          "neteaseKeyword": "慢慢飞 龙神道",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "平静"
+          ],
+          "scenes": [
+            "户外散步",
+            "开车",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "雷鬼风情的慢摇，像午后微风拂面般惬意自在"
+        },
+        {
+          "title": "睡前故事",
+          "artist": "阿肆",
+          "neteaseKeyword": "睡前故事 阿肆",
+          "moods": [
+            "温柔",
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "睡前",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "俏皮又温暖的睡前小曲，像被窝里的呢喃低语"
+        },
+        {
+          "title": "有女朋友别忘了请我吃饭",
+          "artist": "阿肆",
+          "neteaseKeyword": "有女朋友别忘了请我吃饭 阿肆",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "聚会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "古灵精怪的Indie Pop，幽默中带着小女生的撒娇"
+        },
+        {
+          "title": "黑色香水",
+          "artist": "曹方",
+          "neteaseKeyword": "黑色香水 曹方",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "冷色调的Indie Folk，像夜色中一抹若有若无的香气"
+        },
+        {
+          "title": "南部小城",
+          "artist": "曹方",
+          "neteaseKeyword": "南部小城 曹方",
+          "moods": [
+            "思念",
+            "温柔",
+            "平静"
+          ],
+          "scenes": [
+            "开车",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "带着南方湿润气息的民谣，唤起对旧日时光的温柔怀念"
+        },
+        {
+          "title": "风吹过下雨天",
+          "artist": "曹方",
+          "neteaseKeyword": "风吹过下雨天 曹方",
+          "moods": [
+            "忧郁",
+            "平静",
+            "思念"
+          ],
+          "scenes": [
+            "雨天",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "雨天专属的安静民谣，窗外细雨与屋内思绪交织"
+        },
+        {
+          "title": "种树",
+          "artist": "马飞",
+          "neteaseKeyword": "种树 马飞",
+          "moods": [
+            "愉悦",
+            "平静",
+            "释然"
+          ],
+          "scenes": [
+            "户外散步",
+            "清晨起床"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "陕西方言民谣，质朴如土地般踏实，种下希望也种下生活"
+        },
+        {
+          "title": "蘑菇蘑菇",
+          "artist": "张萱",
+          "neteaseKeyword": "蘑菇蘑菇 张萱",
+          "moods": [
+            "愉悦",
+            "温柔",
+            "慵懒"
+          ],
+          "scenes": [
+            "睡前",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "童谣般的可爱小曲，像森林里采蘑菇的轻盈步伐"
+        },
+        {
+          "title": "灵魂出窍",
+          "artist": "张浅潜",
+          "neteaseKeyword": "灵魂出窍 张浅潜",
+          "moods": [
+            "孤独",
+            "忧郁",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "迷幻实验的独立之声，如坠入意识深处的幽暗旅程"
+        },
+        {
+          "title": "桑吉尔多",
+          "artist": "陈斐",
+          "neteaseKeyword": "桑吉尔多 陈斐",
+          "moods": [
+            "浪漫",
+            "思念",
+            "平静"
+          ],
+          "scenes": [
+            "户外散步",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "草原风情的悠远吟唱，像风从蒙古高原吹来的辽阔"
+        },
+        {
+          "title": "另一种情感",
+          "artist": "张浅潜",
+          "neteaseKeyword": "另一种情感 张浅潜",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "先锋而内省的独立民谣，探索情感中那些难以名状的角落"
+        },
+        {
+          "title": "玫瑰",
+          "artist": "贰佰",
+          "neteaseKeyword": "玫瑰 贰佰",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "粗粝嗓音里的深情民谣，玫瑰般的爱情在岁月中绽放又凋零"
+        },
+        {
+          "title": "鸽子吧",
+          "artist": "尧十三",
+          "neteaseKeyword": "鸽子吧 尧十三",
+          "moods": [
+            "伤感",
+            "释然",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民谣诗人的独白，放飞心中的执念与不舍"
+        },
+        {
+          "title": "少年故事",
+          "artist": "彭坦",
+          "neteaseKeyword": "少年故事 彭坦",
+          "moods": [
+            "振奋",
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "户外散步",
+            "开车",
+            "通勤路上"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "达达乐队主唱的青春回望，热血与怀念交织的摇滚民谣"
+        },
+        {
+          "title": "今天是你的生日,妈妈",
+          "artist": "钟立风",
+          "neteaseKeyword": "今天是你的生日妈妈 钟立风",
+          "moods": [
+            "温柔",
+            "思念",
+            "愉悦"
+          ],
+          "scenes": [
+            "睡前",
+            "清晨起床"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "献给母亲的温暖民谣，如一封手写的家书般真挚"
+        },
+        {
+          "title": "再见了,最爱的人",
+          "artist": "钟立风",
+          "neteaseKeyword": "再见了最爱的人 钟立风",
+          "moods": [
+            "伤感",
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "离别的温柔咏叹，在吉他声中学会与最爱的人说再见"
+        },
+        {
+          "title": "I'll be there",
+          "artist": "梁晓雪",
+          "neteaseKeyword": "I'll be there 梁晓雪",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "平静"
+          ],
+          "scenes": [
+            "情侣约会",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "英文独立民谣呢喃，像月光下轻声许下的陪伴承诺"
+        },
+        {
+          "title": "Jimi and Lucy",
+          "artist": "梁晓雪",
+          "neteaseKeyword": "Jimi and Lucy 梁晓雪",
+          "moods": [
+            "浪漫",
+            "慵懒",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "叙事般的Indie Folk小品，描绘一段朦胧而美好的情感片段"
+        },
+        {
+          "title": "早安，晨之美",
+          "artist": "卢广仲",
+          "neteaseKeyword": "早安晨之美 卢广仲",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "清晨起床"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "元气满满的早安之歌，用早餐和阳光唤醒新一天的活力"
+        },
+        {
+          "title": "100种生活",
+          "artist": "卢广仲",
+          "neteaseKeyword": "100种生活 卢广仲",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "释然"
+          ],
+          "scenes": [
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "阳光indie pop对生活的热爱宣言，鼓励尝试每一种可能性"
+        },
+        {
+          "title": "不想去远方",
+          "artist": "卢广仲",
+          "neteaseKeyword": "不想去远方 卢广仲",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "宅系青年的温柔独白，不远方只在此刻的慵懒小确幸"
+        },
+        {
+          "title": "拥抱",
+          "artist": "龙神道",
+          "neteaseKeyword": "拥抱 龙神道",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "雷鬼节奏里的温暖拥抱，阳光般洒落在每对恋人身上"
+        },
+        {
+          "title": "一座城池",
+          "artist": "左小祖咒",
+          "neteaseKeyword": "一座城池 左小祖咒",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "荒诞又诗意的另类摇滚，像一座被遗忘的城市在夜幕中叹息"
+        },
+        {
+          "title": "爱情的枪",
+          "artist": "左小祖咒",
+          "neteaseKeyword": "爱情的枪 左小祖咒",
+          "moods": [
+            "激昂",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "粗犷而尖锐的另类摇滚，爱情的子弹穿心而过不留情面"
+        },
+        {
+          "title": "野合万事兴",
+          "artist": "左小祖咒/宝罗",
+          "neteaseKeyword": "野合万事兴 左小祖咒 宝罗",
+          "moods": [
+            "激昂",
+            "愉悦",
+            "释然"
+          ],
+          "scenes": [
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "荒诞派摇滚的狂欢之作，挑战世俗的野性与自由之歌"
+        },
+        {
+          "title": "如果是真的就可以",
+          "artist": "梁晓雪",
+          "neteaseKeyword": "如果是真的就可以 梁晓雪",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "低吟浅唱的Indie Folk情话，如果真心就能到达的柔软角落"
+        },
+        {
+          "title": "未竟",
+          "artist": "秦勇/游戏科学/8082Audio",
+          "neteaseKeyword": "未竟 秦勇 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋",
+            "忧郁"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "黑神话悟空史诗配乐，未竟之志在战鼓与合唱中燃烧"
+        },
+        {
+          "title": "我也去当个天命人玩玩",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "我也去当个天命人玩玩 游戏科学",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "带点戏谑的悟空主题曲目，玩家代入天命人的欢乐与豪情"
+        },
+        {
+          "title": "屁",
+          "artist": "者来女/游戏科学/8082Audio",
+          "neteaseKeyword": "屁 者来女 游戏科学",
+          "moods": [
+            "激昂",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "实验性极强的暗黑配乐，呼麦与吟唱交织出诡谲的妖界氛围"
+        },
+        {
+          "title": "黄风起兮",
+          "artist": "熊竹英/游戏科学/8082Audio",
+          "neteaseKeyword": "黄风起兮 熊竹英 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "秦腔元素融入的史诗战斗曲，黄沙漫天中金箍棒挥舞的壮阔"
+        },
+        {
+          "title": "不由己",
+          "artist": "陈彼得/游戏科学/8082Audio",
+          "neteaseKeyword": "不由己 陈彼得 游戏科学",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "苍凉嗓音唱出命运的无奈与不甘，西游路上的悲怆独白"
+        },
+        {
+          "title": "遇到了爱就是家乡",
+          "artist": "佟心竹/游戏科学/8082Audio",
+          "neteaseKeyword": "遇到了爱就是家乡 佟心竹 游戏科学",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "思念"
+          ],
+          "scenes": [
+            "情侣约会",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "柔情似水的悟空插曲，漂泊天涯因爱而找到归宿的温暖"
+        },
+        {
+          "title": "戒网",
+          "artist": "村西/王馨悦",
+          "neteaseKeyword": "戒网 村西 王馨悦",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "悟空第四章的悲剧主题，情深缘浅的宿命与执念化作哀歌"
+        },
+        {
+          "title": "称王称圣任纵横",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "称王称圣任纵横 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "齐天大圣的霸气战歌，金甲披身踏碎凌霄的无上气概"
+        },
+        {
+          "title": "勿听",
+          "artist": "张紫宁/赵紫骅/游戏科学/8082Audio",
+          "neteaseKeyword": "勿听 张紫宁 赵紫骅 游戏科学",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "双声对唱的凄美插曲，勿听世间纷扰只守心中那一抹柔情"
+        },
+        {
+          "title": "听",
+          "artist": "张紫宁/游戏科学/8082Audio",
+          "neteaseKeyword": "听 张紫宁 游戏科学",
+          "moods": [
+            "伤感",
+            "思念",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "空灵女声的独白式演唱，倾听内心最深处那份不可言说的眷恋"
+        },
+        {
+          "title": "看见",
+          "artist": "陈鸿宇/游戏科学/8082Audio",
+          "neteaseKeyword": "看见 陈鸿宇 游戏科学",
+          "moods": [
+            "平静",
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "低沉嗓音里的禅意思考，看破世间万象后归于平静的顿悟"
+        },
+        {
+          "title": "胜景赛娑婆",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "胜景赛娑婆 游戏科学",
+          "moods": [
+            "激昂",
+            "平静"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "庄严的佛教意境纯音乐，梵音与钟鼓交织出娑婆世界的瑰丽"
+        },
+        {
+          "title": "英雄气概等时休",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "英雄气概等时休 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋",
+            "忧郁"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "悲壮的史诗合唱，英雄迟暮但豪情不灭的千古咏叹"
+        },
+        {
+          "title": "大闹黑风山",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "大闹黑风山 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "紧张激烈的战斗配乐，悟空大闹黑风山的刀光剑影"
+        },
+        {
+          "title": "黑烟漠漠红焰腾",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "黑烟漠漠红焰腾 游戏科学",
+          "moods": [
+            "激昂",
+            "孤独"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "火焰地狱主题战斗配乐，燃烧的战场中悟空奋勇向前"
+        },
+        {
+          "title": "这把火你看到了吗",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "这把火你看到了吗 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋",
+            "忧郁"
+          ],
+          "scenes": [
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "充满力量的人声与电子融合，业火燃烧中天命人的不屈战意"
+        },
+        {
+          "title": "别有世间曾未见",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "别有世间曾未见 游戏科学",
+          "moods": [
+            "平静",
+            "浪漫",
+            "振奋"
+          ],
+          "scenes": [
+            "户外散步",
+            "工作专注"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "探索主题的灵动配乐，发现新世界时那份惊喜与静谧"
+        },
+        {
+          "title": "村中鼠",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "村中鼠 游戏科学",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "工作专注",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "诙谐轻松的小品配乐，村庄日常中老鼠精的鬼灵精怪"
+        },
+        {
+          "title": "猴头好下酒",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "猴头好下酒 游戏科学",
+          "moods": [
+            "愉悦",
+            "激昂"
+          ],
+          "scenes": [
+            "聚会",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "民间小调风格的戏谑之曲，妖精下酒的欢腾市井烟火气"
+        },
+        {
+          "title": "砂掩骊鬓",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "砂掩骊鬓 游戏科学",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "哀婉悠扬的沙漠主题配乐，黄沙掩埋的不只是容颜"
+        },
+        {
+          "title": "崖前有怪",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "崖前有怪 游戏科学",
+          "moods": [
+            "激昂",
+            "孤独"
+          ],
+          "scenes": [
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "紧张刺激的BOSS战前奏，悬崖边的危机与战意蓄势待发"
+        },
+        {
+          "title": "万里江山都是颤",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "万里江山都是颤 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋",
+            "忧郁"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "大气磅礴的史诗战歌，万里江山在悟空棍下为之颤抖"
+        },
+        {
+          "title": "禅光瑞蔼凶气藏",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "禅光瑞蔼凶气藏 游戏科学",
+          "moods": [
+            "平静",
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "工作专注",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "禅意与凶气共存的矛盾配乐，佛光下暗藏的杀机与玄机"
+        },
+        {
+          "title": "三千功行尽倾颓",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "三千功行尽倾颓 游戏科学",
+          "moods": [
+            "忧郁",
+            "伤感",
+            "激昂"
+          ],
+          "scenes": [
+            "深夜独处",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "三千功行化为泡影的悲剧主题，宏大编制中的幻灭与涅槃"
+        },
+        {
+          "title": "入了此番轮回",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "入了此番轮回 游戏科学",
+          "moods": [
+            "激昂",
+            "孤独",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "轮回宿命的悲壮开场，管弦与民乐交织出悟空踏上征途的决绝"
+        },
+        {
+          "title": "偶像即业障",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "偶像即业障 游戏科学",
+          "moods": [
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "破妄斩障的战斗配乐，鼓点紧凑充满对抗感"
+        },
+        {
+          "title": "六六少翁商",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "六六少翁商 游戏科学",
+          "moods": [
+            "平静",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "古意盎然的市井小调，笛箫悠远透出东方意境"
+        },
+        {
+          "title": "兰性喜如春",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "兰性喜如春 游戏科学",
+          "moods": [
+            "温柔",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "如春风拂面的轻盈旋律，花间蝶舞般的温婉画面"
+        },
+        {
+          "title": "那有怜香惜玉心",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "那有怜香惜玉心 游戏科学",
+          "moods": [
+            "伤感",
+            "温柔",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "弦乐低回婉转，诉说一段柔情难续的怅惘"
+        },
+        {
+          "title": "善恶若无报",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "善恶若无报 游戏科学",
+          "moods": [
+            "激昂",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "善恶交锋的沉重主题，低音铺底中暗藏风暴"
+        },
+        {
+          "title": "情因旧恨生灾毒",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "情因旧恨生灾毒 游戏科学",
+          "moods": [
+            "激昂",
+            "伤感",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "恨意交织的激烈乐章，节奏层层推进如怒潮翻涌"
+        },
+        {
+          "title": "静隐深山无俗虑",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "静隐深山无俗虑 游戏科学",
+          "moods": [
+            "平静",
+            "释然"
+          ],
+          "scenes": [
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 1,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "空山幽谷中的禅意之音，古琴与风铃营造世外桃源"
+        },
+        {
+          "title": "日落月胧路难寻",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "日落月胧路难寻 游戏科学",
+          "moods": [
+            "孤独",
+            "忧郁",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "暮色苍茫中的迷途之音，月光下水墨般的寂寥风景"
+        },
+        {
+          "title": "毛烧没了才好吃",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "毛烧没了才好吃 游戏科学",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "聚会"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "诙谐俏皮的插曲，轻松幽默中透出人间烟火气"
+        },
+        {
+          "title": "阴阳难合",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "阴阳难合 游戏科学",
+          "moods": [
+            "激昂",
+            "伤感",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "阴阳撕裂的史诗对决，交响与电子碰撞出宿命对抗"
+        },
+        {
+          "title": "有经处有火",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "有经处有火 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "烈焰燃经的战斗高潮，铜管齐鸣势不可挡"
+        },
+        {
+          "title": "回顾仙山两泪垂",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "回顾仙山两泪垂 游戏科学",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "回望故土的落泪时刻，二胡如泣如诉催人泪下"
+        },
+        {
+          "title": "众圣降凡尘",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "众圣降凡尘 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋",
+            "平静"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "天神降临的宏大场面，合唱团与管弦乐团构建磅礴气势"
+        },
+        {
+          "title": "历代驰名第一妖",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "历代驰名第一妖 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "齐天大圣的不朽传奇，战鼓雷鸣霸气外露"
+        },
+        {
+          "title": "黑神话：悟空主题音乐",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "黑神话 悟空主题音乐 游戏科学",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "贯穿全篇的灵魂旋律，从压抑到爆发的英雄史诗"
+        },
+        {
+          "title": "黄风岭八百里",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "黄风岭八百里 游戏科学",
+          "moods": [
+            "激昂",
+            "孤独",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "大漠风沙中的孤胆征程，唢呐撕裂长空苍凉壮阔"
+        },
+        {
+          "title": "黄风岭八百里少女版",
+          "artist": "游戏科学/8082Audio",
+          "neteaseKeyword": "黄风岭八百里少女版 游戏科学",
+          "moods": [
+            "温柔",
+            "伤感",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "同一旋律的温柔变奏，少女视角下的柔情与哀愁"
+        },
+        {
+          "title": "Numb",
+          "artist": "Linkin Park",
+          "neteaseKeyword": "Numb Linkin Park",
+          "moods": [
+            "伤感",
+            "激昂",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "愤怒与麻木交织的摇滚经典，副歌爆发力足以点燃健身房"
+        },
+        {
+          "title": "Silver Scrapes",
+          "artist": "Danny McCarthy/英雄联盟",
+          "neteaseKeyword": "Silver Scrapes Danny McCarthy",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "en",
+          "djAngle": "英雄联盟经典战斗BGM，电音脉冲让人血脉贲张"
+        },
+        {
+          "title": "Hybrid Worlds",
+          "artist": "英雄联盟",
+          "neteaseKeyword": "Hybrid Worlds 英雄联盟",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "电子与管弦完美融合的战斗交响，节奏压迫感极强"
+        },
+        {
+          "title": "Warriors",
+          "artist": "Imagine Dragons",
+          "neteaseKeyword": "Warriors Imagine Dragons",
+          "moods": [
+            "振奋",
+            "激昂",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "战士觉醒的战歌，梦龙乐队标志性嘶吼让人热血沸腾"
+        },
+        {
+          "title": "Worlds Collide",
+          "artist": "英雄联盟/Nicki Taylor",
+          "neteaseKeyword": "Worlds Collide 英雄联盟",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "世界碰撞的史诗电音，女声清亮穿透力十足"
+        },
+        {
+          "title": "Ignite",
+          "artist": "Zedd",
+          "neteaseKeyword": "Ignite Zedd",
+          "moods": [
+            "振奋",
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "Zedd标志性Future Bass点燃全场，节拍密集能量爆棚"
+        },
+        {
+          "title": "Legends Never Die",
+          "artist": "英雄联盟/Against the Current",
+          "neteaseKeyword": "Legends Never Die 英雄联盟",
+          "moods": [
+            "振奋",
+            "激昂",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "传奇永不熄灭的信念之歌，女声力量感令人振奋"
+        },
+        {
+          "title": "RISE",
+          "artist": "The Glitch Mob/Mako/The Word Alive",
+          "neteaseKeyword": "RISE The Glitch Mob",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "崛起的不屈意志，重低音与嘶吼完美融合的运动伴侣"
+        },
+        {
+          "title": "涅槃",
+          "artist": "英雄联盟",
+          "neteaseKeyword": "涅槃 英雄联盟",
+          "moods": [
+            "激昂",
+            "振奋",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "zh",
+          "djAngle": "凤凰涅槃重生的东方史诗，管弦电音交织出浴火重燃"
+        },
+        {
+          "title": "所向无前",
+          "artist": "英雄联盟",
+          "neteaseKeyword": "所向无前 英雄联盟",
+          "moods": [
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "无畏冲锋的战斗号角，中文歌词燃力十足"
+        },
+        {
+          "title": "不可阻挡",
+          "artist": "英雄联盟",
+          "neteaseKeyword": "不可阻挡 英雄联盟",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "势不可挡的意志宣言，旋律层层推进气势如虹"
+        },
+        {
+          "title": "STAR WALKIN'",
+          "artist": "Lil Nas X",
+          "neteaseKeyword": "STAR WALKIN Lil Nas X",
+          "moods": [
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "嘻哈与电子的跨界碰撞，Lil Nas X自信满满的冠军气场"
+        },
+        {
+          "title": "登神",
+          "artist": "NewJeans",
+          "neteaseKeyword": "登神 NewJeans",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "NewJeans清新电子风的神明降临，轻快却不失力量"
+        },
+        {
+          "title": "Heavy Is the Crown",
+          "artist": "Linkin Park",
+          "neteaseKeyword": "Heavy Is the Crown Linkin Park",
+          "moods": [
+            "激昂",
+            "伤感",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "王冠之重的沉痛与坚韧，LP回归的重量级摇滚力量"
+        },
+        {
+          "title": "Sweet Dreams",
+          "artist": "TPaul Sax/Eurythmics",
+          "neteaseKeyword": "Sweet Dreams TPaul Sax",
+          "moods": [
+            "慵懒",
+            "愉悦",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "通勤路上",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "经典Synth-pop的萨克斯翻奏版本，复古氛围轻松惬意"
+        },
+        {
+          "title": "Vois sur ton chemin",
+          "artist": "BENNETT",
+          "neteaseKeyword": "Vois sur ton chemin BENNETT",
+          "moods": [
+            "温柔",
+            "平静",
+            "浪漫"
+          ],
+          "scenes": [
+            "睡前",
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 1,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "放牛班的春天法语童声合唱改编，纯净治愈如天使之音"
+        },
+        {
+          "title": "MONTAGEM CORAL",
+          "artist": "DJ Holanda",
+          "neteaseKeyword": "MONTAGEM CORAL DJ Holanda",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "巴西Funk电子混音神曲，重低音节拍让人无法停歇"
+        },
+        {
+          "title": "What U Do",
+          "artist": "Wild Culture/Shel Bee",
+          "neteaseKeyword": "What U Do Wild Culture",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "EDM女声的动感节拍，律动感极强的派对燃曲"
+        },
+        {
+          "title": "GoneBad",
+          "artist": "VodKe/HSHK",
+          "neteaseKeyword": "GoneBad VodKe",
+          "moods": [
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "硬核电子舞曲的轰炸，Bassline让人肾上腺素飙升"
+        },
+        {
+          "title": "Fall Apart",
+          "artist": "MDMA prod",
+          "neteaseKeyword": "Fall Apart MDMA prod",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "破碎感电子氛围，迷幻音色中透出脆弱与释然"
+        },
+        {
+          "title": "Bad Boy",
+          "artist": "Tungevaag/Raaban/Luana Kiara",
+          "neteaseKeyword": "Bad Boy Tungevaag",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "北欧电子舞曲的活力炸弹，让人一秒进入运动状态"
+        },
+        {
+          "title": "Dance Bailalo",
+          "artist": "Keltona",
+          "neteaseKeyword": "Dance Bailalo Keltona",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "拉丁舞曲的热情律动，让身体忍不住跟着摇摆"
+        },
+        {
+          "title": "你离开了我的夏天",
+          "artist": "李昊",
+          "neteaseKeyword": "你离开了我的夏天 李昊",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "夏日别离的淡淡忧伤，青春期特有的细腻情感"
+        },
+        {
+          "title": "夢灯籠",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "夢灯籠 RADWIMPS",
+          "moods": [
+            "振奋",
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "清晨起床",
+            "户外散步",
+            "通勤路上"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "你的名字片头曲，灯笼般温暖的旋律唤醒新的一天"
+        },
+        {
+          "title": "三葉の通学",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "三葉の通学 RADWIMPS",
+          "moods": [
+            "愉悦",
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "通勤路上",
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "三叶上学路上的轻快BGM，青春校园的日常美好"
+        },
+        {
+          "title": "糸守高校",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "糸守高校 RADWIMPS",
+          "moods": [
+            "平静",
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "工作专注",
+            "清晨起床",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "校园日常的轻柔旋律，课间阳光斜射走廊的慵懒感"
+        },
+        {
+          "title": "はじめての、東京",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "はじめての東京 RADWIMPS",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "通勤路上",
+            "户外散步",
+            "清晨起床"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "初到东京的兴奋与期待，城市灯光下的冒险感"
+        },
+        {
+          "title": "憧れカフェ",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "憧れカフェ RADWIMPS",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "户外散步",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "憧憬已久的咖啡馆，钢琴叮咚声中氤氲的幸福感"
+        },
+        {
+          "title": "奥寺先輩のテーマ",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "奥寺先輩のテーマ RADWIMPS",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "前辈的主题旋律，轻盈中带着小小的心动"
+        },
+        {
+          "title": "ふたりの異変",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "ふたりの異変 RADWIMPS",
+          "moods": [
+            "思念",
+            "孤独",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "通勤路上",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "两人察觉异变的紧张与迷惑，弦乐的悬念感"
+        },
+        {
+          "title": "前前前世",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "前前前世 RADWIMPS",
+          "moods": [
+            "振奋",
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "开车",
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "三世之约的命运跨越，最激动人心的你的名字主题曲"
+        },
+        {
+          "title": "御神体",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "御神体 RADWIMPS",
+          "moods": [
+            "平静",
+            "浪漫",
+            "温柔"
+          ],
+          "scenes": [
+            "户外散步",
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "神社御神体的神圣静谧，山间空气般清透的旋律"
+        },
+        {
+          "title": "デート",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "デート RADWIMPS",
+          "moods": [
+            "浪漫",
+            "温柔",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "新海诚式纯爱BGM，彗星下的约会氛围拉满"
+        },
+        {
+          "title": "秋祭り",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "秋祭り RADWIMPS",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "温柔"
+          ],
+          "scenes": [
+            "户外散步",
+            "聚会",
+            "清晨起床"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "祭典烟火气扑面而来，三弦与太鼓交织的日式节庆"
+        },
+        {
+          "title": "記憶を呼び起こす瀧",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "記憶を呼び起こす瀧 RADWIMPS",
+          "moods": [
+            "思念",
+            "平静",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "通勤路上",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "记忆如潮水涌来的瞬间，钢琴弦乐层层递进"
+        },
+        {
+          "title": "飛騨探訪",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "飛騨探訪 RADWIMPS",
+          "moods": [
+            "平静",
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "户外散步",
+            "清晨起床",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "乡间漫步的轻快感，木吉他点缀旅途风景"
+        },
+        {
+          "title": "消えた町",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "消えた町 RADWIMPS",
+          "moods": [
+            "孤独",
+            "忧郁",
+            "伤感"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "废墟般的空旷感，彗灾后的静默与荒凉"
+        },
+        {
+          "title": "図書館",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "図書館 RADWIMPS",
+          "moods": [
+            "平静",
+            "温柔",
+            "思念"
+          ],
+          "scenes": [
+            "工作专注",
+            "咖啡馆",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "指尖翻书的沙沙声化作音符，安静的求知氛围"
+        },
+        {
+          "title": "旅館の夜",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "旅館の夜 RADWIMPS",
+          "moods": [
+            "平静",
+            "慵懒",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "温泉旅馆夜晚的宁静，虫鸣与远处流水声"
+        },
+        {
+          "title": "御神体へ再び",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "御神体へ再び RADWIMPS",
+          "moods": [
+            "振奋",
+            "浪漫",
+            "激昂"
+          ],
+          "scenes": [
+            "户外散步",
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "奔向神体的决意，鼓点加速心跳的冲刺感"
+        },
+        {
+          "title": "口噛み酒トリップ",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "口噛み酒トリップ RADWIMPS",
+          "moods": [
+            "浪漫",
+            "思念",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "穿越时空的迷幻之旅，三重世界交叠的奇幻"
+        },
+        {
+          "title": "作戦会議",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "作戦会議 RADWIMPS",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "平静"
+          ],
+          "scenes": [
+            "工作专注",
+            "通勤路上",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "轻快的密谋感，木管乐器跳动的商量节奏"
+        },
+        {
+          "title": "町長説得",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "町長説得 RADWIMPS",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "通勤路上"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "紧迫的说服战，弦乐快板推着情绪往前冲"
+        },
+        {
+          "title": "三葉のテーマ",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "三葉のテーマ RADWIMPS",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "思念"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "三叶的主题旋律，少女心事化作的温柔音符"
+        },
+        {
+          "title": "見えないふたり",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "見えないふたり RADWIMPS",
+          "moods": [
+            "孤独",
+            "思念",
+            "伤感"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "明明在彼此身边却无法相见的遗憾"
+        },
+        {
+          "title": "かたわれ時",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "かたわれ時 RADWIMPS",
+          "moods": [
+            "浪漫",
+            "伤感",
+            "温柔"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "黄昏之时的魔幻相遇，橙光中伸出手的瞬间"
+        },
+        {
+          "title": "スパークル",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "スパークル RADWIMPS",
+          "moods": [
+            "振奋",
+            "浪漫",
+            "激昂"
+          ],
+          "scenes": [
+            "开车",
+            "运动",
+            "户外散步"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "全片最高潮的彗星划过，野田洋次郎嗓音撕裂天际"
+        },
+        {
+          "title": "デート2",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "デート2 RADWIMPS",
+          "moods": [
+            "浪漫",
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "第二次约会的雀跃，比第一版更明亮轻快"
+        },
+        {
+          "title": "なんでもないや",
+          "artist": "RADWIMPS",
+          "neteaseKeyword": "なんでもないや RADWIMPS",
+          "moods": [
+            "伤感",
+            "释然",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "片尾曲的余韵，什么都不是却又是一切"
+        },
+        {
+          "title": "不要忘记我",
+          "artist": "404Hz/陈辰辰",
+          "neteaseKeyword": "不要忘记我 404Hz",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "温柔钢琴诉说别忘记的祈愿，催泪纯音"
+        },
+        {
+          "title": "山霞",
+          "artist": "高梨康治",
+          "neteaseKeyword": "山霞 高梨康治",
+          "moods": [
+            "平静",
+            "忧郁",
+            "温柔"
+          ],
+          "scenes": [
+            "户外散步",
+            "清晨起床",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "山间晨雾弥漫的和风器乐，尺八与古筝的对话"
+        },
+        {
+          "title": "Kids",
+          "artist": "Kyle Dixon & Michael Stein",
+          "neteaseKeyword": "Kids Kyle Dixon Michael Stein",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "怪奇物语合成器美学，80s复古科幻氛围"
+        },
+        {
+          "title": "심쿵",
+          "artist": "金俊锡",
+          "neteaseKeyword": "심쿵 金俊锡",
+          "moods": [
+            "浪漫",
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "情侣约会",
+            "咖啡馆",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "韩剧中让人心跳加速的心动瞬间BGM"
+        },
+        {
+          "title": "超负荷记忆",
+          "artist": "特污兔",
+          "neteaseKeyword": "超负荷记忆 特污兔",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "工作专注",
+            "睡前"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "电子节拍包裹的记忆碎片，赛博感伤"
+        },
+        {
+          "title": "Eyes for you",
+          "artist": "Dark/Rain",
+          "neteaseKeyword": "Eyes for you Dark Rain",
+          "moods": [
+            "浪漫",
+            "温柔",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "情侣约会",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "电子氛围中的深情凝视，暗色调浪漫"
+        },
+        {
+          "title": "Eutopia",
+          "artist": "Yoohsic Roomz",
+          "neteaseKeyword": "Eutopia Yoohsic Roomz",
+          "moods": [
+            "平静",
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "工作专注",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "乌托邦式的安逸空间，lo-fi chill的极致"
+        },
+        {
+          "title": "兰陵王入阵曲",
+          "artist": "柳青瑶",
+          "neteaseKeyword": "兰陵王入阵曲 柳青瑶",
+          "moods": [
+            "激昂",
+            "振奋",
+            "忧郁"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "工作专注"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "琵琶铮铮再现北齐战神入阵的千军万马"
+        },
+        {
+          "title": "Overtaken",
+          "artist": "Samuel Kim",
+          "neteaseKeyword": "Overtaken Samuel Kim",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "户外散步"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "史诗级管弦压迫感，追击与超越的紧张对决"
+        },
+        {
+          "title": "WINDOWS开机曲",
+          "artist": "F0re3t",
+          "neteaseKeyword": "WINDOWS开机曲 F0re3t",
+          "moods": [
+            "愉悦",
+            "平静",
+            "慵懒"
+          ],
+          "scenes": [
+            "清晨起床",
+            "工作专注",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "经典开机音效的lo-fi重制，一秒回到童年电脑前"
+        },
+        {
+          "title": "Fake Love",
+          "artist": "MDP",
+          "neteaseKeyword": "Fake Love MDP",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "电子节拍演绎虚假之爱的苦涩，night drive标配"
+        },
+        {
+          "title": "优美旋律",
+          "artist": "王诗源",
+          "neteaseKeyword": "优美旋律 王诗源",
+          "moods": [
+            "温柔",
+            "平静",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "睡前",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "如其名的纯粹优美，钢琴如流水般自然"
+        },
+        {
+          "title": "S.T.A.Y.",
+          "artist": "Delta Heavy/Hans Zimmer",
+          "neteaseKeyword": "S.T.A.Y. Delta Heavy Hans Zimmer",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "开车",
+            "运动",
+            "深夜独处"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "星际穿越名曲遇上电子重混，宇宙的浩瀚与孤寂"
+        },
+        {
+          "title": "战斗-通往胜利",
+          "artist": "陈致逸",
+          "neteaseKeyword": "战斗-通往胜利 陈致逸",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "工作专注"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "原神战斗曲的燃向巅峰，管弦与民乐的碰撞"
+        },
+        {
+          "title": "Lifeline",
+          "artist": "Zeraphym",
+          "neteaseKeyword": "Lifeline Zeraphym",
+          "moods": [
+            "振奋",
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "电子舞曲的脉冲能量，生命线般的节拍推进"
+        },
+        {
+          "title": "See You Again",
+          "artist": "Simply Three",
+          "neteaseKeyword": "See You Again Simply Three",
+          "moods": [
+            "伤感",
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "弦乐三重奏版的再见，少了说唱的催泪更多了克制"
+        },
+        {
+          "title": "Re...Japanesque",
+          "artist": "DAISHI DANCE",
+          "neteaseKeyword": "Re Japanesque DAISHI DANCE",
+          "moods": [
+            "愉悦",
+            "慵懒",
+            "平静"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "通勤路上",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "和乐器与电子节拍的优雅融合，日式chill天花板"
+        },
+        {
+          "title": "All The Way Live",
+          "artist": "Metro Boomin/Future/Lil Uzi Vert",
+          "neteaseKeyword": "All The Way Live Metro Boomin",
+          "moods": [
+            "激昂",
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "聚会",
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "蜘蛛侠宇宙级别的燃爆trap，低音轰头"
+        },
+        {
+          "title": "Am I Dreaming",
+          "artist": "Metro Boomin/A$AP Rocky/Roisee",
+          "neteaseKeyword": "Am I Dreaming Metro Boomin",
+          "moods": [
+            "浪漫",
+            "慵懒",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "睡前"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "横跨蜘蛛侠宇宙的迷幻柔情梦，现实与梦境的边界"
+        },
+        {
+          "title": "Annihilate",
+          "artist": "Metro Boomin/Swae Lee/Lil Wayne/Offset",
+          "neteaseKeyword": "Annihilate Metro Boomin",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "全明星阵容的毁灭级轰炸，每段verse都是重拳"
+        },
+        {
+          "title": "World's Smallest Violin",
+          "artist": "AJR",
+          "neteaseKeyword": "World's Smallest Violin AJR",
+          "moods": [
+            "愉悦",
+            "忧郁",
+            "释然"
+          ],
+          "scenes": [
+            "通勤路上",
+            "咖啡馆",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "en",
+          "djAngle": "自嘲式快乐的另类流行，笑着唱出心酸"
+        },
+        {
+          "title": "I",
+          "artist": "太妍/Verbal Jint",
+          "neteaseKeyword": "I 太妍 Verbal Jint",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "通勤路上",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "太妍力量感爆棚的独立宣言，R&B嗓音传递自我认同"
+        },
+        {
+          "title": "마리아",
+          "artist": "华莎",
+          "neteaseKeyword": "마리아 华莎",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "华莎的女王之作，大胆性感的自我解放圣歌"
+        },
+        {
+          "title": "Tik Tok",
+          "artist": "2PM/尹恩惠",
+          "neteaseKeyword": "Tik Tok 2PM 尹恩惠",
+          "moods": [
+            "愉悦",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "聚会",
+            "开车",
+            "情侣约会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "unknown",
+          "djAngle": "韩流idol跨界合作的活力舞曲，滴答秒针的律动感"
+        },
+        {
+          "title": "Last Dance",
+          "artist": "伍佰 & China Blue",
+          "neteaseKeyword": "Last Dance 伍佰 China Blue",
+          "moods": [
+            "伤感",
+            "浪漫",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "情侣约会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "台湾摇滚传奇的最后一支舞，激情与离别交织"
+        },
+        {
+          "title": "难却",
+          "artist": "边靖婷/小淅儿",
+          "neteaseKeyword": "难却 边靖婷 小淅儿",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "思念"
+          ],
+          "scenes": [
+            "睡前",
+            "深夜独处",
+            "咖啡馆"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "戏腔版难却，古典韵味包裹的难以推却之情"
+        },
+        {
+          "title": "恋爱告急",
+          "artist": "鞠婧祎",
+          "neteaseKeyword": "恋爱告急 鞠婧祎",
+          "moods": [
+            "愉悦",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "情侣约会",
+            "咖啡馆",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "少女心爆棚的甜蜜情歌，心动的感觉全部溢出来了"
+        },
+        {
+          "title": "旗开得胜",
+          "artist": "张学友/张靓颖/K'naan",
+          "neteaseKeyword": "旗开得胜 张学友 张靓颖",
+          "moods": [
+            "振奋",
+            "激昂",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "世界杯级别的热血励志曲，旗开得胜喊出来就有力量"
+        },
+        {
+          "title": "马",
+          "artist": "福禄寿FloruitShow",
+          "neteaseKeyword": "马 福禄寿FloruitShow",
+          "moods": [
+            "振奋",
+            "激昂",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "福禄寿摇滚狂奔的马，自由奔放的力量感"
+        },
+        {
+          "title": "我的美丽",
+          "artist": "小霞",
+          "neteaseKeyword": "我的美丽 小霞",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "浪漫"
+          ],
+          "scenes": [
+            "清晨起床",
+            "户外散步",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立流行的自信宣言，用歌声拥抱自己的美丽"
+        },
+        {
+          "title": "画",
+          "artist": "赵雷",
+          "neteaseKeyword": "画 赵雷",
+          "moods": [
+            "温柔",
+            "浪漫",
+            "思念"
+          ],
+          "scenes": [
+            "情侣约会",
+            "咖啡馆",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "赵雷早期代表作，像一幅静静描绘的水彩画"
+        },
+        {
+          "title": "反方向的钟",
+          "artist": "周杰伦",
+          "neteaseKeyword": "反方向的钟 周杰伦",
+          "moods": [
+            "愉悦",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "开车",
+            "咖啡馆",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "周杰伦早期R&B，逆时针拨动指针的青春回忆"
+        },
+        {
+          "title": "盛夏的果实",
+          "artist": "莫文蔚",
+          "neteaseKeyword": "盛夏的果实 莫文蔚",
+          "moods": [
+            "浪漫",
+            "温柔",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "夏日限定的甜蜜果实，莫文蔚嗓音带来清凉浪漫"
+        },
+        {
+          "title": "鼓楼",
+          "artist": "赵雷",
+          "neteaseKeyword": "鼓楼 赵雷",
+          "moods": [
+            "伤感",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "一把吉他唱出北漂青年的漂泊与乡愁"
+        },
+        {
+          "title": "红色高跟鞋",
+          "artist": "杜航",
+          "neteaseKeyword": "红色高跟鞋 杜航",
+          "moods": [
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "翻唱版演绎出慵懒都市感"
+        },
+        {
+          "title": "记念",
+          "artist": "RAiNBOW计划/雷雨心",
+          "neteaseKeyword": "记念 RAiNBOW计划 雷雨心",
+          "moods": [
+            "伤感",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "青春散场后的怀念与不舍"
+        },
+        {
+          "title": "我的天空",
+          "artist": "南征北战NZBZ",
+          "neteaseKeyword": "我的天空 南征北战NZBZ",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "说唱摇滚的燃向代表作，适合冲刺"
+        },
+        {
+          "title": "李白",
+          "artist": "李荣浩",
+          "neteaseKeyword": "李白 李荣浩",
+          "moods": [
+            "愉悦",
+            "慵懒"
+          ],
+          "scenes": [
+            "通勤路上",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "调侃式自嘲，轻松有趣"
+        },
+        {
+          "title": "骄傲的少年",
+          "artist": "南征北战NZBZ",
+          "neteaseKeyword": "骄傲的少年 南征北战NZBZ",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "青春热血的号角，燃到起飞"
+        },
+        {
+          "title": "作曲家",
+          "artist": "李荣浩",
+          "neteaseKeyword": "作曲家 李荣浩",
+          "moods": [
+            "平静",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "音乐人的自我剖白，淡淡的自嘲"
+        },
+        {
+          "title": "追梦赤子心",
+          "artist": "GALA",
+          "neteaseKeyword": "追梦赤子心 GALA",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "破音也要唱完的热血与倔强"
+        },
+        {
+          "title": "丁香花",
+          "artist": "唐磊",
+          "neteaseKeyword": "丁香花 唐磊",
+          "moods": [
+            "伤感",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "经典校园民谣，凄美的爱情故事"
+        },
+        {
+          "title": "尽头",
+          "artist": "赵方婧",
+          "neteaseKeyword": "尽头 赵方婧",
+          "moods": [
+            "伤感",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "古风伤感，空灵的女声低诉"
+        },
+        {
+          "title": "谢谢侬",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "谢谢侬 陈奕迅",
+          "moods": [
+            "愉悦",
+            "温柔"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "聚会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "沪语致谢，轻松温暖的市井小品"
+        },
+        {
+          "title": "消愁",
+          "artist": "毛不易",
+          "neteaseKeyword": "消愁 毛不易",
+          "moods": [
+            "孤独",
+            "伤感"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "一杯敬明天一杯敬过往，成年人的孤独"
+        },
+        {
+          "title": "戒烟",
+          "artist": "李荣浩",
+          "neteaseKeyword": "戒烟 李荣浩",
+          "moods": [
+            "伤感",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "用戒烟比喻放下一个人"
+        },
+        {
+          "title": "起风了",
+          "artist": "买辣椒也用券",
+          "neteaseKeyword": "起风了 买辣椒也用券",
+          "moods": [
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "户外散步",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "青春回望，走过千山万水后的释怀"
+        },
+        {
+          "title": "父亲写的散文诗",
+          "artist": "许飞",
+          "neteaseKeyword": "父亲写的散文诗 许飞",
+          "moods": [
+            "伤感",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "催泪神曲，父爱的沉默与深沉"
+        },
+        {
+          "title": "开心往前飞",
+          "artist": "李薇薇",
+          "neteaseKeyword": "开心往前飞 李薇薇",
+          "moods": [
+            "愉悦",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "欢乐向上的动画歌曲，元气满满"
+        },
+        {
+          "title": "七里香",
+          "artist": "周杰伦",
+          "neteaseKeyword": "七里香 周杰伦",
+          "moods": [
+            "浪漫",
+            "愉悦"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "夏日初恋的味道，经典浪漫"
+        },
+        {
+          "title": "孤勇者",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "孤勇者 陈奕迅",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "平凡人的英雄战歌，燃爆全场"
+        },
+        {
+          "title": "开往早晨的午夜",
+          "artist": "张碧晨",
+          "neteaseKeyword": "开往早晨的午夜 张碧晨",
+          "moods": [
+            "平静",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "暗夜中驶向黎明的孤独旅程"
+        },
+        {
+          "title": "一路生花",
+          "artist": "温奕心",
+          "neteaseKeyword": "一路生花 温奕心",
+          "moods": [
+            "温柔",
+            "振奋"
+          ],
+          "scenes": [
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "温暖治愈，祝愿你一路花开"
+        },
+        {
+          "title": "本草纲目",
+          "artist": "周杰伦",
+          "neteaseKeyword": "本草纲目 周杰伦",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "中国风嘻哈，节奏感爆棚"
+        },
+        {
+          "title": "光的方向",
+          "artist": "张碧晨",
+          "neteaseKeyword": "光的方向 张碧晨",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "向光而行的坚定与力量"
+        },
+        {
+          "title": "活着",
+          "artist": "郝云",
+          "neteaseKeyword": "活着 郝云",
+          "moods": [
+            "愉悦",
+            "平静"
+          ],
+          "scenes": [
+            "通勤路上",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "市井民谣，笑对生活的豁达"
+        },
+        {
+          "title": "公路之歌",
+          "artist": "痛仰乐队",
+          "neteaseKeyword": "公路之歌 痛仰乐队",
+          "moods": [
+            "愉悦",
+            "平静"
+          ],
+          "scenes": [
+            "开车",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "一直在路上的自由感"
+        },
+        {
+          "title": "为你唱首歌",
+          "artist": "痛仰乐队",
+          "neteaseKeyword": "为你唱首歌 痛仰乐队",
+          "moods": [
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "简单真挚的告白民谣"
+        },
+        {
+          "title": "执着",
+          "artist": "许巍",
+          "neteaseKeyword": "执着 许巍",
+          "moods": [
+            "振奋",
+            "平静"
+          ],
+          "scenes": [
+            "开车",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "经典励志，追寻内心的声音"
+        },
+        {
+          "title": "纸短情长",
+          "artist": "烟把儿乐队",
+          "neteaseKeyword": "纸短情长 烟把儿乐队",
+          "moods": [
+            "伤感",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "纸短情长，写不尽的思念"
+        },
+        {
+          "title": "蓝莲花",
+          "artist": "许巍",
+          "neteaseKeyword": "蓝莲花 许巍",
+          "moods": [
+            "释然",
+            "平静"
+          ],
+          "scenes": [
+            "开车",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "心中的蓝莲花，自由的向往"
+        },
+        {
+          "title": "夜空中最亮的星",
+          "artist": "逃跑计划",
+          "neteaseKeyword": "夜空中最亮的星 逃跑计划",
+          "moods": [
+            "振奋",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "抬头仰望，给迷茫者的星光指引"
+        },
+        {
+          "title": "平凡之路",
+          "artist": "朴树",
+          "neteaseKeyword": "平凡之路 朴树",
+          "moods": [
+            "释然",
+            "平静"
+          ],
+          "scenes": [
+            "开车",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "跨过山和大海后终于明白平凡才是答案"
+        },
+        {
+          "title": "小芳",
+          "artist": "李荣浩",
+          "neteaseKeyword": "小芳 李荣浩",
+          "moods": [
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "温柔翻唱旧时光里的她"
+        },
+        {
+          "title": "少年锦时",
+          "artist": "赵雷",
+          "neteaseKeyword": "少年锦时 赵雷",
+          "moods": [
+            "伤感",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "回忆里那个白衣飘飘的少年"
+        },
+        {
+          "title": "南山南",
+          "artist": "马頔",
+          "neteaseKeyword": "南山南 马頔",
+          "moods": [
+            "忧郁",
+            "伤感"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "你在南方的艳阳里大雪纷飞"
+        },
+        {
+          "title": "理想三旬",
+          "artist": "陈鸿宇",
+          "neteaseKeyword": "理想三旬 陈鸿宇",
+          "moods": [
+            "平静",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "低沉烟嗓唱出三十而立前的迷惘"
+        },
+        {
+          "title": "理想",
+          "artist": "赵雷",
+          "neteaseKeyword": "理想 赵雷",
+          "moods": [
+            "忧郁",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "理想被现实打磨后的低声呢喃"
+        },
+        {
+          "title": "行歌",
+          "artist": "陈鸿宇",
+          "neteaseKeyword": "行歌 陈鸿宇",
+          "moods": [
+            "平静",
+            "温柔"
+          ],
+          "scenes": [
+            "户外散步",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "边走边唱的从容与淡定"
+        },
+        {
+          "title": "一如年少模样",
+          "artist": "陈鸿宇",
+          "neteaseKeyword": "一如年少模样 陈鸿宇",
+          "moods": [
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "户外散步",
+            "深夜独处"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "愿你出走半生归来仍是少年"
+        },
+        {
+          "title": "郭源潮",
+          "artist": "宋冬野",
+          "neteaseKeyword": "郭源潮 宋冬野",
+          "moods": [
+            "平静",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "与自己的和解之作"
+        },
+        {
+          "title": "莉莉安",
+          "artist": "宋冬野",
+          "neteaseKeyword": "莉莉安 宋冬野",
+          "moods": [
+            "孤独",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "关于等待与孤独的诗"
+        },
+        {
+          "title": "红色高跟鞋",
+          "artist": "蔡健雅",
+          "neteaseKeyword": "红色高跟鞋 蔡健雅",
+          "moods": [
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "情侣约会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "都市女性的慵懒与妩媚，原版经典"
+        },
+        {
+          "title": "杀死那个石家庄人",
+          "artist": "万能青年旅店",
+          "neteaseKeyword": "杀死那个石家庄人 万能青年旅店",
+          "moods": [
+            "忧郁",
+            "激昂"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "独立摇滚经典，压抑到爆发的张力"
+        },
+        {
+          "title": "夏日漱石",
+          "artist": "橘子海",
+          "neteaseKeyword": "夏日漱石 橘子海",
+          "moods": [
+            "慵懒",
+            "浪漫"
+          ],
+          "scenes": [
+            "雨天",
+            "开车"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "夏日海边的微风与迷幻"
+        },
+        {
+          "title": "渡月橋",
+          "artist": "仓木麻衣",
+          "neteaseKeyword": "渡月橋 仓木麻衣",
+          "moods": [
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "情侣约会",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "名侦探柯南剧场版主题曲，唯美和风"
+        },
+        {
+          "title": "稻香",
+          "artist": "小柔Channel",
+          "neteaseKeyword": "稻香 小柔Channel",
+          "moods": [
+            "愉悦",
+            "平静"
+          ],
+          "scenes": [
+            "清晨起床",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "日语翻唱版的田园治愈"
+        },
+        {
+          "title": "CHO-DARI- COVER",
+          "artist": "久遠千歳",
+          "neteaseKeyword": "CHO-DARI- COVER 久遠千歳",
+          "moods": [
+            "慵懒",
+            "愉悦"
+          ],
+          "scenes": [
+            "咖啡馆",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "温柔女声翻唱，慵懒惬意"
+        },
+        {
+          "title": "群青",
+          "artist": "YOASOBI",
+          "neteaseKeyword": "群青 YOASOBI",
+          "moods": [
+            "振奋",
+            "激昂"
+          ],
+          "scenes": [
+            "运动",
+            "通勤路上"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "奔跑吧向着梦想的青春赞歌"
+        },
+        {
+          "title": "一笑懸命",
+          "artist": "遊助",
+          "neteaseKeyword": "一笑懸命 遊助",
+          "moods": [
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "笑着拼命的热血日系青春曲"
+        },
+        {
+          "title": "M八七",
+          "artist": "米津玄師",
+          "neteaseKeyword": "M八七 米津玄師",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "奥特曼主题的史诗之作，米津玄师满血燃曲"
+        },
+        {
+          "title": "LOSER",
+          "artist": "米津玄師",
+          "neteaseKeyword": "LOSER 米津玄師",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "慵懒"
+          ],
+          "scenes": [
+            "通勤路上",
+            "开车",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "米津玄师的Funky流行，失败者的骚气自白"
+        },
+        {
+          "title": "極楽浄土",
+          "artist": "KANATA雪",
+          "neteaseKeyword": "極楽浄土 KANATA雪",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "进击的巨人风格的极乐浄土翻唱，高燃绝唱"
+        },
+        {
+          "title": "PLANET",
+          "artist": "Lambsey",
+          "neteaseKeyword": "PLANET Lambsey",
+          "moods": [
+            "浪漫",
+            "温柔",
+            "思念"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "经典日语对唱情歌，旋律温柔动人，适合安静氛围"
+        },
+        {
+          "title": "ミスト",
+          "artist": "上北健",
+          "neteaseKeyword": "ミスト 上北健",
+          "moods": [
+            "平静",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "上北健的嗓音低沉温柔，像薄雾一样弥漫的伤感氛围"
+        },
+        {
+          "title": "Lemon",
+          "artist": "米津玄師",
+          "neteaseKeyword": "Lemon 米津玄師",
+          "moods": [
+            "伤感",
+            "思念",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "米津玄师代表作，丧亲之痛化作柠檬色的思念，催泪神曲"
+        },
+        {
+          "title": "優しい人",
+          "artist": "米津玄師",
+          "neteaseKeyword": "優しい人 米津玄師",
+          "moods": [
+            "温柔",
+            "平静",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "户外散步"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "温柔到让人想哭的歌，米津玄师轻声诉说对善良之人的感谢"
+        },
+        {
+          "title": "まちがいさがし",
+          "artist": "米津玄師",
+          "neteaseKeyword": "まちがいさがし 米津玄師",
+          "moods": [
+            "愉悦",
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "清晨起床",
+            "通勤路上",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "轻快明亮的旋律，像是走在阳光下的街道上找不同的游戏"
+        },
+        {
+          "title": "マインドブランド",
+          "artist": "足首",
+          "neteaseKeyword": "マインドブランド 足首",
+          "moods": [
+            "激昂",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "工作专注",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "足首乐队独特的后摇滚风格，情绪从压抑到爆发的力量感"
+        },
+        {
+          "title": "カタオモイ",
+          "artist": "Aimer",
+          "neteaseKeyword": "カタオモイ Aimer",
+          "moods": [
+            "伤感",
+            "思念",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "Aimer标志性沙哑嗓音诠释单恋的心碎，每句都戳中泪点"
+        },
+        {
+          "title": "カイト",
+          "artist": "嵐",
+          "neteaseKeyword": "カイト 嵐",
+          "moods": [
+            "振奋",
+            "温柔",
+            "释然"
+          ],
+          "scenes": [
+            "通勤路上",
+            "户外散步",
+            "聚会"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "岚的温暖治愈之作，像风筝一样承载希望飞向远方"
+        },
+        {
+          "title": "Paprika",
+          "artist": "Foorin team E",
+          "neteaseKeyword": "Paprika Foorin team E",
+          "moods": [
+            "愉悦",
+            "振奋",
+            "浪漫"
+          ],
+          "scenes": [
+            "清晨起床",
+            "聚会",
+            "运动"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "东京奥运应援曲，孩子们充满活力的歌声让人瞬间燃起来"
+        },
+        {
+          "title": "aLIEz",
+          "artist": "SawanoHiroyuki[nZk]/瑞葵",
+          "neteaseKeyword": "aLIEz SawanoHiroyuki nZk 瑞葵",
+          "moods": [
+            "激昂",
+            "振奋",
+            "孤独"
+          ],
+          "scenes": [
+            "运动",
+            "工作专注",
+            "深夜独处"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "泽野弘之燃曲代表作，ALDNOAH.ZERO神插入曲，核爆神曲"
+        },
+        {
+          "title": "アイロニ",
+          "artist": "4円",
+          "neteaseKeyword": "アイロニ 4円",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "孤独"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "网络翻唱经典曲目，用自嘲和反讽包裹着深深的无力感"
+        },
+        {
+          "title": "平行線",
+          "artist": "さユり",
+          "neteaseKeyword": "平行線 さユり",
+          "moods": [
+            "伤感",
+            "思念",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "两条平行线永远无法相交的隐喻，さユり用独特嗓音唱出无奈"
+        },
+        {
+          "title": "嘘の火花",
+          "artist": "96猫",
+          "neteaseKeyword": "嘘の火花 96猫",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "伤感"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "工作专注"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "谎言碰撞出的火花，96猫极具爆发力的嗓音演绎矛盾与挣扎"
+        },
+        {
+          "title": "四月は君の嘘",
+          "artist": "横山克",
+          "neteaseKeyword": "四月は君の嘘 横山克",
+          "moods": [
+            "伤感",
+            "温柔",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": false,
+          "language": "ja",
+          "djAngle": "四月是你的谎言OST纯音乐，钢琴与弦乐交织的催泪旋律"
+        },
+        {
+          "title": "打上花火",
+          "artist": "Daoko/米津玄師",
+          "neteaseKeyword": "打上花火 Daoko 米津玄師",
+          "moods": [
+            "浪漫",
+            "愉悦",
+            "思念"
+          ],
+          "scenes": [
+            "情侣约会",
+            "户外散步",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "烟花绽放般的夏日恋歌，男女对唱如夜空中的花火绚烂"
+        },
+        {
+          "title": "ALIVE",
+          "artist": "雷鼓",
+          "neteaseKeyword": "ALIVE 雷鼓",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "热血沸腾的摇滚节奏，鼓点如心跳般宣告活着的证明"
+        },
+        {
+          "title": "ブルーバード",
+          "artist": "生物股长",
+          "neteaseKeyword": "ブルーバード 生物股长",
+          "moods": [
+            "振奋",
+            "愉悦",
+            "浪漫"
+          ],
+          "scenes": [
+            "运动",
+            "清晨起床",
+            "通勤路上"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "火影忍者OP经典神曲，青鸟展翅的旋律唤起无数人的青春记忆"
+        },
+        {
+          "title": "secret base～君がくれたもの～",
+          "artist": "茅野愛衣/戸松遥/早見沙織",
+          "neteaseKeyword": "secret base 君がくれたもの",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "未闻花名催泪神曲，三个声优的合唱让人想起那个夏天的秘密基地"
+        },
+        {
+          "title": "世界第一等",
+          "artist": "刘德华",
+          "neteaseKeyword": "世界第一等 刘德华",
+          "moods": [
+            "振奋",
+            "释然",
+            "愉悦"
+          ],
+          "scenes": [
+            "开车",
+            "聚会",
+            "户外散步"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "经典粤语豪迈之作，洒脱江湖气概，开车必备提气神曲"
+        },
+        {
+          "title": "叶问宗师",
+          "artist": "交通国",
+          "neteaseKeyword": "叶问宗师 交通国",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "武术精神融入粤语摇滚，拳拳到肉的热血宗师之歌"
+        },
+        {
+          "title": "挪威的森林",
+          "artist": "伍佰 & China Blue",
+          "neteaseKeyword": "挪威的森林 伍佰",
+          "moods": [
+            "忧郁",
+            "孤独",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "伍佰粗犷嗓音唱出孤独，摇滚与诗意的完美结合"
+        },
+        {
+          "title": "星星点灯",
+          "artist": "郑智化",
+          "neteaseKeyword": "星星点灯 郑智化",
+          "moods": [
+            "振奋",
+            "释然",
+            "温柔"
+          ],
+          "scenes": [
+            "通勤路上",
+            "开车",
+            "深夜独处"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "郑智化励志经典，星星点灯照亮前路，逆境中的不屈之歌"
+        },
+        {
+          "title": "不浪漫罪名",
+          "artist": "Steph.D",
+          "neteaseKeyword": "不浪漫罪名 Steph.D",
+          "moods": [
+            "伤感",
+            "孤独",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "R&B风格翻唱，细腻演绎爱情中的罪与罚"
+        },
+        {
+          "title": "无赖",
+          "artist": "郑中基",
+          "neteaseKeyword": "无赖 郑中基",
+          "moods": [
+            "伤感",
+            "释然",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "自嘲式情歌，用无赖的姿态掩饰深情，男人最真实的告白"
+        },
+        {
+          "title": "春娇与志明",
+          "artist": "街道办GDC/欧阳耀莹",
+          "neteaseKeyword": "春娇与志明 街道办GDC 欧阳耀莹",
+          "moods": [
+            "愉悦",
+            "浪漫",
+            "慵懒"
+          ],
+          "scenes": [
+            "开车",
+            "聚会",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "粤语说唱与旋律完美融合，市井爱情故事轻松又动人"
+        },
+        {
+          "title": "不再犹豫",
+          "artist": "BEYOND",
+          "neteaseKeyword": "不再犹豫 BEYOND",
+          "moods": [
+            "振奋",
+            "激昂",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "聚会"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "BEYOND最燃励志金曲，不再犹豫的呐喊点燃每个追梦人"
+        },
+        {
+          "title": "不浪漫罪名",
+          "artist": "王杰",
+          "neteaseKeyword": "不浪漫罪名 王杰",
+          "moods": [
+            "伤感",
+            "孤独",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "浪子王杰原唱，沧桑嗓音将不浪漫的爱情唱到极致"
+        },
+        {
+          "title": "讲不出再见",
+          "artist": "谭咏麟",
+          "neteaseKeyword": "讲不出再见 谭咏麟",
+          "moods": [
+            "伤感",
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "谭咏麟经典告别之歌，千言万语化作一句讲不出再见的无奈"
+        },
+        {
+          "title": "月半小夜曲",
+          "artist": "李克勤",
+          "neteaseKeyword": "月半小夜曲 李克勤",
+          "moods": [
+            "伤感",
+            "温柔",
+            "浪漫"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "情侣约会"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "李克勤最动人的抒情经典，月下半夜的旋律温柔到心碎"
+        },
+        {
+          "title": "光辉岁月",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "光辉岁月 陈奕迅",
+          "moods": [
+            "振奋",
+            "激昂",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "聚会"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "致敬曼德拉的经典翻唱，陈奕迅诠释光辉岁月的力量"
+        },
+        {
+          "title": "浮夸",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "浮夸 陈奕迅",
+          "moods": [
+            "伤感",
+            "孤独",
+            "激昂"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "运动"
+          ],
+          "energy": 4,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "Eason巅峰之作，用浮夸张扬掩饰内心孤独，最后一声嘶吼震撼全场"
+        },
+        {
+          "title": "十年",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "十年 陈奕迅",
+          "moods": [
+            "伤感",
+            "释然",
+            "思念"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "通勤路上"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "最经典的遗憾情歌，平淡中藏着最深的痛"
+        },
+        {
+          "title": "千千阕歌",
+          "artist": "张国荣",
+          "neteaseKeyword": "千千阕歌 张国荣",
+          "moods": [
+            "伤感",
+            "思念",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "哥哥的演绎让这首歌成为永恒的告别曲"
+        },
+        {
+          "title": "如果这都不算爱",
+          "artist": "张学友",
+          "neteaseKeyword": "如果这都不算爱 张学友",
+          "moods": [
+            "伤感",
+            "忧郁",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "睡前",
+            "雨天"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "歌神张学友深情演绎，爱的终极追问"
+        },
+        {
+          "title": "孤独患者",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "孤独患者 陈奕迅",
+          "moods": [
+            "孤独",
+            "忧郁",
+            "伤感"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "Eason唱出外向孤独症患者的内心独白，每个人都是孤独患者"
+        },
+        {
+          "title": "广东爱情故事",
+          "artist": "广东雨神",
+          "neteaseKeyword": "广东爱情故事 广东雨神",
+          "moods": [
+            "伤感",
+            "思念",
+            "释然"
+          ],
+          "scenes": [
+            "开车",
+            "深夜独处",
+            "通勤路上"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "漂泊广东的打工者爱情写照，质朴嗓音唱出异乡人的心酸"
+        },
+        {
+          "title": "凡人歌",
+          "artist": "李宗盛",
+          "neteaseKeyword": "凡人歌 李宗盛",
+          "moods": [
+            "释然",
+            "平静",
+            "忧郁"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "户外散步"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "李宗盛写尽凡人的喜怒哀乐，你我皆凡人的通透人生感悟"
+        },
+        {
+          "title": "富士山下",
+          "artist": "陈奕迅",
+          "neteaseKeyword": "富士山下 陈奕迅",
+          "moods": [
+            "伤感",
+            "释然",
+            "温柔"
+          ],
+          "scenes": [
+            "深夜独处",
+            "雨天",
+            "开车"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "谁能凭爱意要富士山私有，林夕经典词作+Eason绝美演绎"
+        },
+        {
+          "title": "17岁",
+          "artist": "刘德华",
+          "neteaseKeyword": "17岁 刘德华",
+          "moods": [
+            "思念",
+            "伤感",
+            "释然"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "睡前"
+          ],
+          "energy": 2,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "刘德华自传式情歌，回首17岁的青涩岁月"
+        },
+        {
+          "title": "秒针",
+          "artist": "李克勤/王赫野",
+          "neteaseKeyword": "秒针 李克勤 王赫野",
+          "moods": [
+            "忧郁",
+            "慵懒",
+            "平静"
+          ],
+          "scenes": [
+            "深夜独处",
+            "开车",
+            "咖啡馆"
+          ],
+          "energy": 3,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "复古Disco风格粤语新作，秒针滴答中跳着怀旧的舞步"
+        },
+        {
+          "title": "海阔天空",
+          "artist": "BEYOND",
+          "neteaseKeyword": "海阔天空 BEYOND",
+          "moods": [
+            "振奋",
+            "激昂",
+            "释然"
+          ],
+          "scenes": [
+            "运动",
+            "开车",
+            "户外散步"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "zh",
+          "djAngle": "BEYOND永恒经典，原谅我这一生不羁放纵爱自由，华语摇滚天花板"
+        },
+        {
+          "title": "Ryukyuvania",
+          "artist": "DarioVan",
+          "neteaseKeyword": "Ryukyuvania DarioVan",
+          "moods": [
+            "愉悦",
+            "激昂",
+            "振奋"
+          ],
+          "scenes": [
+            "运动",
+            "工作专注",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": false,
+          "language": "unknown",
+          "djAngle": "游戏风格器乐曲，琉球音乐与电子的奇妙融合，节奏感极强"
+        },
+        {
+          "title": "威風堂々",
+          "artist": "梅とら/IA/GUMI/镜音铃",
+          "neteaseKeyword": "威風堂々 梅とら IA GUMI 镜音铃",
+          "moods": [
+            "激昂",
+            "振奋",
+            "愉悦"
+          ],
+          "scenes": [
+            "运动",
+            "聚会",
+            "开车"
+          ],
+          "energy": 5,
+          "vocal": true,
+          "language": "ja",
+          "djAngle": "VOCALOID多人合唱热血曲，威风凛凛的节奏让人热血沸腾"
+        }
+      ]
+    }
+  ]
+}

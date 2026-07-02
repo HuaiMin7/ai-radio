@@ -1,0 +1,21 @@
+.DS_Store
+node_modules/
+.venv/
+dist/
+.env
+.env.*
+!.env.example
+.env.local
+npm-debug.log*
+
+# Runtime data and generated media
+data/*
+!data/.gitkeep
+cache/*
+!cache/.gitkeep
+!cache/music/
+cache/music/*
+!cache/music/.gitkeep
+!cache/tts/
+cache/tts/*
+!cache/tts/.gitkeep
