@@ -88,7 +88,7 @@ try {
   console.log("");
   console.log("Redio is ready:");
   console.log("  App: http://127.0.0.1:5173/");
-  console.log("  API: http://127.0.0.1:8787/api/now");
+  console.log("  API: http://127.0.0.1:8788/api/now");
   if (process.env.AI_RADIO_ENABLE_NETEASE_SERVICE === "1") {
     console.log("  NetEase API: http://127.0.0.1:3000/");
   }

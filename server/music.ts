@@ -12,6 +12,7 @@ export type PlayableTrack = TrackRequest & {
   matchedTitle: string;
   matchedArtist: string;
   externalUrl?: string;
+  coverUrl?: string;
   playbackStatus: "full" | "unverified" | "fallback" | "failed";
   isFallback?: boolean;
   failureReason?: string;
@@ -250,6 +251,7 @@ async function resolveQqTrack(
         matchedTitle: result.matchedTitle ?? track.title,
         matchedArtist: result.matchedArtist ?? track.artist,
         externalUrl: result.externalUrl,
+        coverUrl: result.coverUrl,
         playbackStatus: "failed",
         failureReason: result.message
       };
@@ -264,6 +266,7 @@ async function resolveQqTrack(
       matchedTitle: result.matchedTitle,
       matchedArtist: result.matchedArtist,
       externalUrl: result.externalUrl,
+      coverUrl: result.coverUrl,
       playbackStatus: "full"
     };
   } catch (error) {

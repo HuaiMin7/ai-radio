@@ -14,9 +14,9 @@ const coreServices = [
     key: "api",
     label: "API",
     command: ["npm", "run", "dev:api"],
-    port: 8787,
-    url: "http://127.0.0.1:8787/api/now",
-    healthUrl: "http://127.0.0.1:8787/api/now"
+    port: 8788,
+    url: "http://127.0.0.1:8788/api/now",
+    healthUrl: "http://127.0.0.1:8788/api/now"
   }
 ];
 
@@ -89,7 +89,7 @@ export async function requestHealth(url) {
     const req = request(url, { method: "GET", timeout: 2500 }, (res) => {
       res.resume();
       resolve({
-        ok: Boolean(res.statusCode && res.statusCode < 500),
+        ok: Boolean(res.statusCode && res.statusCode >= 200 && res.statusCode < 400),
         status: res.statusCode ?? 0
       });
     });

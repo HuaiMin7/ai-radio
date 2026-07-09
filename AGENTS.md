@@ -62,7 +62,7 @@ npm run dev
 ```
 
 - 前端地址：`http://127.0.0.1:5173/`
-- 本地 API：`http://127.0.0.1:8787`
+- 本地 API：`http://127.0.0.1:8788`
 
 如果启用网易云音乐解析，还需要单独启动 `NeteaseCloudMusicApi`：
 
@@ -273,7 +273,7 @@ npm run dev:api
 然后检查：
 
 ```text
-http://127.0.0.1:8787/api/now
+http://127.0.0.1:8788/api/now
 ```
 
 ### 大模型没有回复

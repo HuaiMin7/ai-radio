@@ -68,6 +68,7 @@ function toPersistentTrack(track: DjPlan["play"][number]): DjPlan["play"][number
     matchedTitle: track.matchedTitle,
     matchedArtist: track.matchedArtist,
     externalUrl: track.externalUrl,
+    coverUrl: track.coverUrl,
     playbackStatus: track.playbackStatus,
     isFallback: track.isFallback,
     failureReason: track.failureReason
@@ -120,6 +121,7 @@ function isHistoryTrack(value: unknown): value is PlaybackHistoryEntry["play"][n
     (candidate.matchedTitle === undefined || typeof candidate.matchedTitle === "string") &&
     (candidate.matchedArtist === undefined || typeof candidate.matchedArtist === "string") &&
     (candidate.externalUrl === undefined || typeof candidate.externalUrl === "string") &&
+    (candidate.coverUrl === undefined || typeof candidate.coverUrl === "string") &&
     (candidate.playbackStatus === undefined ||
       candidate.playbackStatus === "full" ||
       candidate.playbackStatus === "unverified" ||

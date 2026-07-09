@@ -37,6 +37,7 @@ type DjPlan = {
     matchedTitle?: string;
     matchedArtist?: string;
     externalUrl?: string;
+    coverUrl?: string;
     playbackStatus?: "full" | "unverified" | "fallback" | "failed";
     isFallback?: boolean;
     failureReason?: string;
@@ -159,7 +160,7 @@ type Track = {
   artist: string;
 };
 
-type AppView = "radio" | "settings";
+type AppView = "radio" | "settings" | "agent";
 
 type PlayableTrack = Track & {
   audioLabel: string;
@@ -169,6 +170,7 @@ type PlayableTrack = Track & {
   matchedTitle?: string;
   matchedArtist?: string;
   externalUrl?: string;
+  coverUrl?: string;
   playbackStatus?: "full" | "unverified" | "fallback" | "failed";
   isFallback?: boolean;
   failureReason?: string;
@@ -231,8 +233,14 @@ const fallbackTracks: PlayableTrack[] = [
   }
 ];
 
+const apiBaseUrl = "http://127.0.0.1:8788";
+
+function getApiUrl(url: string) {
+  return url.startsWith("/api/") ? `${apiBaseUrl}${url}` : url;
+}
+
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(getApiUrl(url), init);
 
   if (!response.ok) {
     let errorMessage = `请求失败：${response.status}`;
@@ -440,6 +448,28 @@ function getPlanningCopy(message: string) {
     input: "正在思考...",
     bubble: "让我想想怎么回你..."
   };
+}
+
+function BackIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="backIcon"
+      fill="none"
+      height="24"
+      viewBox="0 0 24 24"
+      width="24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        d="M15.5 4.75L8.25 12L15.5 19.25"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2.4"
+      />
+    </svg>
+  );
 }
 
 function VolumeIcon({ color = "white" }: { color?: string }) {
@@ -1072,6 +1102,7 @@ export function App() {
       matchedTitle: track.matchedTitle,
       matchedArtist: track.matchedArtist,
       externalUrl: track.externalUrl,
+      coverUrl: track.coverUrl,
       playbackStatus: track.playbackStatus,
       isFallback: track.isFallback,
       failureReason: track.failureReason
@@ -1361,6 +1392,19 @@ export function App() {
   const selectedTrack = tracks[selectedTrackIndex] ?? fallbackTracks[0];
   const selectedTrackKey = getPlayableTrackKey(selectedTrack);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const listenerName = qqLoginStatus?.nickname ?? qqLoginStatus?.userId ?? "你";
+  const listenerCount = qqLoginStatus?.loggedIn ? 1 : 0;
+  const agentGenreTags = [
+    "JAZZ-HIPHOP",
+    "NEO-CLASSICAL",
+    "90S华语",
+    "HIP-HOP",
+    "柴可夫斯基&EMINEM",
+    "J-ROCK",
+    "下雨白噪音",
+    "POST-PUNK",
+    "SHIBUYA-KEI"
+  ];
 
   useEffect(() => {
     selectedTrackKeyRef.current = selectedTrackKey;
@@ -1702,50 +1746,74 @@ export function App() {
           ref={djAudioRef}
         />
 
-        <header className="radioTop">
-          <h1>Redio</h1>
-          <button
-            className="settingsTopButton"
-            onClick={() => setAppView((view) => (view === "settings" ? "radio" : "settings"))}
-            type="button"
-          >
-            {appView === "settings" ? "BACK" : "SETTING"}
-          </button>
+        <header className={`radioTop ${appView === "agent" ? "agentTop" : ""}`}>
+          {appView === "agent" ? (
+            <button
+              aria-label="返回电台"
+              className="agentBackButton"
+              onClick={() => setAppView("radio")}
+              type="button"
+            >
+              <BackIcon />
+            </button>
+          ) : (
+            <>
+              <h1>Redio</h1>
+              <button
+                className="settingsTopButton"
+                onClick={() => setAppView((view) => (view === "settings" ? "radio" : "settings"))}
+                type="button"
+              >
+                {appView === "settings" ? "BACK" : "SETTING"}
+              </button>
+            </>
+          )}
           <span>{formatClock()}</span>
         </header>
 
-        {appView === "settings" ? (
+        {appView === "agent" ? (
+          <AgentProfilePage
+            genreTags={agentGenreTags}
+            isLoginBusy={isQqWebLoginBusy}
+            listenerCount={listenerCount}
+            listenerName={listenerName}
+            onLogin={() => void openQqDesktopLogin()}
+            status={qqLoginStatus}
+          />
+        ) : appView === "settings" ? (
           <section className="settingsPage" aria-label="设置">
             <div className="settingsIntro">
               <p>SETTING</p>
               <span>播放记录、QQ 授权和运行状态都放在这里。</span>
             </div>
 
-            <HistorySection
-              entries={historyEntries}
-              isOpen={isHistoryOpen}
-              onToggle={() => setIsHistoryOpen((isOpen) => !isOpen)}
-            />
+            <div className="settingsScrollArea">
+              <HistorySection
+                entries={historyEntries}
+                isOpen={isHistoryOpen}
+                onToggle={() => setIsHistoryOpen((isOpen) => !isOpen)}
+              />
 
-            <QqSourceSection
-              cookieDraft={qqCookieDraft}
-              isOpen={isQqSourceOpen}
-              isSaving={isQqSaving}
-              onClear={() => void clearQqCookie()}
-              onCookieChange={setQqCookieDraft}
-              onDesktopLogin={() => void openQqDesktopLogin()}
-              onSave={() => void saveQqCookie()}
-              onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
-              isDesktop={Boolean(window.redioDesktop?.isDesktop)}
-              isWebLoginBusy={isQqWebLoginBusy}
-              status={qqLoginStatus}
-            />
+              <QqSourceSection
+                cookieDraft={qqCookieDraft}
+                isOpen={isQqSourceOpen}
+                isSaving={isQqSaving}
+                onClear={() => void clearQqCookie()}
+                onCookieChange={setQqCookieDraft}
+                onDesktopLogin={() => void openQqDesktopLogin()}
+                onSave={() => void saveQqCookie()}
+                onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
+                isDesktop={Boolean(window.redioDesktop?.isDesktop)}
+                isWebLoginBusy={isQqWebLoginBusy}
+                status={qqLoginStatus}
+              />
 
-            <LogSection
-              entries={logs}
-              isOpen={isLogOpen}
-              onToggle={() => setIsLogOpen((isOpen) => !isOpen)}
-            />
+              <LogSection
+                entries={logs}
+                isOpen={isLogOpen}
+                onToggle={() => setIsLogOpen((isOpen) => !isOpen)}
+              />
+            </div>
           </section>
         ) : (
           <>
@@ -1882,6 +1950,10 @@ export function App() {
                 messages={messages}
                 onLoadMoreHistory={loadMoreChatHistory}
                 onClose={() => setIsChatOpen(false)}
+                onOpenAgentProfile={() => {
+                  setIsChatOpen(false);
+                  setAppView("agent");
+                }}
                 onMessageChange={setDraftMessage}
                 onSend={generateSegment}
                 plan={plan}
@@ -1894,6 +1966,81 @@ export function App() {
         )}
       </section>
     </main>
+  );
+}
+
+function AgentProfilePage({
+  genreTags,
+  isLoginBusy,
+  listenerCount,
+  listenerName,
+  onLogin,
+  status
+}: {
+  genreTags: string[];
+  isLoginBusy: boolean;
+  listenerCount: number;
+  listenerName: string;
+  onLogin: () => void;
+  status: QqLoginStatus | null;
+}) {
+  const accountLabel = status?.loggedIn
+    ? status.nickname ?? status.userId ?? "账号昵称"
+    : "登录";
+
+  return (
+    <section className="agentProfilePage" aria-label="DJ Agent 资料页">
+      <section className="agentIdentity">
+        <div className="agentPortrait" aria-hidden="true" />
+        <div className="agentNameBlock">
+          <h2>Redio</h2>
+          <p>
+            <i />
+            <span>一开机我就打碟</span>
+          </p>
+        </div>
+      </section>
+
+      <section className="agentBio" aria-label="DJ 简介">
+        <p>{listenerName}的私人DJ，会打碟的taste.md 🎧</p>
+        <span>Your mood is my prompt.</span>
+        <span>I hate algorithm. I have taste.</span>
+      </section>
+
+      <section className="agentStats" aria-label="DJ 数据">
+        <div>
+          <span>ON AIR</span>
+          <strong>24/7</strong>
+        </div>
+        <div>
+          <span>GENRES</span>
+          <strong>∞</strong>
+        </div>
+        <div>
+          <span>LISTENER</span>
+          <strong>{listenerCount}</strong>
+        </div>
+      </section>
+
+      <section className="agentGenreTags" aria-label="擅长风格">
+        {genreTags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </section>
+
+      <section className="agentLogin" aria-label="登录">
+        <h3>登录</h3>
+        <button
+          className={status?.loggedIn ? "isLoggedIn" : ""}
+          disabled={isLoginBusy}
+          onClick={status?.loggedIn ? undefined : onLogin}
+          type="button"
+        >
+          <i />
+          <span>{isLoginBusy ? "等待扫码" : accountLabel}</span>
+        </button>
+      </section>
+    </section>
   );
 }
 
@@ -2158,6 +2305,7 @@ function ChatWindow({
   messages,
   onClose,
   onLoadMoreHistory,
+  onOpenAgentProfile,
   onMessageChange,
   onSend,
   plan,
@@ -2173,6 +2321,7 @@ function ChatWindow({
   messages: ChatMessage[];
   onClose: () => void;
   onLoadMoreHistory: () => void;
+  onOpenAgentProfile: () => void;
   onMessageChange: (message: string) => void;
   onSend: () => void;
   plan: DjPlan | null | undefined;
@@ -2295,7 +2444,14 @@ function ChatWindow({
             className={`message ${chatMessage.role === "user" ? "outbound" : "inbound"}`}
             key={chatMessage.id}
           >
-            {chatMessage.role === "assistant" ? <div className="avatar" /> : null}
+            {chatMessage.role === "assistant" ? (
+              <button
+                aria-label="打开 DJ Agent 资料页"
+                className="avatar agentAvatarButton"
+                onClick={onOpenAgentProfile}
+                type="button"
+              />
+            ) : null}
             <div>
               <small>{chatMessage.role === "user" ? "Me" : "Redio"}</small>
               <p>{chatMessage.text}</p>
@@ -2322,13 +2478,18 @@ function ChatWindow({
                 </div>
               ) : null}
             </div>
-            {chatMessage.role === "user" ? <div className="avatar" /> : null}
+            {chatMessage.role === "user" ? <div className="avatar userAvatar" /> : null}
           </div>
         ))}
 
         {isPlanning ? (
           <div className="message inbound">
-            <div className="avatar" />
+            <button
+              aria-label="打开 DJ Agent 资料页"
+              className="avatar agentAvatarButton"
+              onClick={onOpenAgentProfile}
+              type="button"
+            />
             <div>
               <small>Redio</small>
               <p>{planningText}</p>

@@ -13,6 +13,7 @@ export type DjPlan = {
     matchedTitle?: string;
     matchedArtist?: string;
     externalUrl?: string;
+    coverUrl?: string;
     playbackStatus?: "full" | "unverified" | "fallback" | "failed";
     isFallback?: boolean;
     failureReason?: string;

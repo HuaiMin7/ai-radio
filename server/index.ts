@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { createRouter } from "./router.js";
 
 const host = "127.0.0.1";
-const port = 8787;
+const port = 8788;
 
 loadEnvFile(process.cwd());
 

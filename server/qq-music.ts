@@ -20,6 +20,7 @@ export type QqSongSearchResult = {
   artist: string;
   album?: string;
   externalUrl?: string;
+  coverUrl?: string;
 };
 
 export type QqPlayableUrlResult =
@@ -30,6 +31,7 @@ export type QqPlayableUrlResult =
       matchedTitle: string;
       matchedArtist: string;
       externalUrl?: string;
+      coverUrl?: string;
       quality: string;
     }
   | {
@@ -38,6 +40,7 @@ export type QqPlayableUrlResult =
       matchedTitle?: string;
       matchedArtist?: string;
       externalUrl?: string;
+      coverUrl?: string;
       reason: string;
       message: string;
       playbackKeyReady: boolean;
@@ -313,6 +316,7 @@ async function resolveQqSongUrl(
       matchedTitle: song.name,
       matchedArtist: song.artist,
       externalUrl: song.externalUrl,
+      coverUrl: song.coverUrl,
       quality
     };
   }
@@ -329,6 +333,7 @@ async function resolveQqSongUrl(
     matchedTitle: song.name,
     matchedArtist: song.artist,
     externalUrl: song.externalUrl,
+    coverUrl: song.coverUrl,
     reason,
     message: status.playbackKeyReady
       ? rawMessage || "QQ 音乐没有返回可播放地址，可能是版权、会员或地区限制"
@@ -389,6 +394,7 @@ function mapQqTrack(track: QqRawTrack, fallback: QqSongSearchResult): QqSongSear
   const mid = track.mid || fallback.mid;
   const artists = (track.singer ?? []).map((singer) => singer.name).filter(Boolean);
   const album = track.album ?? {};
+  const albumMid = album.pmid || album.mid;
 
   return {
     id: mid,
@@ -398,8 +404,13 @@ function mapQqTrack(track: QqRawTrack, fallback: QqSongSearchResult): QqSongSear
     name: track.name || track.title || fallback.name,
     artist: artists.join(" / ") || fallback.artist,
     album: album.name || album.title || fallback.album,
-    externalUrl: mid ? `https://y.qq.com/n/ryqq/songDetail/${mid}` : fallback.externalUrl
+    externalUrl: mid ? `https://y.qq.com/n/ryqq/songDetail/${mid}` : fallback.externalUrl,
+    coverUrl: albumMid ? buildQqCoverUrl(albumMid) : fallback.coverUrl
   };
+}
+
+function buildQqCoverUrl(albumMid: string) {
+  return `https://y.qq.com/music/photo_new/T002R300x300M000${albumMid}.jpg`;
 }
 
 function pickBestQqSong(

@@ -5,7 +5,7 @@ This document records the current local MVP baseline before the next round of fe
 ## Current Capabilities
 
 - React/Vite web player at `http://127.0.0.1:5173/`.
-- Local Node API at `http://127.0.0.1:8787`.
+- Local Node API at `http://127.0.0.1:8788`.
 - Optional NetEase local API at `http://127.0.0.1:3000`.
 - OpenAI-compatible LLM adapter for Aliyun Bailian.
 - Dialogue intent split:

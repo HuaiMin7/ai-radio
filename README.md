@@ -36,7 +36,7 @@ npm run dev:all
 This checks the expected ports and starts any missing services:
 
 - Frontend: `http://127.0.0.1:5173/`
-- API: `http://127.0.0.1:8787`
+- API: `http://127.0.0.1:8788`
 
 If you only want to check whether the local stack is up:
 
