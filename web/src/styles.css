@@ -158,6 +158,7 @@ p {
 }
 
 .djSpeechBubble {
+  /* Figma node 204:1755 精准还原 */
   position: fixed;
   top: 112px;
   left: 80px;
@@ -167,37 +168,38 @@ p {
   min-height: 72px;
   align-items: center;
   gap: 12px;
-  border-radius: 54px;
-  padding: 12px 20px 12px 12px;
-  color: rgba(255, 255, 255, 0.84);
-  background: rgba(48, 48, 52, 0.5);
+  border-radius: 54px;        /* Figma: 54px */
+  padding: 12px 20px 12px 12px; /* Figma: T12 R20 B12 L12 */
+  color: #ffffff;               /* Figma: rgba(255,255,255,1) */
+  background: #303034;          /* Figma: rgba(48,48,52,1) 不透明 */
   font-family: "PingFang SC", "Noto Sans SC", sans-serif;
   animation: djSpeechBubbleEnter 180ms ease-out;
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  /* 已移除 backdrop-filter: Figma 为纯色填充，无毛玻璃 */
 }
 
 .djSpeechBubbleAvatar {
+  /* Figma: Avatar 48×48, 圆形, 内描边 rgba(0,0,0,0.08) */
   display: block;
   width: 48px;
   height: 48px;
   flex: 0 0 48px;
-  border: 2px solid rgba(0, 0, 0, 0.08);
-  border-radius: 50%;
+  border-radius: 50%;           /* Figma: cornerRadius 2000px → 圆形 */
   object-fit: cover;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08); /* Figma: stroke inside */
 }
 
 .djSpeechBubble p {
+  /* Figma: PingFang SC 400, 14px */
   display: -webkit-box;
   overflow: hidden;
   min-width: 0;
   flex: 1 1 auto;
   margin: 0;
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 22px;
+  font-size: 14px;              /* Figma: 14px */
+  font-weight: 400;             /* Figma: Regular 400 */
+  line-height: 1.571;           /* ≈22px at 14px */
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;        /* 允许 3 行，与 Figma 示例文案对齐 */
 }
 
 .djSpeechBubbleWaveform {
