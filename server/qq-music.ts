@@ -7,6 +7,7 @@ export type QqLoginStatus = {
   hasCookie: boolean;
   userId?: string;
   nickname?: string;
+  avatarUrl?: string;
   playbackKeyReady: boolean;
   message?: string;
 };
@@ -21,6 +22,19 @@ export type QqSongSearchResult = {
   album?: string;
   externalUrl?: string;
   coverUrl?: string;
+};
+
+export type QqLyricLine = {
+  time: number;
+  text: string;
+};
+
+export type QqLyricsResult = {
+  provider: "qq" | "lrclib";
+  songMid?: string;
+  matchedTitle: string;
+  matchedArtist: string;
+  lines: QqLyricLine[];
 };
 
 export type QqPlayableUrlResult =
@@ -82,6 +96,8 @@ type QqRawTrack = {
 
 const qqMusicuUrl = "https://u.y.qq.com/cgi-bin/musicu.fcg";
 const qqSmartboxUrl = "https://c.y.qq.com/splcloud/fcgi-bin/smartbox_new.fcg";
+const qqLyricUrl = "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg";
+const lrcLibSearchUrl = "https://lrclib.net/api/search";
 const qqHeaders = {
   Accept: "application/json, text/plain, */*",
   "Accept-Language": "zh-CN,zh;q=0.9",
@@ -92,6 +108,7 @@ const qqHeaders = {
 };
 
 const qqQualityCandidates = [
+  { prefix: "F000", ext: ".flac", label: "Lossless FLAC" },
   { prefix: "M800", ext: ".mp3", label: "320k MP3" },
   { prefix: "M500", ext: ".mp3", label: "128k MP3" },
   { prefix: "C400", ext: ".m4a", label: "AAC/M4A" }
@@ -138,7 +155,8 @@ export async function resolveQqPlayableUrl(
   artist: string
 ): Promise<QqPlayableUrlResult> {
   const songs = await searchQqSongsWithFallback(title, artist, 6);
-  const song = pickBestQqSong(songs, title, artist);
+  const rankedSongs = rankQqSongs(songs, title, artist);
+  const song = rankedSongs[0];
 
   if (!song) {
     return {
@@ -146,6 +164,42 @@ export async function resolveQqPlayableUrl(
       playable: false,
       reason: "not_found",
       message: "QQ 音乐未找到这首歌",
+      playbackKeyReady: (await getQqLoginStatus(rootDir)).playbackKeyReady
+    };
+  }
+
+  let firstFailure: QqPlayableUrlResult | null = null;
+  let checkedCandidateCount = 0;
+
+  for (const candidate of rankedSongs) {
+    if (!isAcceptableQqSongCandidate(candidate, title, artist)) {
+      continue;
+    }
+
+    checkedCandidateCount += 1;
+    const result = await resolveQqSongUrl(rootDir, candidate);
+
+    if (result.playable) {
+      return result;
+    }
+
+    firstFailure ??= result;
+  }
+
+  if (firstFailure) {
+    return firstFailure;
+  }
+
+  if (checkedCandidateCount === 0) {
+    return {
+      provider: "qq",
+      playable: false,
+      matchedTitle: song.name,
+      matchedArtist: song.artist,
+      externalUrl: song.externalUrl,
+      coverUrl: song.coverUrl,
+      reason: "not_found",
+      message: "QQ 音乐未找到歌名和歌手都匹配的版本",
       playbackKeyReady: (await getQqLoginStatus(rootDir)).playbackKeyReady
     };
   }
@@ -176,9 +230,6 @@ async function searchQqSongsWithFallback(
       songs.push(song);
     }
 
-    if (songs.some((song) => normalize(song.name) === normalize(title))) {
-      break;
-    }
   }
 
   return songs;
@@ -253,6 +304,209 @@ export async function searchQqSongs(
       }
     })
   );
+}
+
+export async function resolveQqLyrics(
+  title: string,
+  artist: string,
+  requestedSongMid = "",
+  duration = 0
+): Promise<QqLyricsResult> {
+  const songMid = requestedSongMid.trim();
+  let song: QqSongSearchResult | undefined;
+
+  if (songMid) {
+    const fallbackSong: QqSongSearchResult = {
+      id: songMid,
+      mid: songMid,
+      songmid: songMid,
+      name: title,
+      artist
+    };
+
+    try {
+      song = await getQqSongDetail(songMid, fallbackSong);
+    } catch {
+      song = fallbackSong;
+    }
+  } else {
+    const songs = await searchQqSongsWithFallback(title, artist, 6);
+    const rankedSongs = rankQqSongs(songs, title, artist);
+    song =
+      rankedSongs.find((candidate) =>
+        isAcceptableQqSongCandidate(candidate, title, artist)
+      ) ?? rankedSongs[0];
+  }
+
+  if (!song?.mid) {
+    return {
+      provider: "qq",
+      matchedTitle: title,
+      matchedArtist: artist,
+      lines: []
+    };
+  }
+
+  const url = new URL(qqLyricUrl);
+  url.searchParams.set("songmid", song.mid);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("nobase64", "1");
+  url.searchParams.set("g_tk", "5381");
+  url.searchParams.set("loginUin", "0");
+  url.searchParams.set("hostUin", "0");
+  url.searchParams.set("inCharset", "utf8");
+  url.searchParams.set("outCharset", "utf-8");
+  url.searchParams.set("notice", "0");
+  url.searchParams.set("platform", "yqq.json");
+  url.searchParams.set("needNewCode", "0");
+
+  const response = await fetch(url, { headers: qqHeaders });
+
+  if (!response.ok) {
+    throw new Error("QQ 音乐歌词请求失败");
+  }
+
+  const json = parseJsonText(await response.text()) as { lyric?: string };
+
+  const matchedTitle = song.name || title;
+  const matchedArtist = song.artist || artist;
+  const qqLines = parseQqLrc(json.lyric ?? "", matchedTitle, matchedArtist);
+  const fallbackLines = qqLines.length
+    ? []
+    : await resolveLrcLibLyrics(matchedTitle, matchedArtist, duration);
+
+  return {
+    provider: fallbackLines.length ? "lrclib" : "qq",
+    songMid: song.mid,
+    matchedTitle,
+    matchedArtist,
+    lines: qqLines.length ? qqLines : fallbackLines
+  };
+}
+
+export function parseQqLrc(lyric: string, title = "", artist = "") {
+  const offsetMatch = lyric.match(/\[offset:([+-]?\d+)]/i);
+  const offsetSeconds = Number(offsetMatch?.[1] ?? 0) / 1000;
+  const lines: QqLyricLine[] = [];
+
+  for (const rawLine of lyric.split(/\r?\n/)) {
+    const timestamps = [
+      ...rawLine.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)]/g)
+    ];
+    const text = decodeQqLyricText(
+      rawLine.replace(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)]/g, "")
+    ).trim();
+
+    if (!timestamps.length || !text || isQqLyricMetadata(text, title, artist)) {
+      continue;
+    }
+
+    for (const timestamp of timestamps) {
+      const time = Number(timestamp[1]) * 60 + Number(timestamp[2]) + offsetSeconds;
+
+      if (Number.isFinite(time) && time >= 0) {
+        lines.push({ time, text });
+      }
+    }
+  }
+
+  return lines
+    .sort((left, right) => left.time - right.time)
+    .filter(
+      (line, index, allLines) =>
+        index === 0 ||
+        line.time !== allLines[index - 1].time ||
+        line.text !== allLines[index - 1].text
+    );
+}
+
+function isQqLyricMetadata(text: string, title: string, artist: string) {
+  const normalizedText = normalize(text.replace(/\s*[-–—]\s*/g, " "));
+  const titleKey = normalizeSearchValue(title);
+  const artistKey = normalizeSearchValue(artist);
+
+  if (
+    titleKey &&
+    artistKey &&
+    normalizedText.includes(titleKey) &&
+    normalizedText.includes(artistKey)
+  ) {
+    return true;
+  }
+
+  return /^(作?词|作?曲|编曲|制作人?|监制|录音|混音|母带|吉他|贝斯|鼓|和声|配唱|原唱|演唱|op|sp)\s*[:：]/i.test(
+    text
+  );
+}
+
+function decodeQqLyricText(value: string) {
+  return value
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'");
+}
+
+async function resolveLrcLibLyrics(title: string, artist: string, duration: number) {
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return [];
+  }
+
+  const url = new URL(lrcLibSearchUrl);
+  url.searchParams.set("track_name", title);
+  url.searchParams.set("artist_name", artist);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Redio/0.1 (local development)"
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const records = (await response.json()) as Array<{
+      trackName?: string;
+      artistName?: string;
+      duration?: number;
+      syncedLyrics?: string | null;
+    }>;
+    const titleKey = normalize(stripDiacritics(title));
+    const artistKey = normalize(stripDiacritics(artist));
+    const matchingRecord = records
+      .filter((record) => {
+        if (!record.syncedLyrics || !Number.isFinite(record.duration)) {
+          return false;
+        }
+
+        const recordTitle = normalize(stripDiacritics(record.trackName ?? ""));
+        const recordArtist = normalize(stripDiacritics(record.artistName ?? ""));
+
+        return (
+          recordTitle === titleKey &&
+          (recordArtist === artistKey ||
+            recordArtist.includes(artistKey) ||
+            artistKey.includes(recordArtist)) &&
+          Math.abs((record.duration ?? 0) - duration) <= 5
+        );
+      })
+      .sort(
+        (left, right) =>
+          Math.abs((left.duration ?? 0) - duration) -
+          Math.abs((right.duration ?? 0) - duration)
+      )[0];
+
+    return matchingRecord?.syncedLyrics
+      ? parseQqLrc(matchingRecord.syncedLyrics, title, artist)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 async function resolveQqSongUrl(
@@ -413,7 +667,7 @@ function buildQqCoverUrl(albumMid: string) {
   return `https://y.qq.com/music/photo_new/T002R300x300M000${albumMid}.jpg`;
 }
 
-function pickBestQqSong(
+function rankQqSongs(
   songs: QqSongSearchResult[],
   title: string,
   artist: string
@@ -421,14 +675,67 @@ function pickBestQqSong(
   const titleKey = normalize(title);
   const artistKey = normalize(artist);
 
+  return [...songs].sort((left, right) => {
+    return (
+      scoreQqSong(right, titleKey, artistKey) -
+      scoreQqSong(left, titleKey, artistKey)
+    );
+  });
+}
+
+function scoreQqSong(song: QqSongSearchResult, titleKey: string, artistKey: string) {
+  const songTitle = normalizeSearchValue(song.name);
+  const songArtist = normalizeSearchValue(song.artist);
+  let score = 0;
+
+  if (songTitle === titleKey) {
+    score += 100;
+  } else if (songTitle.includes(titleKey) || titleKey.includes(songTitle)) {
+    score += 60;
+  }
+
+  if (artistKey && songArtist.includes(artistKey)) {
+    score += 40;
+  }
+
+  if (song.mediaMid) {
+    score += 5;
+  }
+
+  return score;
+}
+
+function isAcceptableQqSongCandidate(
+  song: QqSongSearchResult,
+  title: string,
+  artist: string
+) {
+  const titleKey = normalizeSearchValue(title);
+  const artistKey = normalizeSearchValue(artist);
+  const songTitle = normalizeSearchValue(song.name);
+  const songArtist = normalizeSearchValue(song.artist);
+  const titleMatches =
+    songTitle === titleKey ||
+    ((songTitle.includes(titleKey) || titleKey.includes(songTitle)) &&
+      artistKey &&
+      isArtistMatch(songArtist, artistKey));
+
+  if (!titleMatches) {
+    return false;
+  }
+
+  return !artistKey || isArtistMatch(songArtist, artistKey);
+}
+
+function isArtistMatch(candidateArtist: string, requestedArtist: string) {
+  if (!requestedArtist) {
+    return true;
+  }
+
   return (
-    songs.find(
-      (song) =>
-        normalize(song.name) === titleKey &&
-        (!artistKey || normalize(song.artist).includes(artistKey))
-    ) ??
-    songs.find((song) => normalize(song.name).includes(titleKey) || titleKey.includes(normalize(song.name))) ??
-    songs[0]
+    candidateArtist === requestedArtist ||
+    candidateArtist.includes(requestedArtist) ||
+    requestedArtist.includes(candidateArtist)
   );
 }
 
@@ -444,6 +751,7 @@ function readQqLoginStatusFromCookie(cookie: string): QqLoginStatus {
     hasCookie: !!cookie.trim(),
     userId,
     nickname: qqCookieNickname(obj, userId) || (userId ? `QQ ${userId}` : undefined),
+    avatarUrl: userId ? `https://q1.qlogo.cn/g?b=qq&nk=${encodeURIComponent(userId)}&s=100` : undefined,
     playbackKeyReady: !!(userId && playbackKey)
   };
 }
@@ -580,6 +888,12 @@ function getQqCookiePath(rootDir: string) {
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeSearchValue(value: string) {
+  return normalize(stripDiacritics(value))
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ");
 }
 
 function stripDiacritics(value: string) {

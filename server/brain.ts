@@ -210,6 +210,7 @@ async function generateCustomHttpTurn(context: PromptContext): Promise<AiTurn> {
 
   const data = (await response.json()) as unknown;
   const content = readChatCompletionContent(data);
+  const requestedMusic = isMusicRequest(context);
   const jsonPlan = tryParseDjPlan(content, context.requestedTrackCount);
 
   if (jsonPlan) {
@@ -223,10 +224,18 @@ async function generateCustomHttpTurn(context: PromptContext): Promise<AiTurn> {
     };
   }
 
+  if (requestedMusic && looksLikeJson(content)) {
+    throw new Error("model returned invalid recommendation JSON");
+  }
+
   const recommendations = parseTaggedRecommendations(content).slice(
     0,
     context.requestedTrackCount
   );
+
+  if (requestedMusic && recommendations.length === 0) {
+    throw new Error("model did not return a valid recommendation");
+  }
 
   if (recommendations.length === 0) {
     return {
@@ -315,10 +324,14 @@ function normalizeDjPlan(plan: ModelDjPlan, requestedTrackCount: number): ModelD
     )
   }));
 
+  if (normalizedTracks.length === 0) {
+    throw new Error("model returned no playable recommendations");
+  }
+
   return {
     ...plan,
     say: limitDjCopy(plan.say.trim() || normalizedTracks[0]?.intro || "这首歌适合现在播放。"),
-    play: normalizedTracks.length > 0 ? normalizedTracks : plan.play
+    play: normalizedTracks
   };
 }
 
@@ -413,6 +426,17 @@ function tryParseDjPlan(
   }
 }
 
+function looksLikeJson(content: string) {
+  const trimmed = content.trim();
+  return trimmed.startsWith("{") || trimmed.startsWith("```json");
+}
+
+function isMusicRequest(context: PromptContext) {
+  return /推|推荐|听|放|播|来|歌|音乐|歌单|曲|适合|心情|开车|通勤|睡|阅读|工作|学习|下雨|夜晚|早上|午后|轻松|安静|兴奋|emo|治愈/i.test(
+    readUserRequestFromPrompt(context.prompt)
+  );
+}
+
 function extractJson(content: string) {
   const trimmed = content.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
@@ -434,6 +458,7 @@ function isModelDjPlan(value: unknown): value is ModelDjPlan {
   return (
     typeof candidate.say === "string" &&
     Array.isArray(candidate.play) &&
+    candidate.play.length > 0 &&
     candidate.play.every(
       (track) =>
         typeof track === "object" &&

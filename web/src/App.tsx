@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent
+} from "react";
+import { StarfieldCanvas } from "./StarfieldCanvas";
 
 declare global {
   interface Window {
@@ -50,6 +58,11 @@ type NowPlayingState = {
   status: "idle" | "planned";
   currentPlan: DjPlan | null;
   currentContext?: PromptContext | null;
+  playbackSummary?: {
+    status: "full" | "attemptable" | "failed" | "idle";
+    hasFullPlayableTrack: boolean;
+    hasAttemptableTrack: boolean;
+  };
   updatedAt: string;
 };
 
@@ -80,6 +93,8 @@ type ChatMessage = {
   text: string;
   plan?: DjPlan;
 };
+
+type RecommendedTrack = DjPlan["play"][number];
 
 type PlaybackHistoryEntry = {
   id: string;
@@ -124,8 +139,22 @@ type QqLoginStatus = {
   hasCookie: boolean;
   userId?: string;
   nickname?: string;
+  avatarUrl?: string;
   playbackKeyReady: boolean;
   message?: string;
+};
+
+type LyricLine = {
+  time: number;
+  text: string;
+};
+
+type LyricsResponse = {
+  provider: "qq" | "lrclib";
+  songMid?: string;
+  matchedTitle: string;
+  matchedArtist: string;
+  lines: LyricLine[];
 };
 
 type AppLogEntry = {
@@ -166,6 +195,9 @@ type PlayableTrack = Track & {
   audioLabel: string;
   audioUrl: string;
   source: "local" | "netease" | "qq";
+  queueId?: string;
+  queuedAt?: string;
+  episode?: number;
   djIntro?: string;
   matchedTitle?: string;
   matchedArtist?: string;
@@ -176,14 +208,34 @@ type PlayableTrack = Track & {
   failureReason?: string;
 };
 
+type CircularQueuePlayerProps = {
+  currentCaption: string;
+  currentTime: number;
+  duration: number;
+  isLiked: boolean;
+  isPlaying: boolean;
+  onLike: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  onSeek: (value: number) => void;
+  onSelectTrack: (index: number) => void;
+  onToggleMute: () => void;
+  onTogglePlayback: () => void;
+  onVolumeChange: (value: number) => void;
+  selectedTrack: PlayableTrack;
+  selectedTrackIndex: number;
+  tracks: PlayableTrack[];
+  volume: number;
+};
+
 const djDuckingRatio = 0.5;
 const musicIntentPattern =
   /(推|推荐|听|放|播|来|歌|音乐|歌单|曲|适合|心情|开车|通勤|睡|阅读|工作|学习|下雨|夜晚|早上|午后|轻松|安静|兴奋|emo|治愈)/i;
 
 const fallbackTracks: PlayableTrack[] = [
   {
-    title: "Local Focus Loop",
-    artist: "Redio Lab",
+    title: "GOOD FOR ME.",
+    artist: "SEVENTEEN",
     audioLabel: "本地测试音频 A",
     audioUrl: "/audio/local-focus.wav",
     source: "local",
@@ -192,8 +244,8 @@ const fallbackTracks: PlayableTrack[] = [
     failureReason: "本地测试音频，不代表真实推荐歌曲已解析成功"
   },
   {
-    title: "Local Night Loop",
-    artist: "Redio Lab",
+    title: "OuterWilds",
+    artist: "Andrew Prahlow",
     audioLabel: "本地测试音频 B",
     audioUrl: "/audio/local-night.wav",
     source: "local",
@@ -202,8 +254,8 @@ const fallbackTracks: PlayableTrack[] = [
     failureReason: "本地测试音频，不代表真实推荐歌曲已解析成功"
   },
   {
-    title: "Warm Static",
-    artist: "Redio Lab",
+    title: "电台情歌",
+    artist: "莫文蔚",
     audioLabel: "本地测试音频 A",
     audioUrl: "/audio/local-focus.wav",
     source: "local",
@@ -233,10 +285,32 @@ const fallbackTracks: PlayableTrack[] = [
   }
 ];
 
+const queueFallbackCovers = [
+  "/images/redio-queue-cover-0.png",
+  "/images/redio-queue-cover-1.png",
+  "/images/redio-queue-cover-2.jpg",
+  "/images/redio-queue-cover-3.jpg",
+  "/images/redio-queue-cover-4.jpg",
+  "/images/redio-queue-cover-5.png",
+  "/images/redio-queue-cover-6.png"
+];
+
 const apiBaseUrl = "http://127.0.0.1:8788";
 
 function getApiUrl(url: string) {
   return url.startsWith("/api/") ? `${apiBaseUrl}${url}` : url;
+}
+
+function getPlaybackAudioUrl(track: PlayableTrack) {
+  if (!track.audioUrl) {
+    return "";
+  }
+
+  if (track.source === "qq" && /^https?:\/\//i.test(track.audioUrl)) {
+    return getApiUrl(`/api/audio/proxy?url=${encodeURIComponent(track.audioUrl)}`);
+  }
+
+  return track.audioUrl;
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -327,8 +401,26 @@ function getPlayableTrackKey(track: Track) {
   return `${track.title.trim().toLowerCase()}::${track.artist.trim().toLowerCase()}`;
 }
 
+function getQqSongMid(externalUrl: string | undefined) {
+  return externalUrl?.match(/songDetail\/([^/?#]+)/)?.[1] ?? "";
+}
+
+function getCurrentLyricText(lines: LyricLine[], currentTime: number) {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (lines[index].time <= currentTime + 0.05) {
+      return lines[index].text;
+    }
+  }
+
+  return undefined;
+}
+
+function getPlayableTrackIdentity(track: PlayableTrack, index: number) {
+  return track.queueId ?? `${getPlayableTrackKey(track)}::${index}`;
+}
+
 function shouldRefreshProviderTrack(track: PlayableTrack) {
-  if (track.playbackStatus === "full" && !track.isFallback) {
+  if (track.audioUrl && track.playbackStatus !== "failed" && !track.isFallback) {
     return false;
   }
 
@@ -390,13 +482,21 @@ function getTrackPlaybackWarning(track: PlayableTrack) {
   return null;
 }
 
-function isTrackPlayable(track: PlayableTrack) {
+function hasAttemptableAudio(track: PlayableTrack) {
   return Boolean(track.audioUrl && track.playbackStatus !== "failed");
 }
 
-function findNextPlayableTrackIndex(tracks: PlayableTrack[], startIndex: number) {
+function isVerifiedFullTrack(track: PlayableTrack) {
+  return track.playbackStatus === "full" && !track.isFallback;
+}
+
+function isTrackPlayable(track: PlayableTrack) {
+  return hasAttemptableAudio(track);
+}
+
+function findNextVerifiedTrackIndex(tracks: PlayableTrack[], startIndex: number) {
   for (let index = startIndex + 1; index < tracks.length; index += 1) {
-    if (isTrackPlayable(tracks[index])) {
+    if (isVerifiedFullTrack(tracks[index])) {
       return index;
     }
   }
@@ -404,14 +504,8 @@ function findNextPlayableTrackIndex(tracks: PlayableTrack[], startIndex: number)
   return -1;
 }
 
-function findPreviousPlayableTrackIndex(tracks: PlayableTrack[], startIndex: number) {
-  for (let index = startIndex - 1; index >= 0; index -= 1) {
-    if (isTrackPlayable(tracks[index])) {
-      return index;
-    }
-  }
-
-  return -1;
+function findFirstAttemptableTrackIndex(tracks: PlayableTrack[]) {
+  return tracks.findIndex(hasAttemptableAudio);
 }
 
 function getPlaybackErrorMessage(error: unknown) {
@@ -472,7 +566,13 @@ function BackIcon() {
   );
 }
 
-function VolumeIcon({ color = "white" }: { color?: string }) {
+function VolumeIcon({
+  color = "currentColor",
+  muted = false
+}: {
+  color?: string;
+  muted?: boolean;
+}) {
   return (
     <svg
       aria-hidden="true"
@@ -487,14 +587,25 @@ function VolumeIcon({ color = "white" }: { color?: string }) {
         d="M3.44196 4.81854L6.74091 1.94527C6.95236 1.76546 7.22167 1.66663 7.50016 1.66663C8.1445 1.66663 8.66683 2.18483 8.66683 2.82406V13.1758C8.66683 13.4521 8.56721 13.7193 8.38596 13.9291C7.96664 14.4144 7.23012 14.4706 6.74091 14.0546L3.44196 11.1814C3.41175 11.1557 3.37328 11.1416 3.3335 11.1416H2.50016C1.85583 11.1416 1.3335 10.6234 1.3335 9.98412V6.01578C1.3335 5.37655 1.85583 4.85835 2.50016 4.85835H3.3335C3.37328 4.85835 3.41175 4.84423 3.44196 4.81854ZM3.3335 9.94155C3.64661 9.94155 3.95104 10.049 4.19512 10.2471L7.46683 13.0988V2.90109L4.1951 5.75283C3.95103 5.95088 3.64662 6.05835 3.3335 6.05835H2.5335V9.94155H3.3335Z"
         fill={color}
       />
-      <path
-        d="M9.97456 5.60423C10.2005 5.36181 10.5801 5.34843 10.8226 5.57436C11.4229 6.13387 11.9904 6.92913 11.9904 8.01331C11.9904 9.07394 11.4434 9.85032 10.8726 10.4047C10.6349 10.6356 10.255 10.63 10.0241 10.3923C9.79326 10.1546 9.79881 9.77472 10.0365 9.54386C10.4886 9.10483 10.7904 8.61931 10.7904 8.01331C10.7904 7.39079 10.4749 6.89068 10.0044 6.45223C9.76202 6.22631 9.74864 5.84664 9.97456 5.60423Z"
-        fill={color}
-      />
-      <path
-        d="M12.8587 4.07678C12.6287 3.83825 12.2489 3.83135 12.0103 4.06137C11.7718 4.29139 11.7649 4.67122 11.9949 4.90976C12.844 5.79026 13.4646 6.63312 13.4646 8.05612C13.4646 9.42443 12.8818 10.2296 12.0872 11.1039C11.8644 11.3491 11.8825 11.7286 12.1277 11.9515C12.373 12.1743 12.7524 12.1562 12.9753 11.9109C13.8376 10.9621 14.6646 9.87443 14.6646 8.05612C14.6646 6.1724 13.7901 5.04264 12.8587 4.07678Z"
-        fill={color}
-      />
+      {muted ? (
+        <path
+          d="M2.25 2.25L13.75 13.75"
+          stroke={color}
+          strokeLinecap="round"
+          strokeWidth="1.6"
+        />
+      ) : (
+        <>
+          <path
+            d="M9.97456 5.60423C10.2005 5.36181 10.5801 5.34843 10.8226 5.57436C11.4229 6.13387 11.9904 6.92913 11.9904 8.01331C11.9904 9.07394 11.4434 9.85032 10.8726 10.4047C10.6349 10.6356 10.255 10.63 10.0241 10.3923C9.79326 10.1546 9.79881 9.77472 10.0365 9.54386C10.4886 9.10483 10.7904 8.61931 10.7904 8.01331C10.7904 7.39079 10.4749 6.89068 10.0044 6.45223C9.76202 6.22631 9.74864 5.84664 9.97456 5.60423Z"
+            fill={color}
+          />
+          <path
+            d="M12.8587 4.07678C12.6287 3.83825 12.2489 3.83135 12.0103 4.06137C11.7718 4.29139 11.7649 4.67122 11.9949 4.90976C12.844 5.79026 13.4646 6.63312 13.4646 8.05612C13.4646 9.42443 12.8818 10.2296 12.0872 11.1039C11.8644 11.3491 11.8825 11.7286 12.1277 11.9515C12.373 12.1743 12.7524 12.1562 12.9753 11.9109C13.8376 10.9621 14.6646 9.87443 14.6646 8.05612C14.6646 6.1724 13.7901 5.04264 12.8587 4.07678Z"
+            fill={color}
+          />
+        </>
+      )}
     </svg>
   );
 }
@@ -600,17 +711,6 @@ function RedioMarkIcon() {
         fillRule="evenodd"
       />
     </svg>
-  );
-}
-
-function ChatStatusBars() {
-  return (
-    <span aria-hidden="true" className="chatStatusBars">
-      <i />
-      <i />
-      <i />
-      <i />
-    </span>
   );
 }
 
@@ -747,20 +847,28 @@ export function App() {
   const planningRequestInFlightRef = useRef(false);
   const djSpeechRequestIdRef = useRef(0);
   const resolvingTrackKeysRef = useRef(new Set<string>());
+  const playbackErrorRetryKeysRef = useRef(new Set<string>());
   const selectedTrackKeyRef = useRef("");
   const songVolumeAnimationRef = useRef<number | null>(null);
   const browserAudioUnlockedRef = useRef(false);
   const audioUnlockElementRef = useRef<HTMLAudioElement | null>(null);
+  const playbackToastTimerRef = useRef<number | null>(null);
+  const lyricsCacheRef = useRef(new Map<string, LyricLine[]>());
+  const lastAudibleVolumeRef = useRef(0.5);
   const [nowPlaying, setNowPlaying] = useState<NowPlayingState | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [visibleHistoryEntryCount, setVisibleHistoryEntryCount] = useState(5);
-  const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [playbackRequestId, setPlaybackRequestId] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [activeLyrics, setActiveLyrics] = useState<{
+    trackKey: string;
+    lines: LyricLine[];
+  } | null>(null);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
+  const [volume, setVolume] = useState(0.5);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlanning, setIsPlanning] = useState(false);
@@ -772,9 +880,11 @@ export function App() {
   const [isQqSaving, setIsQqSaving] = useState(false);
   const [isQqWebLoginBusy, setIsQqWebLoginBusy] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeDjText, setActiveDjText] = useState<string | null>(null);
   const [queueTracks, setQueueTracks] = useState<QueueTrack[]>([]);
   const [historyEntries, setHistoryEntries] = useState<PlaybackHistoryEntry[]>([]);
   const [feedbackEntries, setFeedbackEntries] = useState<TrackFeedbackEntry[]>([]);
+  const [hasEnteredRadio, setHasEnteredRadio] = useState(false);
   const [appView, setAppView] = useState<AppView>("radio");
   const [resolvedTrackOverrides, setResolvedTrackOverrides] = useState<
     Record<string, PlayableTrack>
@@ -792,6 +902,15 @@ export function App() {
     }
   ]);
   const [error, setError] = useState<string | null>(null);
+  const [playbackToast, setPlaybackToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (playbackToastTimerRef.current !== null) {
+        window.clearTimeout(playbackToastTimerRef.current);
+      }
+    };
+  }, []);
 
   function loadMoreChatHistory() {
     setVisibleHistoryEntryCount((count) =>
@@ -818,6 +937,32 @@ export function App() {
     );
   }
 
+  function clearPlaybackToast() {
+    if (playbackToastTimerRef.current !== null) {
+      window.clearTimeout(playbackToastTimerRef.current);
+      playbackToastTimerRef.current = null;
+    }
+
+    setPlaybackToast(null);
+  }
+
+  function showPlaybackToast(message: string) {
+    clearPlaybackToast();
+    setPlaybackToast(message);
+    playbackToastTimerRef.current = window.setTimeout(() => {
+      setPlaybackToast(null);
+      playbackToastTimerRef.current = null;
+    }, 4200);
+  }
+
+  function showTrackPlaybackFailure(track: PlayableTrack, fallbackReason: string) {
+    const reason = track.failureReason?.trim() || fallbackReason;
+
+    setError(reason);
+    showPlaybackToast(`《${track.title}》播放失败：${reason}`);
+    return reason;
+  }
+
   async function loadNowPlaying() {
     setError(null);
     const state = await fetchJson<NowPlayingState>("/api/now");
@@ -836,7 +981,23 @@ export function App() {
 
   async function loadQueue() {
     const entries = await fetchJson<QueueTrack[]>("/api/queue");
-    setQueueTracks(entries);
+    setQueueTracks((currentTracks) => {
+      const currentTracksById = new Map(
+        currentTracks.map((track) => [track.id, track] as const)
+      );
+
+      return entries.map((track) => {
+        const currentTrack = currentTracksById.get(track.id);
+
+        return currentTrack?.coverUrl
+          ? {
+              ...track,
+              coverUrl: currentTrack.coverUrl
+            }
+          : track;
+      });
+    });
+    return entries;
   }
 
   async function loadFeedback() {
@@ -966,15 +1127,20 @@ export function App() {
     const audio = audioRef.current;
 
     if (!audio) {
-      setError("歌曲播放器还没有准备好。");
+      const errorMessage = "歌曲播放器还没有准备好。";
+
+      setError(errorMessage);
+      showPlaybackToast(`播放失败：${errorMessage}`);
       return false;
     }
 
     if (!isTrackPlayable(selectedTrack)) {
-      const errorMessage =
-        selectedTrack.failureReason ?? "这首歌暂时没有可播放 QQ 音源。";
+      stopPlaybackForUnavailableTrack();
+      const errorMessage = showTrackPlaybackFailure(
+        selectedTrack,
+        "这首歌暂时没有可播放 QQ 音源。"
+      );
 
-      setError(errorMessage);
       appendLog(
         "error",
         "歌曲无法播放",
@@ -985,6 +1151,7 @@ export function App() {
 
     try {
       await audio.play();
+      clearPlaybackToast();
       const playbackWarning = getTrackPlaybackWarning(selectedTrack);
 
       setError(playbackWarning);
@@ -998,6 +1165,7 @@ export function App() {
       const errorMessage = getPlaybackErrorMessage(playbackError);
 
       setError(errorMessage);
+      showPlaybackToast(`《${selectedTrack.title}》播放失败：${errorMessage}`);
       appendLog("error", "歌曲自动播放失败", errorMessage);
       return false;
     }
@@ -1037,6 +1205,34 @@ export function App() {
     pendingQueueAutoplayRef.current = true;
     pendingDjIntroRef.current = djIntro?.trim() || null;
     setPlaybackRequestId((requestId) => requestId + 1);
+  }
+
+  function stopPlaybackForUnavailableTrack() {
+    pendingQueueAutoplayRef.current = false;
+    pendingDjIntroRef.current = null;
+
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    djSpeechRequestIdRef.current += 1;
+
+    const djAudio = djAudioRef.current;
+
+    if (djAudio) {
+      djAudio.pause();
+      djAudio.currentTime = 0;
+    }
+
+    setIsPlaying(false);
+    setIsSpeaking(false);
+    setActiveDjText(null);
+    setCurrentTime(0);
+    setDuration(0);
+    setSongDucking(false);
   }
 
   function rampSongVolume(targetVolume: number, durationMs = 450) {
@@ -1084,13 +1280,18 @@ export function App() {
 
   function handleDjPlaybackStopped() {
     setIsSpeaking(false);
+    setActiveDjText(null);
     setSongDucking(false);
   }
 
-  function toPlayableTrack(track: DjPlan["play"][number]): PlayableTrack | null {
+  function toPlayableTrack(
+    track: DjPlan["play"][number] | QueueTrack
+  ): PlayableTrack | null {
     if (!track.title || !track.artist) {
       return null;
     }
+
+    const queueTrack = "id" in track ? track : null;
 
     return {
       title: track.title,
@@ -1098,6 +1299,9 @@ export function App() {
       audioLabel: track.audioLabel ?? "本地测试音频",
       audioUrl: track.audioUrl ?? "",
       source: track.source ?? "local",
+      queueId: queueTrack?.id,
+      queuedAt: queueTrack?.queuedAt,
+      episode: queueTrack?.episode,
       djIntro: track.intro,
       matchedTitle: track.matchedTitle,
       matchedArtist: track.matchedArtist,
@@ -1110,48 +1314,27 @@ export function App() {
   }
 
   function readRecommendedTracks() {
-    const recommendedTracks: PlayableTrack[] = [];
-    const seenTrackKeys = new Set<string>();
+    const sourceTracks = queueTracks.length > 0 ? queueTracks : plan?.play ?? [];
 
-    function addTrack(track: PlayableTrack | null) {
+    return sourceTracks.flatMap((sourceTrack) => {
+      const track = toPlayableTrack(sourceTrack);
+
       if (!track) {
-        return;
+        return [];
       }
 
-      const key = getPlayableTrackKey(track);
+      const resolvedTrack = resolvedTrackOverrides[getPlayableTrackKey(track)];
 
-      if (seenTrackKeys.has(key)) {
-        return;
-      }
-
-      seenTrackKeys.add(key);
-      const resolvedTrack = resolvedTrackOverrides[key];
-
-      recommendedTracks.push(
+      return [
         resolvedTrack
           ? {
+              ...track,
               ...resolvedTrack,
               djIntro: track.djIntro
             }
           : track
-      );
-    }
-
-    if (queueTracks.length > 0) {
-      for (const track of queueTracks) {
-        addTrack(toPlayableTrack(track));
-      }
-
-      return recommendedTracks;
-    }
-
-    if (plan?.play.length) {
-      for (const track of plan.play) {
-        addTrack(toPlayableTrack(track));
-      }
-    }
-
-    return recommendedTracks;
+      ];
+    });
   }
 
   async function playDjCopy(text: string | undefined) {
@@ -1190,12 +1373,14 @@ export function App() {
       audio.src = tts.audioUrl;
       audio.currentTime = 0;
       audio.volume = volume;
+      setActiveDjText(text.trim());
       await audio.play();
       setError(null);
       appendLog("success", "DJ 文案开始播报", tts.provider);
       return true;
     } catch (requestError) {
       setIsSpeaking(false);
+      setActiveDjText(null);
       const errorMessage =
         requestError instanceof Error ? requestError.message : "DJ 文案播报失败。";
 
@@ -1272,21 +1457,44 @@ export function App() {
 
       setNowPlaying(state);
       void loadHistory();
-      void loadQueue();
+      const refreshedQueue = await loadQueue();
       const firstTrack = state.currentPlan?.play[0];
-      const firstPlayableTrackIndex = state.currentPlan?.play.findIndex(
-        (track) => track.audioUrl && track.playbackStatus !== "failed"
+      const firstVerifiedPlanIndex = state.currentPlan?.play.findIndex(
+        (track) => track.playbackStatus === "full" && !track.isFallback
       ) ?? -1;
-      const firstPlayableTrack =
-        firstPlayableTrackIndex >= 0
-          ? state.currentPlan?.play[firstPlayableTrackIndex]
+      const firstVerifiedTrack =
+        firstVerifiedPlanIndex >= 0
+          ? state.currentPlan?.play[firstVerifiedPlanIndex]
           : undefined;
-      const hasPlayableTrack = Boolean(firstPlayableTrack);
-      const firstDjIntro = firstPlayableTrack?.intro ?? state.currentPlan?.say;
+      const firstDjIntro = firstVerifiedTrack?.intro ?? state.currentPlan?.say;
       const hasDjCopy = Boolean(firstDjIntro?.trim());
 
-      if (hasPlayableTrack) {
-        setSelectedTrackIndex(firstPlayableTrackIndex);
+      if (firstVerifiedTrack) {
+        let matchingQueueIndex = -1;
+
+        for (let index = refreshedQueue.length - 1; index >= 0; index -= 1) {
+          const queueTrack = refreshedQueue[index];
+
+          if (
+            queueTrack.episode === state.currentPlan?.episode &&
+            getPlayableTrackKey(queueTrack) === getPlayableTrackKey(firstVerifiedTrack)
+          ) {
+            matchingQueueIndex = index;
+            break;
+          }
+        }
+
+        const matchingQueueTrack =
+          matchingQueueIndex >= 0
+            ? toPlayableTrack(refreshedQueue[matchingQueueIndex])
+            : null;
+
+        if (matchingQueueTrack) {
+          setSelectedTrackId(
+            getPlayableTrackIdentity(matchingQueueTrack, matchingQueueIndex)
+          );
+        }
+
         requestTrackPlayback(hasDjCopy ? firstDjIntro : undefined);
       }
 
@@ -1388,9 +1596,29 @@ export function App() {
   }, []);
 
   const plan = nowPlaying?.currentPlan;
-  const tracks = readRecommendedTracks();
+  const recommendedTracks = readRecommendedTracks();
+  const tracks = recommendedTracks.length > 0 ? recommendedTracks : fallbackTracks;
+  const selectedTrackIndexById = selectedTrackId
+    ? tracks.findIndex(
+        (track, index) => getPlayableTrackIdentity(track, index) === selectedTrackId
+      )
+    : -1;
+  const firstVerifiedTrackIndex = tracks.findIndex(isVerifiedFullTrack);
+  const firstAttemptableTrackIndex = findFirstAttemptableTrackIndex(tracks);
+  const selectedTrackIndex =
+    selectedTrackIndexById >= 0
+      ? selectedTrackIndexById
+      : firstVerifiedTrackIndex >= 0
+        ? firstVerifiedTrackIndex
+        : firstAttemptableTrackIndex >= 0
+          ? firstAttemptableTrackIndex
+        : 0;
   const selectedTrack = tracks[selectedTrackIndex] ?? fallbackTracks[0];
   const selectedTrackKey = getPlayableTrackKey(selectedTrack);
+  const currentCaption =
+    activeLyrics?.trackKey === selectedTrackKey
+      ? getCurrentLyricText(activeLyrics.lines, currentTime) ?? selectedTrack.artist
+      : selectedTrack.artist;
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const listenerName = qqLoginStatus?.nickname ?? qqLoginStatus?.userId ?? "你";
   const listenerCount = qqLoginStatus?.loggedIn ? 1 : 0;
@@ -1411,15 +1639,123 @@ export function App() {
   }, [selectedTrackKey]);
 
   useEffect(() => {
-    const nextTracks = readRecommendedTracks();
-    const firstPlayableTrackIndex = nextTracks.findIndex(isTrackPlayable);
+    let isCancelled = false;
 
-    setSelectedTrackIndex(firstPlayableTrackIndex >= 0 ? firstPlayableTrackIndex : 0);
-  }, [plan, queueTracks]);
+    if (selectedTrack.source !== "qq" || duration <= 0) {
+      setActiveLyrics(null);
+      return;
+    }
+
+    const cachedLines = lyricsCacheRef.current.get(selectedTrackKey);
+
+    if (cachedLines) {
+      setActiveLyrics({ trackKey: selectedTrackKey, lines: cachedLines });
+      return;
+    }
+
+    setActiveLyrics(null);
+
+    const params = new URLSearchParams({
+      title: selectedTrack.title,
+      artist: selectedTrack.artist,
+      duration: String(duration)
+    });
+    const songMid = getQqSongMid(selectedTrack.externalUrl);
+
+    if (songMid) {
+      params.set("songMid", songMid);
+    }
+
+    void fetchJson<LyricsResponse>(`/api/lyrics?${params.toString()}`)
+      .then((response) => {
+        if (isCancelled) {
+          return;
+        }
+
+        lyricsCacheRef.current.set(selectedTrackKey, response.lines);
+        setActiveLyrics({ trackKey: selectedTrackKey, lines: response.lines });
+      })
+      .catch((requestError) => {
+        if (!isCancelled) {
+          appendLog(
+            "info",
+            "歌词加载失败",
+            requestError instanceof Error ? requestError.message : "未取得歌词"
+          );
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    duration,
+    selectedTrack.artist,
+    selectedTrack.externalUrl,
+    selectedTrack.source,
+    selectedTrack.title,
+    selectedTrackKey
+  ]);
+
+  useEffect(() => {
+    if (isTrackPlayable(selectedTrack)) {
+      return;
+    }
+
+    stopPlaybackForUnavailableTrack();
+    showTrackPlaybackFailure(selectedTrack, "这首歌暂时没有可播放音源。");
+  }, [
+    selectedTrack.audioUrl,
+    selectedTrack.failureReason,
+    selectedTrack.playbackStatus,
+    selectedTrackKey
+  ]);
+
+  useEffect(() => {
+    const selectedTrackStillExists = tracks.some(
+      (track, index) => getPlayableTrackIdentity(track, index) === selectedTrackId
+    );
+
+    if (selectedTrackStillExists) {
+      return;
+    }
+
+    const currentEpisode = plan?.episode;
+    let nextSelectedIndex = queueTracks.findIndex((track) => {
+      const playableTrack = toPlayableTrack(track);
+
+      return (
+        track.episode === currentEpisode &&
+        playableTrack !== null &&
+        isTrackPlayable(playableTrack)
+      );
+    });
+
+    if (nextSelectedIndex < 0) {
+      nextSelectedIndex = queueTracks.findIndex((track) => {
+        const playableTrack = toPlayableTrack(track);
+
+        return playableTrack !== null && isTrackPlayable(playableTrack);
+      });
+    }
+
+    const nextSelectedTrack =
+      nextSelectedIndex >= 0 ? toPlayableTrack(queueTracks[nextSelectedIndex]) : null;
+
+    if (nextSelectedTrack) {
+      setSelectedTrackId(getPlayableTrackIdentity(nextSelectedTrack, nextSelectedIndex));
+    }
+  }, [plan, queueTracks, selectedTrackId]);
 
   useEffect(() => {
     setCurrentTime(0);
     setDuration(0);
+
+    if (pendingQueueAutoplayRef.current && !isVerifiedFullTrack(selectedTrack)) {
+      pendingQueueAutoplayRef.current = false;
+      pendingDjIntroRef.current = null;
+      return;
+    }
 
     if (isPlaying || pendingQueueAutoplayRef.current) {
       const pendingDjIntro = pendingDjIntroRef.current;
@@ -1474,14 +1810,14 @@ export function App() {
         const playbackWarning = getTrackPlaybackWarning(resolvedTrack);
         const audio = audioRef.current;
         const resolvedAudioUrl = resolvedTrack.audioUrl
-          ? new URL(resolvedTrack.audioUrl, window.location.href).href
+          ? new URL(getPlaybackAudioUrl(resolvedTrack), window.location.href).href
           : "";
         const wasPlaying = !!audio && !audio.paused;
 
         setError(playbackWarning);
 
         if (audio && resolvedTrack.playbackStatus === "full" && audio.src !== resolvedAudioUrl) {
-          audio.src = resolvedTrack.audioUrl;
+          audio.src = getPlaybackAudioUrl(resolvedTrack);
           audio.load();
           appendLog(
             "success",
@@ -1524,14 +1860,42 @@ export function App() {
     }
   }, [volume, isSpeaking]);
 
+  function changeVolume(value: number) {
+    const nextVolume = clampVolume(value);
+
+    if (nextVolume > 0) {
+      lastAudibleVolumeRef.current = nextVolume;
+    }
+
+    setVolume(nextVolume);
+  }
+
+  function toggleMute() {
+    setVolume((currentVolume) => {
+      if (currentVolume > 0) {
+        lastAudibleVolumeRef.current = currentVolume;
+        return 0;
+      }
+
+      return lastAudibleVolumeRef.current || 0.5;
+    });
+  }
+
   function selectTrack(index: number) {
     const track = tracks[index];
 
-    if (track && !isTrackPlayable(track)) {
-      setError(track.failureReason ?? "这首歌暂时没有可播放 QQ 音源。");
+    if (!track) {
+      return;
     }
 
-    setSelectedTrackIndex(index);
+    if (!isTrackPlayable(track)) {
+      stopPlaybackForUnavailableTrack();
+      showTrackPlaybackFailure(track, "这首歌暂时没有可播放 QQ 音源。");
+    } else {
+      clearPlaybackToast();
+    }
+
+    setSelectedTrackId(getPlayableTrackIdentity(track, index));
   }
 
   function playTrackAt(index: number, shouldStartPlayback = true) {
@@ -1541,14 +1905,25 @@ export function App() {
       return;
     }
 
+    setSelectedTrackId(getPlayableTrackIdentity(track, index));
+
     if (!isTrackPlayable(track)) {
-      setError(track.failureReason ?? "这首歌暂时没有可播放 QQ 音源。");
+      stopPlaybackForUnavailableTrack();
+      showTrackPlaybackFailure(track, "正在重新解析这首歌的 QQ 音源。");
       return;
     }
 
-    setSelectedTrackIndex(index);
+    const playbackWarning = getTrackPlaybackWarning(track);
 
-    if (shouldStartPlayback) {
+    if (playbackWarning) {
+      setError(playbackWarning);
+      showPlaybackToast(playbackWarning);
+    } else {
+      clearPlaybackToast();
+    }
+
+    if (shouldStartPlayback && isVerifiedFullTrack(track)) {
+      unlockBrowserAudioPlayback();
       requestTrackPlayback(track.djIntro);
     }
   }
@@ -1589,17 +1964,17 @@ export function App() {
   }
 
   function playPreviousTrack() {
-    const previousTrackIndex = findPreviousPlayableTrackIndex(tracks, selectedTrackIndex);
+    const previousTrackIndex = selectedTrackIndex - 1;
 
-    if (previousTrackIndex !== -1) {
+    if (previousTrackIndex >= 0) {
       playTrackAt(previousTrackIndex);
     }
   }
 
   function playNextTrack() {
-    const nextTrackIndex = findNextPlayableTrackIndex(tracks, selectedTrackIndex);
+    const nextTrackIndex = selectedTrackIndex + 1;
 
-    if (nextTrackIndex !== -1) {
+    if (nextTrackIndex < tracks.length) {
       playTrackAt(nextTrackIndex);
     }
   }
@@ -1629,7 +2004,7 @@ export function App() {
   }
 
   function handleSongEnded() {
-    const nextTrackIndex = findNextPlayableTrackIndex(tracks, selectedTrackIndex);
+    const nextTrackIndex = findNextVerifiedTrackIndex(tracks, selectedTrackIndex);
 
     if (nextTrackIndex === -1) {
       setIsPlaying(false);
@@ -1638,8 +2013,78 @@ export function App() {
 
     const nextTrack = tracks[nextTrackIndex];
 
-    setSelectedTrackIndex(nextTrackIndex);
+    setSelectedTrackId(getPlayableTrackIdentity(nextTrack, nextTrackIndex));
     requestTrackPlayback(nextTrack?.djIntro);
+  }
+
+  async function retrySelectedTrackAfterPlaybackError(errorMessage: string) {
+    const trackKey = selectedTrackKey;
+
+    if (
+      playbackErrorRetryKeysRef.current.has(trackKey) ||
+      resolvingTrackKeysRef.current.has(trackKey) ||
+      selectedTrack.source !== "qq"
+    ) {
+      return false;
+    }
+
+    playbackErrorRetryKeysRef.current.add(trackKey);
+    resolvingTrackKeysRef.current.add(trackKey);
+    appendLog(
+      "info",
+      "歌曲播放失败，重新解析音源",
+      `${selectedTrack.title} / ${selectedTrack.artist} · ${errorMessage}`
+    );
+
+    try {
+      const resolvedTrack = await fetchJson<ResolveTrackResponse>("/api/resolve-track", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: selectedTrack.title,
+          artist: selectedTrack.artist
+        })
+      });
+
+      setResolvedTrackOverrides((currentOverrides) => ({
+        ...currentOverrides,
+        [trackKey]: resolvedTrack
+      }));
+
+      if (
+        selectedTrackKeyRef.current !== trackKey ||
+        resolvedTrack.playbackStatus !== "full" ||
+        !resolvedTrack.audioUrl
+      ) {
+        return false;
+      }
+
+      const audio = audioRef.current;
+
+      if (!audio) {
+        return false;
+      }
+
+      audio.src = getPlaybackAudioUrl(resolvedTrack);
+      audio.load();
+      appendLog(
+        "success",
+        "QQ 音源已重新解析",
+        `${resolvedTrack.title} / ${resolvedTrack.artist} · ${getPlaybackStatusLabel(resolvedTrack)}`
+      );
+      requestTrackPlayback();
+      return true;
+    } catch (requestError) {
+      const retryError =
+        requestError instanceof Error ? requestError.message : "音源重新解析失败。";
+
+      appendLog("error", "音源重新解析失败", retryError);
+      return false;
+    } finally {
+      resolvingTrackKeysRef.current.delete(trackKey);
+    }
   }
 
   function handleSongError(event: SyntheticEvent<HTMLAudioElement>) {
@@ -1659,7 +2104,7 @@ export function App() {
         ? "本地测试音频也无法播放，请检查音频文件或刷新页面。"
         : "当前推荐音源加载失败，请手动点击播放重试。";
 
-    setError(errorMessage);
+    showTrackPlaybackFailure(selectedTrack, errorMessage);
     setIsPlaying(false);
     appendLog(
       "error",
@@ -1667,14 +2112,20 @@ export function App() {
       `${selectedTrack.title} / ${selectedTrack.artist} · ${errorMessage}`
     );
 
-    const nextTrackIndex = findNextPlayableTrackIndex(tracks, selectedTrackIndex);
+    void retrySelectedTrackAfterPlaybackError(errorMessage).then((didRetry) => {
+      if (didRetry) {
+        return;
+      }
 
-    if (nextTrackIndex !== -1) {
-      const nextTrack = tracks[nextTrackIndex];
+      const nextTrackIndex = findNextVerifiedTrackIndex(tracks, selectedTrackIndex);
 
-      setSelectedTrackIndex(nextTrackIndex);
-      requestTrackPlayback(nextTrack?.djIntro);
-    }
+      if (nextTrackIndex !== -1) {
+        const nextTrack = tracks[nextTrackIndex];
+
+        setSelectedTrackId(getPlayableTrackIdentity(nextTrack, nextTrackIndex));
+        requestTrackPlayback(nextTrack?.djIntro);
+      }
+    });
   }
 
   async function togglePlayback() {
@@ -1695,10 +2146,13 @@ export function App() {
       const didStartPlayback = await startSongPlayback();
 
       if (!didStartPlayback) {
-        setError("当前歌曲无法播放，请换一首或重新解析 QQ 音源。");
+        setIsPlaying(false);
       }
     } catch {
-      setError("当前歌曲无法播放，请换一首或重新解析 QQ 音源。");
+      const errorMessage = "当前歌曲无法播放，请换一首或重新解析 QQ 音源。";
+
+      setError(errorMessage);
+      showPlaybackToast(`《${selectedTrack.title}》播放失败：${errorMessage}`);
     }
   }
 
@@ -1713,38 +2167,130 @@ export function App() {
     setCurrentTime(nextTime);
   }
 
+  const sharedAudioPlayers = (
+    <>
+      <audio
+        onDurationChange={(event) => setDuration(event.currentTarget.duration)}
+        onEnded={handleSongEnded}
+        onError={handleSongError}
+        onCanPlay={() => {
+          if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
+            setError(null);
+          }
+        }}
+        onLoadStart={() => {
+          if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
+            setError(null);
+          }
+        }}
+        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        preload="metadata"
+        ref={audioRef}
+        src={getPlaybackAudioUrl(selectedTrack)}
+      />
+      <audio
+        onEnded={handleDjPlaybackEnded}
+        onPause={handleDjPlaybackStopped}
+        onPlay={handleDjPlaybackStarted}
+        preload="auto"
+        ref={djAudioRef}
+      />
+    </>
+  );
+
+  const chatWindow = isChatOpen ? (
+    <ChatWindow
+      error={error}
+      historyEntries={historyEntries}
+      isLoading={isLoading}
+      isLandingChat={!hasEnteredRadio}
+      isPlanning={isPlanning}
+      message={draftMessage}
+      messages={messages}
+      onClose={() => setIsChatOpen(false)}
+      onLoadMoreHistory={loadMoreChatHistory}
+      onOpenAgentProfile={() => {
+        if (!hasEnteredRadio) {
+          return;
+        }
+
+        setIsChatOpen(false);
+        setAppView("agent");
+      }}
+      onMessageChange={setDraftMessage}
+      onSend={generateSegment}
+      plan={plan}
+      planningInputText={planningCopy.input}
+      planningText={planningCopy.bubble}
+      visibleHistoryEntryCount={visibleHistoryEntryCount}
+    />
+  ) : null;
+  const enterRadioView = (view: AppView) => {
+    setAppView(view);
+    setHasEnteredRadio(true);
+    setIsChatOpen(false);
+  };
+
+  if (!hasEnteredRadio) {
+    return (
+      <>
+        {sharedAudioPlayers}
+        {playbackToast ? (
+          <p aria-live="assertive" className="playbackToast" role="alert">
+            {playbackToast}
+          </p>
+        ) : null}
+        {isSpeaking && activeDjText ? <DjSpeechBubble text={activeDjText} /> : null}
+        <LandingPage
+          draftMessage={draftMessage}
+          error={error}
+          isLoginBusy={isQqWebLoginBusy}
+          isPlanning={isPlanning}
+          onDraftMessageChange={setDraftMessage}
+          onEnter={enterRadioView}
+          onLogin={() => void openQqDesktopLogin()}
+          onBuyTokens={() => setError("Token 购买功能尚未接入。")}
+          onOpenChat={() => setIsChatOpen(true)}
+          onSend={() => {
+            if (!draftMessage.trim() || isPlanning) {
+              return;
+            }
+
+            void generateSegment();
+          }}
+          player={{
+            currentCaption,
+            currentTime,
+            duration,
+            isLiked: isTrackFeedbackActive("like"),
+            isPlaying,
+            onLike: () => void recordTrackFeedback("like"),
+            onNext: playNextTrack,
+            onPrevious: playPreviousTrack,
+            onSeek: seekPlayback,
+            onSelectTrack: (index) => playTrackAt(index),
+            onToggleMute: toggleMute,
+            onTogglePlayback: () => void togglePlayback(),
+            onVolumeChange: changeVolume,
+            selectedTrack,
+            selectedTrackIndex,
+            tracks,
+            volume
+          }}
+          status={qqLoginStatus}
+        />
+        {chatWindow}
+      </>
+    );
+  }
+
   return (
     <main className="pageShell">
       <section className="radioFrame">
-        <audio
-          onDurationChange={(event) => setDuration(event.currentTarget.duration)}
-          onEnded={handleSongEnded}
-          onError={handleSongError}
-          onCanPlay={() => {
-            if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
-              setError(null);
-            }
-          }}
-          onLoadStart={() => {
-            if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
-              setError(null);
-            }
-          }}
-          onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
-          onPause={() => setIsPlaying(false)}
-          onPlay={() => setIsPlaying(true)}
-          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-          preload="metadata"
-          ref={audioRef}
-          src={selectedTrack.audioUrl}
-        />
-        <audio
-          onEnded={handleDjPlaybackEnded}
-          onPause={handleDjPlaybackStopped}
-          onPlay={handleDjPlaybackStarted}
-          preload="auto"
-          ref={djAudioRef}
-        />
+        {sharedAudioPlayers}
 
         <header className={`radioTop ${appView === "agent" ? "agentTop" : ""}`}>
           {appView === "agent" ? (
@@ -1889,7 +2435,7 @@ export function App() {
                           aria-label="音量"
                           max="1"
                           min="0"
-                          onChange={(event) => setVolume(Number(event.target.value))}
+                          onChange={(event) => changeVolume(Number(event.target.value))}
                           step="0.01"
                           type="range"
                           value={volume}
@@ -1940,32 +2486,587 @@ export function App() {
               />
             ) : null}
 
-            {isChatOpen ? (
-              <ChatWindow
-                error={error}
-                historyEntries={historyEntries}
-                isLoading={isLoading}
-                isPlanning={isPlanning}
-                message={draftMessage}
-                messages={messages}
-                onLoadMoreHistory={loadMoreChatHistory}
-                onClose={() => setIsChatOpen(false)}
-                onOpenAgentProfile={() => {
-                  setIsChatOpen(false);
-                  setAppView("agent");
-                }}
-                onMessageChange={setDraftMessage}
-                onSend={generateSegment}
-                plan={plan}
-                planningInputText={planningCopy.input}
-                planningText={planningCopy.bubble}
-                visibleHistoryEntryCount={visibleHistoryEntryCount}
-              />
-            ) : null}
+            {chatWindow}
           </>
         )}
       </section>
     </main>
+  );
+}
+
+function DjSpeechBubble({ text }: { text: string }) {
+  return (
+    <aside
+      aria-live="polite"
+      className="djSpeechBubble"
+      data-node-id="193:665"
+      role="status"
+    >
+      <img
+        alt="Redio DJ"
+        className="djSpeechBubbleAvatar"
+        data-node-id="193:666"
+        src="/images/agent-dj.png"
+      />
+      <p data-node-id="193:668">{text}</p>
+      <img
+        alt=""
+        aria-hidden="true"
+        className="djSpeechBubbleWaveform"
+        data-node-id="193:669"
+        src="/images/redio-dj-waveform.png"
+      />
+    </aside>
+  );
+}
+
+function LandingPage({
+  draftMessage,
+  error,
+  isLoginBusy,
+  isPlanning,
+  onBuyTokens,
+  onDraftMessageChange,
+  onEnter,
+  onLogin,
+  onOpenChat,
+  onSend,
+  player,
+  status
+}: {
+  draftMessage: string;
+  error: string | null;
+  isLoginBusy: boolean;
+  isPlanning: boolean;
+  onBuyTokens: () => void;
+  onDraftMessageChange: (message: string) => void;
+  onEnter: (view: AppView) => void;
+  onLogin: () => void;
+  onOpenChat: () => void;
+  onSend: () => void;
+  player: CircularQueuePlayerProps;
+  status: QqLoginStatus | null;
+}) {
+  const accountLabel = status?.nickname ?? status?.userId ?? "账号昵称";
+  const isLoggedIn = status?.loggedIn === true;
+
+  return (
+    <main className={`landingPage ${isLoggedIn ? "isLoggedIn" : ""}`} data-node-id="164:1145">
+      <header className="landingNav" data-node-id="164:1146">
+        <button
+          aria-label="Redio 首页"
+          className="landingBrand"
+          onClick={onOpenChat}
+          type="button"
+        >
+          Redio
+        </button>
+
+        <nav aria-label="主要导航" className="landingLinks" data-node-id="164:1629">
+          <button aria-current="page" onClick={() => onEnter("radio")} type="button">
+            Home
+          </button>
+          <button onClick={() => onEnter("radio")} type="button">
+            Playlist
+          </button>
+          <button onClick={() => onEnter("settings")} type="button">
+            Setting
+          </button>
+          <button onClick={() => onEnter("agent")} type="button">
+            About
+          </button>
+        </nav>
+
+        {isLoggedIn ? (
+          <button
+            aria-label={`当前登录账号：${accountLabel}`}
+            className="landingAccount"
+            data-node-id="164:2604"
+            onClick={() => onEnter("agent")}
+            type="button"
+          >
+            <img
+              alt=""
+              onError={(event) => {
+                event.currentTarget.src = "/images/redio-account-placeholder.png";
+              }}
+              referrerPolicy="no-referrer"
+              src={status.avatarUrl ?? "/images/redio-account-placeholder.png"}
+            />
+            <span>{accountLabel}</span>
+          </button>
+        ) : (
+          <button
+            className="landingJoin"
+            data-node-id="164:1634"
+            disabled={isLoginBusy}
+            onClick={onLogin}
+            type="button"
+          >
+            {isLoginBusy ? "Waiting for Login" : "Join the Radio"}
+          </button>
+        )}
+      </header>
+
+      {error ? (
+        <p aria-live="polite" className="landingStatusNotice">
+          {error}
+        </p>
+      ) : null}
+
+      <section className="landingHero" data-node-id="164:1156">
+        {isLoggedIn ? <BuyTokensButton onClick={onBuyTokens} /> : null}
+
+        {isLoggedIn ? (
+          <CircularQueuePlayer {...player} />
+        ) : (
+          <div className="landingHeroCopy" data-node-id="164:1638">
+            <h1 data-node-id="164:1639">Music&apos;s</h1>
+            <p data-node-id="164:1640">你的心情，自有频率</p>
+          </div>
+        )}
+
+        {isLoggedIn ? (
+          <form
+            className="landingAsk"
+            data-node-id="164:1161"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSend();
+            }}
+          >
+            <input
+              aria-label="对 Redio 说点什么"
+              disabled={isPlanning}
+              onChange={(event) => onDraftMessageChange(event.target.value)}
+              placeholder="Ask Anything"
+              value={draftMessage}
+            />
+            <button
+              aria-label="发送"
+              disabled={isPlanning}
+              type="submit"
+            >
+              <img alt="" aria-hidden="true" src="/images/redio-landing-send.svg" />
+            </button>
+          </form>
+        ) : null}
+      </section>
+
+      <img
+        alt=""
+        aria-hidden="true"
+        className="landingGlow"
+        data-node-id="164:1648"
+        src="/images/redio-landing-ellipse.svg"
+      />
+      <img
+        alt=""
+        aria-hidden="true"
+        className="landingStars"
+        data-node-id="164:1649"
+        src="/images/redio-landing-starfield.svg"
+      />
+      <StarfieldCanvas />
+    </main>
+  );
+}
+
+function BuyTokensButton({ onClick }: { onClick: () => void }) {
+  const gradientRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  const stopAnimation = () => {
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const startAnimation = () => {
+    if (!gradientRef.current) {
+      return;
+    }
+
+    stopAnimation();
+    const colors = gradientRef.current.querySelectorAll<HTMLElement>(".color");
+    const moveColors = () => {
+      colors.forEach((color) => {
+        color.style.transform = `translate(${Math.floor(Math.random() * 200 - 100)}%, ${Math.floor(Math.random() * 200 - 100)}%)`;
+      });
+    };
+
+    window.setTimeout(moveColors, 100);
+    intervalRef.current = window.setInterval(moveColors, 1500);
+  };
+
+  useEffect(() => {
+    startAnimation();
+    return stopAnimation;
+  }, []);
+
+  return (
+    <div className="landingBuyTokensSlot">
+      <button
+        aria-label="Buy tokens"
+        className="button-gradient visible"
+        onClick={onClick}
+        onMouseEnter={startAnimation}
+        type="button"
+      >
+        <div className="btn-content">
+          <span className="gen-btn__icon">
+            <svg
+              aria-hidden="true"
+              fill="none"
+              height="22"
+              viewBox="0 0 21 21"
+              width="22"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <mask
+                height="21"
+                id="mask0_buy_tokens"
+                maskUnits="userSpaceOnUse"
+                width="21"
+                x="0"
+                y="0"
+              >
+                <path d="M21 0H0V21H21V0Z" fill="white" />
+              </mask>
+              <g mask="url(#mask0_buy_tokens)">
+                <path
+                  d="M14.2191 12.4788L12.6428 12.8979C11.2852 13.2714 10.2283 14.3284 9.84564 15.6951L9.42652 17.2713C9.28074 17.7907 8.55182 17.7907 8.42426 17.2713L8.00514 15.6951C7.63157 14.3375 6.57466 13.2805 5.20796 12.8979L3.6317 12.4788C3.11235 12.333 3.11235 11.6041 3.6317 11.4765L5.20796 11.0574C6.56555 10.6838 7.62246 9.6269 8.00514 8.2602L8.42426 6.68394C8.57004 6.1646 9.29896 6.1646 9.42652 6.68394L9.84564 8.2602C10.2192 9.61779 11.2761 10.6747 12.6428 11.0574L14.2191 11.4765C14.7384 11.6223 14.7384 12.3512 14.2191 12.4788Z"
+                  fill="white"
+                />
+                <path
+                  d="M17.9621 5.55421L17.2697 5.73643C16.6775 5.90044 16.2128 6.36512 16.0397 6.96646L15.8574 7.65893C15.7937 7.88671 15.4748 7.88671 15.4201 7.65893L15.2379 6.96646C15.0739 6.37423 14.6092 5.90955 14.0078 5.73643L13.3154 5.55421C13.0876 5.49043 13.0876 5.17153 13.3154 5.11686L14.0078 4.93464C14.6001 4.77063 15.0647 4.30596 15.2379 3.70461L15.4201 3.01215C15.4839 2.78436 15.8028 2.78436 15.8574 3.01215L16.0397 3.70461C16.2037 4.29684 16.6683 4.76152 17.2697 4.93464L17.9621 5.11686C18.1899 5.18064 18.1899 5.49954 17.9621 5.55421Z"
+                  fill="white"
+                />
+              </g>
+            </svg>
+          </span>
+          <span>Buy tokens</span>
+        </div>
+        <div className="border" />
+        <div className="gradient-0" />
+        <div className="gradient-1" />
+        <div className="glass" />
+        <div className="gradient-2" ref={gradientRef}>
+          <div className="color-1 color" />
+          <div className="color-2 color" />
+          <div className="color-3 color" />
+          <div className="color-4 color" />
+          <div className="color-5 color" />
+          <div className="color-6 color" />
+        </div>
+      </button>
+    </div>
+  );
+}
+
+function CircularQueuePlayer({
+  currentCaption,
+  currentTime,
+  duration,
+  isLiked,
+  isPlaying,
+  onLike,
+  onNext,
+  onPrevious,
+  onSeek,
+  onSelectTrack,
+  onToggleMute,
+  onTogglePlayback,
+  onVolumeChange,
+  selectedTrack,
+  selectedTrackIndex,
+  tracks,
+  volume
+}: CircularQueuePlayerProps) {
+  const dragStartXRef = useRef<number | null>(null);
+  const suppressClickUntilRef = useRef(0);
+  const volumeControlRef = useRef<HTMLDivElement>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isVolumePopoverOpen, setIsVolumePopoverOpen] = useState(false);
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const volumePercent = Math.round(volume * 100);
+  const isMuted = volume <= 0;
+  const visibleTracks = tracks
+    .map((track, index) => ({ index, offset: index - selectedTrackIndex, track }))
+    .filter(({ offset }) => Math.abs(offset) <= 4);
+
+  useEffect(() => {
+    if (!isVolumePopoverOpen) {
+      return;
+    }
+
+    function closeVolumePopoverOnOutsidePointer(event: PointerEvent) {
+      if (volumeControlRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsVolumePopoverOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeVolumePopoverOnOutsidePointer);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeVolumePopoverOnOutsidePointer);
+    };
+  }, [isVolumePopoverOpen]);
+
+  function finishDrag(event: ReactPointerEvent<HTMLDivElement>, shouldNavigate: boolean) {
+    const dragStartX = dragStartXRef.current;
+
+    if (dragStartX === null) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragStartX;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    dragStartXRef.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
+
+    if (!shouldNavigate || Math.abs(deltaX) < 48) {
+      return;
+    }
+
+    suppressClickUntilRef.current = Date.now() + 250;
+
+    if (deltaX > 0) {
+      onPrevious();
+    } else {
+      onNext();
+    }
+  }
+
+  return (
+    <section
+      aria-label={`当前播放：${selectedTrack.title}，${selectedTrack.artist}`}
+      className="circularQueuePlayer"
+      data-node-id="165:4787"
+    >
+      <div
+        aria-label="即将播放队列，可左右滑动切歌"
+        className={`queueOrbit ${isDragging ? "isDragging" : ""}`}
+        onPointerCancel={(event) => finishDrag(event, false)}
+        onPointerDown={(event) => {
+          if (event.button !== 0) {
+            return;
+          }
+
+          dragStartXRef.current = event.clientX;
+          setDragOffset(0);
+          setIsDragging(true);
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (dragStartXRef.current === null) {
+            return;
+          }
+
+          const nextOffset = event.clientX - dragStartXRef.current;
+
+          setDragOffset(Math.max(-140, Math.min(140, nextOffset)));
+        }}
+        onPointerUp={(event) => finishDrag(event, true)}
+        role="group"
+        style={{ "--queue-drag-x": `${dragOffset}px` } as CSSProperties}
+      >
+        <div className="queueOrbitTrack">
+          {visibleTracks.map(({ index, offset, track }) => {
+            const absoluteOffset = Math.abs(offset);
+            const xOffsets = [0, 330, 585, 755, 900];
+            const yOffsets = [0, 100, 250, 470, 690];
+            const direction = offset < 0 ? -1 : 1;
+            const coverUrl =
+              track.coverUrl ?? queueFallbackCovers[index % queueFallbackCovers.length];
+
+            return (
+              <button
+                aria-current={offset === 0 ? "true" : undefined}
+                aria-label={
+                  offset === 0
+                    ? `正在播放：${track.title}，${track.artist}`
+                    : `播放 ${track.title}，${track.artist}`
+                }
+                className={`queueOrbitItem ${offset === 0 ? "isCurrent" : ""} ${
+                  absoluteOffset === 4 ? "isBuffer" : ""
+                } ${!isTrackPlayable(track) ? "isUnavailable" : ""}`}
+                key={getPlayableTrackIdentity(track, index)}
+                onClick={() => {
+                  if (Date.now() < suppressClickUntilRef.current || offset === 0) {
+                    return;
+                  }
+
+                  onSelectTrack(index);
+                }}
+                style={
+                  {
+                    "--queue-cover-rotation": `${offset * 20}deg`,
+                    "--queue-cover-x": `${direction * xOffsets[absoluteOffset]}px`,
+                    "--queue-cover-y": `${yOffsets[absoluteOffset]}px`,
+                    zIndex: 10 - absoluteOffset
+                  } as CSSProperties
+                }
+                type="button"
+              >
+                <img
+                  alt=""
+                  draggable={false}
+                  onError={(event) => {
+                    event.currentTarget.src =
+                      queueFallbackCovers[index % queueFallbackCovers.length];
+                  }}
+                  src={coverUrl}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="queuePlayerContent">
+        <div className="queuePlayerHeading" data-node-id="165:4957">
+          <h1 data-node-id="165:4958" title={selectedTrack.title}>
+            {selectedTrack.title}
+          </h1>
+          <p aria-live="polite" data-node-id="165:4959">
+            {currentCaption}
+          </p>
+        </div>
+
+        <section
+          className="queueMediaControls"
+          aria-label="播放控制"
+          data-node-id="165:4960"
+        >
+          <div className="queueControlButtons" data-node-id="165:4961">
+            <button
+              aria-label={isLiked ? "已喜欢" : "喜欢当前歌曲"}
+              aria-pressed={isLiked}
+              className={`queueLikeButton ${isLiked ? "isActive" : ""}`}
+              onClick={onLike}
+              type="button"
+            >
+              <img alt="" aria-hidden="true" src="/images/redio-player-like.svg" />
+            </button>
+            <div className="queueTransportButtons" data-node-id="165:4963">
+              <button aria-label="上一首" onClick={onPrevious} type="button">
+                <PreviousIcon />
+              </button>
+              <button
+                aria-label={isPlaying ? "暂停" : "播放"}
+                onClick={onTogglePlayback}
+                type="button"
+              >
+                {isPlaying ? <PauseTransportIcon /> : <PlayTransportIcon />}
+              </button>
+              <button aria-label="下一首" onClick={onNext} type="button">
+                <NextIcon />
+              </button>
+            </div>
+            <div
+              className={`queueVolumeControl ${isMuted ? "isMuted" : ""}`}
+              data-node-id={isMuted ? "198:710" : "198:696"}
+              ref={volumeControlRef}
+            >
+              <button
+                aria-controls="queue-volume-popover"
+                aria-expanded={isVolumePopoverOpen}
+                aria-label={isVolumePopoverOpen ? "收起音量控制" : "展开音量控制"}
+                className="queueVolumeToolbarButton"
+                onClick={() => setIsVolumePopoverOpen((isOpen) => !isOpen)}
+                title={isVolumePopoverOpen ? "收起音量" : "调节音量"}
+                type="button"
+              >
+                <VolumeIcon muted={isMuted} />
+              </button>
+              {isVolumePopoverOpen ? (
+                <div className="queueVolumePopover" id="queue-volume-popover">
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className="queueVolumePopoverBackground"
+                    src="/images/redio-volume-control-bg.svg"
+                  />
+                  <div className="queueVolumePopoverContent">
+                    <div className="queueVolumeSliderSlot">
+                      <input
+                        aria-label="音量"
+                        className="queueVolumeSlider"
+                        disabled={isMuted}
+                        max="1"
+                        min="0"
+                        onInput={(event) =>
+                          onVolumeChange(Number(event.currentTarget.value))
+                        }
+                        step="0.01"
+                        style={
+                          {
+                            "--volume-percent": `${volumePercent}%`
+                          } as CSSProperties
+                        }
+                        type="range"
+                        value={volume}
+                      />
+                    </div>
+                    <output aria-live="polite" className="queueVolumePercent">
+                      {volumePercent}%
+                    </output>
+                    <button
+                      aria-label={isMuted ? "取消静音" : "静音"}
+                      aria-pressed={isMuted}
+                      className="queueVolumePopoverButton"
+                      onClick={onToggleMute}
+                      type="button"
+                    >
+                      <img
+                        alt=""
+                        aria-hidden="true"
+                        src={
+                          isMuted
+                            ? "/images/redio-volume-muted.svg"
+                            : "/images/redio-volume-sound.svg"
+                        }
+                      />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="queueProgressRow" data-node-id="165:4970">
+            <span>{formatPlaybackTime(currentTime)}</span>
+            <input
+              aria-label="播放进度"
+              className="progressTrack"
+              disabled={duration <= 0}
+              max={duration || 0}
+              min="0"
+              onChange={(event) => onSeek(Number(event.target.value))}
+              step="0.1"
+              style={
+                {
+                  "--progress-percent": `${progressPercent}%`
+                } as CSSProperties
+              }
+              type="range"
+              value={duration > 0 ? currentTime : 0}
+            />
+            <span>{formatPlaybackTime(duration)}</span>
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -2300,6 +3401,7 @@ function ChatWindow({
   error,
   historyEntries,
   isLoading,
+  isLandingChat,
   isPlanning,
   message,
   messages,
@@ -2316,6 +3418,7 @@ function ChatWindow({
   error: string | null;
   historyEntries: PlaybackHistoryEntry[];
   isLoading: boolean;
+  isLandingChat: boolean;
   isPlanning: boolean;
   message: string;
   messages: ChatMessage[];
@@ -2331,13 +3434,30 @@ function ChatWindow({
 }) {
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const previousVisibleHistoryCountRef = useRef(visibleHistoryEntryCount);
-  const liveUserMessages = new Set(
-    messages
-      .filter((chatMessage) => chatMessage.role === "user")
-      .map((chatMessage) => chatMessage.text)
+  const [expandedTrackMessageIds, setExpandedTrackMessageIds] = useState<Set<string>>(
+    () => new Set()
   );
+  const liveUserMessageCounts = messages
+    .filter((chatMessage) => chatMessage.role === "user")
+    .reduce((counts, chatMessage) => {
+      counts.set(chatMessage.text, (counts.get(chatMessage.text) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>());
   const historyMessages = historyEntries
-    .filter((entry) => !entry.userMessage || !liveUserMessages.has(entry.userMessage))
+    .filter((entry) => {
+      if (!entry.userMessage) {
+        return true;
+      }
+
+      const remainingLiveCount = liveUserMessageCounts.get(entry.userMessage) ?? 0;
+
+      if (remainingLiveCount <= 0) {
+        return true;
+      }
+
+      liveUserMessageCounts.set(entry.userMessage, remainingLiveCount - 1);
+      return false;
+    })
     .slice(0, visibleHistoryEntryCount)
     .reverse()
     .flatMap((entry) => {
@@ -2383,6 +3503,20 @@ function ChatWindow({
   const hasMoreHistory = visibleHistoryEntryCount < historyEntries.length;
   const latestMessageId = visibleMessages[visibleMessages.length - 1]?.id ?? "";
 
+  function toggleAllTracks(messageId: string) {
+    setExpandedTrackMessageIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      if (nextIds.has(messageId)) {
+        nextIds.delete(messageId);
+      } else {
+        nextIds.add(messageId);
+      }
+
+      return nextIds;
+    });
+  }
+
   useEffect(() => {
     const chatMessages = chatMessagesRef.current;
 
@@ -2414,14 +3548,23 @@ function ChatWindow({
   }, [latestMessageId, isPlanning, visibleHistoryEntryCount]);
 
   return (
-    <section className="chatWindow">
+    <section className={`chatWindow ${isLandingChat ? "isLandingChat" : ""}`}>
       <header className="chatHeader">
         <div>
           <RedioMarkIcon />
           <h2>Redio</h2>
         </div>
-        <button aria-label="关闭对话" onClick={onClose} type="button">
-          <ChatStatusBars />
+        <button
+          aria-label="关闭对话"
+          onClick={onClose}
+          type="button"
+        >
+          <img
+            alt=""
+            aria-hidden="true"
+            className="chatCollapseIcon"
+            src="/images/redio-chat-collapse.svg"
+          />
         </button>
       </header>
 
@@ -2454,28 +3597,19 @@ function ChatWindow({
             ) : null}
             <div>
               <small>{chatMessage.role === "user" ? "Me" : "Redio"}</small>
-              <p>{chatMessage.text}</p>
+              <p>
+                {chatMessage.role === "assistant" ? (
+                  <TypewriterText text={getAssistantBubbleText(chatMessage)} />
+                ) : (
+                  chatMessage.text
+                )}
+              </p>
               {chatMessage.plan?.play.length ? (
-                <div className="trackCardList">
-                  {chatMessage.plan.play.map((track, index) => (
-                    <div className="trackCard" key={`${track.title}-${index}`}>
-                      <span>推荐歌曲 {chatMessage.plan?.play.length === 1 ? "" : index + 1}</span>
-                      <strong>{track.title}</strong>
-                      <em>
-                        {track.artist}
-                        {track.audioLabel ? ` · ${track.audioLabel}` : ""}
-                        {` · ${getPlaybackStatusLabel(track)}`}
-                      </em>
-                      {track.matchedTitle && track.matchedTitle !== track.title ? (
-                        <em>
-                          命中：{track.matchedTitle}
-                          {track.matchedArtist ? ` / ${track.matchedArtist}` : ""}
-                        </em>
-                      ) : null}
-                      {track.failureReason ? <em>{track.failureReason}</em> : null}
-                    </div>
-                  ))}
-                </div>
+                <RecommendedTrackCards
+                  isExpanded={expandedTrackMessageIds.has(chatMessage.id)}
+                  onToggleExpanded={() => toggleAllTracks(chatMessage.id)}
+                  tracks={chatMessage.plan.play}
+                />
               ) : null}
             </div>
             {chatMessage.role === "user" ? <div className="avatar userAvatar" /> : null}
@@ -2500,16 +3634,124 @@ function ChatWindow({
 
       {error ? <p className="chatReason">{error}</p> : null}
 
-      <AskDock
-        disabled={isPlanning}
-        isPlanning={isPlanning}
-        message={message}
-        onFocus={() => undefined}
-        onMessageChange={onMessageChange}
-        onSend={onSend}
-        planningInputText={planningInputText}
-        showMicButton
-      />
+      {!isLandingChat ? (
+        <AskDock
+          disabled={isPlanning}
+          isPlanning={isPlanning}
+          message={message}
+          onFocus={() => undefined}
+          onMessageChange={onMessageChange}
+          onSend={onSend}
+          planningInputText={planningInputText}
+          showMicButton
+        />
+      ) : null}
     </section>
+  );
+}
+
+function getAssistantBubbleText(message: ChatMessage) {
+  const reason = message.plan?.reason?.trim();
+
+  if (reason) {
+    return reason;
+  }
+
+  return message.text;
+}
+
+function TypewriterText({ text }: { text: string }) {
+  const [visibleLength, setVisibleLength] = useState(text.length);
+  const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasMountedRef.current) {
+      setVisibleLength(text.length);
+      return;
+    }
+
+    hasMountedRef.current = true;
+    setVisibleLength(0);
+
+    if (!text) {
+      return;
+    }
+
+    let nextLength = 0;
+    const interval = window.setInterval(() => {
+      nextLength += 1;
+      setVisibleLength(nextLength);
+
+      if (nextLength >= text.length) {
+        window.clearInterval(interval);
+      }
+    }, 18);
+
+    return () => window.clearInterval(interval);
+  }, [text]);
+
+  const isTyping = visibleLength < text.length;
+
+  return (
+    <>
+      <span>{text.slice(0, visibleLength)}</span>
+      {isTyping ? <span aria-hidden="true" className="typewriterCursor" /> : null}
+    </>
+  );
+}
+
+function RecommendedTrackCards({
+  isExpanded,
+  onToggleExpanded,
+  tracks
+}: {
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
+  tracks: RecommendedTrack[];
+}) {
+  const visibleTracks = isExpanded ? tracks : tracks.slice(0, 3);
+  const hasMoreTracks = tracks.length > 3;
+
+  return (
+    <div className="trackCardList">
+      {visibleTracks.map((track, index) => (
+        <RecommendedTrackCard
+          key={`${track.title}-${track.artist}-${index}`}
+          track={track}
+        />
+      ))}
+
+      {hasMoreTracks ? (
+        <button className="showAllTracks" onClick={onToggleExpanded} type="button">
+          {isExpanded ? "收起歌曲" : "全部歌曲"}
+          <span aria-hidden="true">{isExpanded ? "⌃" : "⌄"}</span>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function RecommendedTrackCard({ track }: { track: RecommendedTrack }) {
+  const [hasCoverError, setHasCoverError] = useState(false);
+  const shouldShowCover = Boolean(track.coverUrl && !hasCoverError);
+
+  return (
+    <div className="trackCard">
+      {shouldShowCover ? (
+        <img
+          alt=""
+          className="trackCover"
+          onError={() => setHasCoverError(true)}
+          referrerPolicy="no-referrer"
+          src={track.coverUrl}
+        />
+      ) : (
+        <div aria-hidden="true" className="trackCover trackCoverFallback" />
+      )}
+      <div>
+        <strong title={track.title}>{track.title}</strong>
+        <em title={track.artist}>{track.artist}</em>
+      </div>
+    </div>
   );
 }
