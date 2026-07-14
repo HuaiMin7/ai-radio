@@ -2495,27 +2495,26 @@ export function App() {
 }
 
 function DjSpeechBubble({ text }: { text: string }) {
+  /* Figma node 204:1755 精准还原
+     Frame: 400×72 | radius:54 | bg:#303034 | padding:12 20 12 12 | gap:12
+     Avatar: 48×48 圆形 | Text: PingFang SC 400 14px #ffffff */
   return (
     <aside
       aria-live="polite"
       className="djSpeechBubble"
-      data-node-id="193:665"
+      data-node-id="204:1755"
       role="status"
     >
+      {/* Avatar 头像 — Figma node 204:1756, 48×48, 圆形 */}
       <img
         alt="Redio DJ"
         className="djSpeechBubbleAvatar"
-        data-node-id="193:666"
+        data-node-id="204:1756"
         src="/images/agent-dj.png"
       />
-      <p data-node-id="193:668">{text}</p>
-      <img
-        alt=""
-        aria-hidden="true"
-        className="djSpeechBubbleWaveform"
-        data-node-id="193:669"
-        src="/images/redio-dj-waveform.png"
-      />
+      {/* 播报文案 — Figma node Text, PingFang SC 400 14px #fff */}
+      <p data-node-id="204:1757">{text}</p>
+      {/* Waveform 已移除：Figma 204:1755 无此元素 */}
     </aside>
   );
 }
