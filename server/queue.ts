@@ -54,6 +54,7 @@ function toPersistentTrack(track: DjPlan["play"][number]): DjPlan["play"][number
     title: track.title,
     artist: track.artist,
     intro: track.intro,
+    audioUrl: track.audioUrl,
     audioLabel: track.audioLabel,
     source: track.source,
     matchedTitle: track.matchedTitle,

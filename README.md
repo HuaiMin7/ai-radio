@@ -4,7 +4,8 @@ Personal AI radio prototype inspired by Claudio FM.
 
 ## Goal
 
-Build a local-first AI DJ that can read personal taste files, plan a short radio segment, generate DJ speech, and play music in sequence.
+Build a local-first AI DJ that reads personal taste files, plans a radio segment,
+generates per-track DJ speech, and plays verified music sources continuously.
 
 ## First Milestone
 
@@ -12,7 +13,7 @@ Build a local-first AI DJ that can read personal taste files, plan a short radio
 2. Build a prompt from profile, recent playback state, and runtime context.
 3. Ask an LLM for a structured DJ decision.
 4. Generate/cached TTS audio for the DJ speech.
-5. Serve a small web player that plays DJ speech and music.
+5. Serve a web player that mixes DJ speech over reduced-volume music.
 
 ## Project Map
 
@@ -20,7 +21,8 @@ Build a local-first AI DJ that can read personal taste files, plan a short radio
 - `prompts/` system prompts and prompt templates.
 - `server/` local backend modules.
 - `web/src/` player UI and chat surface.
-- `public/audio/` local fallback audio.
+- `public/` committed audio, image, font, and local extension-download assets.
+- `bridge-extension/` local browser extension for QQ Music login-state sync.
 - `data/` local persistent state, generated at runtime.
 - `cache/` generated or downloaded media cache, generated at runtime.
 - `docs/PROJECT_STRUCTURE.md` source/runtime directory guide.
@@ -80,10 +82,20 @@ Set this value in `.env`:
 AI_RADIO_MUSIC_PROVIDER=qq
 ```
 
-Open Redio, expand `QQ 音源`, and use the desktop client to scan-login QQ Music.
-The app stores the Cookie only in local `data/qq-cookie.txt`. If QQ Music does
-not return a playable URL, the UI shows the reason and falls back to local test
-audio.
+Open Redio's sign-in flow and use either the desktop QQ Music window or the
+local Redio Bridge extension to complete the official web login. The app stores
+the required Cookie fields only in local `data/qq-cookie.txt`. If QQ Music does
+not return a playable URL, the result remains explicitly `failed`; Redio may
+try another playable taste-sample track, but it does not present local test
+audio as the requested song.
+
+## DJ Narration
+
+- DeepSeek generates one `intro` for every recommended song.
+- Each generated intro targets 60-100 Chinese characters and is capped at 100.
+- The song starts with its DJ intro; while the DJ speaks, music ramps to 50% of
+  the selected volume and returns afterward.
+- Qwen TTS converts the text to speech. macOS `say` remains the local fallback.
 
 The old NetEase adapter is retained in code only. It is no longer part of the
 default product path. For isolated legacy testing, explicitly set:
@@ -102,7 +114,8 @@ Source files to keep under version control:
 - `web/src/`
 - `prompts/`
 - `user/`
-- `public/audio/`
+- `public/`
+- `bridge-extension/`
 - `scripts/`
 - project config and docs
 
@@ -112,4 +125,7 @@ Local runtime files are ignored and can be regenerated:
 - `dist/`
 - `cache/`
 - `data/history.json`
+- `data/queue.json`
+- `data/feedback.json`
+- `data/qq-cookie.txt`
 - `.env` and other private env files

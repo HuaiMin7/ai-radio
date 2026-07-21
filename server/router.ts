@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { Readable } from "node:stream";
 import { generateAiTurn } from "./brain.js";
 import { buildPromptContext, loadUserProfile } from "./context.js";
 import {
@@ -12,6 +13,7 @@ import { readPlaybackQueue } from "./queue.js";
 import {
   clearQqCookie,
   getQqLoginStatus,
+  resolveQqLyrics,
   saveQqCookie,
   searchQqSongs
 } from "./qq-music.js";
@@ -43,7 +45,7 @@ function sendJsonWithCors(
 ) {
   response.writeHead(statusCode, {
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Headers": "Content-Type, Range",
     ...(isAllowedCorsOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
     "Vary": "Origin",
     "Content-Type": "application/json; charset=utf-8"
@@ -64,6 +66,93 @@ function sendAudio(
     "Cache-Control": "public, max-age=31536000, immutable"
   });
   response.end(body);
+}
+
+function sendAudioProxyError(
+  response: ServerResponse,
+  statusCode: number,
+  message: string,
+  origin: string | undefined
+) {
+  response.writeHead(statusCode, {
+    ...(isAllowedCorsOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    "Vary": "Origin",
+    "Content-Type": "application/json; charset=utf-8"
+  });
+  response.end(JSON.stringify({ error: message }, null, 2));
+}
+
+async function proxyAudioUrl(
+  request: IncomingMessage,
+  response: ServerResponse,
+  targetUrl: string,
+  origin: string | undefined
+) {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(targetUrl);
+  } catch {
+    sendAudioProxyError(response, 400, "Invalid audio URL", origin);
+    return;
+  }
+
+  if (!isAllowedAudioProxyUrl(parsedUrl)) {
+    sendAudioProxyError(response, 403, "Audio proxy host is not allowed", origin);
+    return;
+  }
+
+  const upstreamResponse = await fetch(parsedUrl, {
+    headers: {
+      Accept: "*/*",
+      "Accept-Language": "zh-CN,zh;q=0.9",
+      Referer: "https://y.qq.com/",
+      Origin: "https://y.qq.com",
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+      ...(request.headers.range ? { Range: request.headers.range } : {})
+    }
+  });
+
+  if (!upstreamResponse.ok && upstreamResponse.status !== 206) {
+    sendAudioProxyError(
+      response,
+      upstreamResponse.status,
+      `Audio upstream failed: ${upstreamResponse.status}`,
+      origin
+    );
+    return;
+  }
+
+  const headers: Record<string, string> = {
+    ...(isAllowedCorsOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    "Access-Control-Allow-Headers": "Range, Content-Type",
+    "Access-Control-Expose-Headers": "Accept-Ranges, Content-Length, Content-Range, Content-Type",
+    "Vary": "Origin",
+    "Cache-Control": "no-store"
+  };
+
+  for (const headerName of [
+    "accept-ranges",
+    "content-length",
+    "content-range",
+    "content-type"
+  ]) {
+    const headerValue = upstreamResponse.headers.get(headerName);
+
+    if (headerValue) {
+      headers[headerName] = headerValue;
+    }
+  }
+
+  response.writeHead(upstreamResponse.status, headers);
+
+  if (!upstreamResponse.body) {
+    response.end();
+    return;
+  }
+
+  Readable.fromWeb(upstreamResponse.body).pipe(response);
 }
 
 function notFound(response: ServerResponse) {
@@ -125,6 +214,15 @@ function isCorsRejected(origin: string | undefined) {
   return typeof origin === "string" && !isAllowedCorsOrigin(origin);
 }
 
+function isAllowedAudioProxyUrl(url: URL) {
+  const hostname = url.hostname.toLowerCase();
+
+  return (
+    (url.protocol === "http:" || url.protocol === "https:") &&
+    (hostname === "qq.com" || hostname.endsWith(".qq.com"))
+  );
+}
+
 function readTtsText(body: unknown) {
   if (
     typeof body === "object" &&
@@ -162,6 +260,44 @@ function isFeedbackAction(value: unknown): value is FeedbackAction {
 
 function isTrackSource(value: unknown): value is "local" | "netease" | "qq" {
   return value === "local" || value === "netease" || value === "qq";
+}
+
+function shouldTrustStoredPlayableTrack(track: {
+  audioUrl?: string;
+  artist: string;
+  matchedArtist?: string;
+  playbackStatus?: string;
+  source?: string;
+}) {
+  if (track.playbackStatus !== "full" || !track.audioUrl) {
+    return false;
+  }
+
+  if (track.source !== "qq") {
+    return true;
+  }
+
+  return isStoredQqArtistMatch(track.artist, track.matchedArtist ?? "");
+}
+
+function isStoredQqArtistMatch(requestedArtist: string, matchedArtist: string) {
+  const requested = normalizeMatchValue(requestedArtist);
+  const matched = normalizeMatchValue(matchedArtist);
+
+  if (!requested || !matched) {
+    return false;
+  }
+
+  return matched.includes(requested) || requested.includes(matched);
+}
+
+function normalizeMatchValue(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
 }
 
 function readFeedbackRequest(body: unknown) {
@@ -246,14 +382,17 @@ export function createRouter(rootDir: string): Handler {
           .map((track, index) => ({ track, index }))
           .sort((left, right) => {
             const queuedAtDiff =
-              Date.parse(right.track.queuedAt) - Date.parse(left.track.queuedAt);
+              Date.parse(left.track.queuedAt) - Date.parse(right.track.queuedAt);
 
             return queuedAtDiff || left.index - right.index;
           })
           .map(({ track }) => track);
         const playableQueue = await Promise.all(
           orderedQueue.map(async (track, index) => {
-            const playableTrack = await resolvePlayableTrack(track, index, rootDir);
+            const playableTrack =
+              shouldTrustStoredPlayableTrack(track)
+                ? track
+                : await resolvePlayableTrack(track, index, rootDir);
 
             return {
               id: track.id,
@@ -279,6 +418,11 @@ export function createRouter(rootDir: string): Handler {
         return;
       }
 
+      if (request.method === "GET" && url.pathname === "/api/audio/proxy") {
+        await proxyAudioUrl(request, response, url.searchParams.get("url") ?? "", origin);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/api/qq/login/status") {
         sendJsonWithCors(response, 200, await getQqLoginStatus(rootDir), origin);
         return;
@@ -295,6 +439,33 @@ export function createRouter(rootDir: string): Handler {
         return;
       }
 
+      if (request.method === "GET" && url.pathname === "/api/lyrics") {
+        const title = url.searchParams.get("title")?.trim() ?? "";
+        const artist = url.searchParams.get("artist")?.trim() ?? "";
+        const songMid = url.searchParams.get("songMid")?.trim() ?? "";
+        const duration = Number(url.searchParams.get("duration") ?? "0");
+
+        if (!songMid && (!title || !artist)) {
+          sendJsonWithCors(response, 400, {
+            error: "Track title and artist are required when songMid is missing"
+          }, origin);
+          return;
+        }
+
+        sendJsonWithCors(
+          response,
+          200,
+          await resolveQqLyrics(
+            title,
+            artist,
+            songMid,
+            Number.isFinite(duration) && duration > 0 ? duration : 0
+          ),
+          origin
+        );
+        return;
+      }
+
       if (request.method === "GET" && url.pathname.startsWith("/api/tts/")) {
         const fileName = decodeURIComponent(url.pathname.replace("/api/tts/", ""));
         sendAudio(
@@ -307,11 +478,6 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "GET" && url.pathname === "/api/context") {
-        if (process.env.AI_RADIO_DEBUG_CONTEXT !== "1") {
-          notFound(response);
-          return;
-        }
-
         sendJsonWithCors(
           response,
           200,

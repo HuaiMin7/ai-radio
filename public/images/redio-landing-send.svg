@@ -1,0 +1,11 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="message_send_s_b">
+<path id="union" d="M19.9232 5.8598C20.297 4.75537 19.2421 3.70181 18.1386 4.07756L2.95308 9.24851C1.83235 9.63014 1.65618 11.1418 2.65909 11.7711L8.58385 15.4886L12.2621 21.3419C12.8924 22.3449 14.4042 22.1665 14.7839 21.0444L19.9232 5.8598ZM4.3346 10.6881L17.9499 6.05177L13.3428 19.6641L10.3596 14.9169L13.9424 11.333C14.2953 10.98 14.2953 10.4076 13.9424 10.0545C13.5894 9.70146 13.0172 9.70146 12.6643 10.0545L9.06426 13.6557L4.3346 10.6881Z" fill="url(#paint0_linear_0_477)"/>
+</g>
+<defs>
+<linearGradient id="paint0_linear_0_477" x1="-10" y1="4" x2="21.4283" y2="8.73878" gradientUnits="userSpaceOnUse">
+<stop stop-color="white" stop-opacity="0"/>
+<stop offset="1" stop-color="white"/>
+</linearGradient>
+</defs>
+</svg>

@@ -18,9 +18,9 @@
 
 - 前端：React 19 + Vite + TypeScript。
 - 后端：Node.js 原生 HTTP server + TypeScript，通过 `tsx` 运行。
-- 大模型：OpenAI-compatible HTTP adapter，当前用于接入阿里云百炼 / 千问。
-- 音乐：本地测试音频 + 可选 `NeteaseCloudMusicApi` 本地服务。
-- 状态：本地 JSON 文件，主要写入 `data/history.json`。
+- 大模型：OpenAI-compatible HTTP adapter，通过阿里云百炼调用 `deepseek-v4-flash`。
+- 音乐：默认 QQ 音乐解析；QQ 失败保持显式失败并尝试可播种子曲目，不把本地测试音频伪装成推荐歌曲。旧 NetEase adapter 仅保留为显式开启的 legacy 测试路径。
+- 状态：本地 JSON 文件，写入 history、queue 和 feedback。
 
 ## 目录结构
 
@@ -39,7 +39,7 @@
 │   ├── state.ts          # 当前播放状态
 │   ├── history.ts        # 播放历史 / 推荐记录
 │   ├── scheduler.ts      # 后续节目调度
-│   └── tts.ts            # 后续 TTS 管线
+│   └── tts.ts            # Qwen TTS / macOS say fallback
 ├── user/                 # 用户个人资料
 │   ├── taste.md
 │   ├── routines.md
@@ -48,13 +48,20 @@
 ├── prompts/              # 系统提示词
 │   └── dj-persona.md
 ├── public/audio/         # 本地测试音频
+├── bridge-extension/     # QQ 音乐网页登录态同步扩展
 ├── data/                 # 本地持久化数据
 └── cache/                # 后续音频缓存
 ```
 
 ## 本地启动
 
-需要两个基础服务：
+推荐一键启动本地基础服务：
+
+```bash
+npm run dev:all
+```
+
+也可以分别启动：
 
 ```bash
 npm run dev:api
@@ -64,10 +71,10 @@ npm run dev
 - 前端地址：`http://127.0.0.1:5173/`
 - 本地 API：`http://127.0.0.1:8788`
 
-如果启用网易云音乐解析，还需要单独启动 `NeteaseCloudMusicApi`：
+如果显式启用旧 NetEase 测试路径，还需要单独启动 `NeteaseCloudMusicApi`：
 
 ```bash
-npx NeteaseCloudMusicApi
+npm run dev:netease
 ```
 
 默认地址应为：
@@ -85,29 +92,45 @@ http://127.0.0.1:3000
 ```env
 AI_RADIO_BRAIN_PROVIDER=custom-http
 AI_RADIO_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_RADIO_MODEL_NAME=qwen-plus
+AI_RADIO_MODEL_NAME=deepseek-v4-flash
 AI_RADIO_MODEL_API_KEY=
 
-AI_RADIO_MUSIC_PROVIDER=local
+AI_RADIO_MUSIC_PROVIDER=qq
 AI_RADIO_NETEASE_API_BASE_URL=http://127.0.0.1:3000
+# Hidden legacy mode. Keep disabled unless explicitly testing the old NetEase adapter.
+AI_RADIO_ENABLE_NETEASE_PROVIDER=0
+AI_RADIO_ENABLE_NETEASE_SERVICE=0
 
 AI_RADIO_QWEATHER_HOST=https://api.qweather.com
 AI_RADIO_QWEATHER_LOCATION=
 AI_RADIO_QWEATHER_API_KEY=
 AI_RADIO_QWEATHER_TOKEN=
+
+AI_RADIO_TTS_PROVIDER=aliyun-qwen-tts
+AI_RADIO_TTS_MODEL=qwen3-tts-instruct-flash-realtime
+AI_RADIO_TTS_VOICE=Cherry
+AI_RADIO_TTS_INSTRUCTIONS=语速自然偏慢，声音温暖，有夜间电台 DJ 的陪伴感。
+AI_RADIO_TTS_WEBSOCKET_URL=wss://dashscope.aliyuncs.com/api-ws/v1/realtime
+AI_RADIO_TTS_PYTHON=
+AI_RADIO_TTS_MACOS_VOICE=
+AI_RADIO_TTS_MACOS_RATE=
+DASHSCOPE_API_KEY=
 ```
 
 说明：
 
 - `AI_RADIO_BRAIN_PROVIDER=custom-http`：走 OpenAI-compatible 接口。
 - `AI_RADIO_MODEL_BASE_URL`：模型服务 base URL。
-- `AI_RADIO_MODEL_NAME`：模型名，例如 `qwen-plus`。
+- `AI_RADIO_MODEL_NAME`：模型名，例如 `deepseek-v4-flash`。
 - `AI_RADIO_MODEL_API_KEY`：本地填写，不要提交。
-- `AI_RADIO_MUSIC_PROVIDER=local | netease`：音乐来源。
-- `AI_RADIO_NETEASE_API_BASE_URL`：网易云本地服务地址。
+- `AI_RADIO_MUSIC_PROVIDER=qq | local | netease`：音乐来源；默认 `qq`，`netease` 需要同时启用 legacy 开关。
+- `AI_RADIO_NETEASE_API_BASE_URL`：旧 NetEase 本地服务地址。
+- `AI_RADIO_ENABLE_NETEASE_PROVIDER`：设为 `1` 时才允许 `AI_RADIO_MUSIC_PROVIDER=netease` 生效。
+- `AI_RADIO_ENABLE_NETEASE_SERVICE`：设为 `1` 时 `npm run dev:all` / `npm run dev:check` 才会纳入 NetEase 服务。
 - `AI_RADIO_QWEATHER_LOCATION`：和风天气 location，可填城市 ID 或经纬度。
 - `AI_RADIO_QWEATHER_API_KEY`：和风天气 API KEY，本地填写即可。
 - `AI_RADIO_QWEATHER_TOKEN`：和风天气 JWT Token，可选；本项目优先使用 API KEY。
+- `AI_RADIO_TTS_PROVIDER=aliyun-qwen-tts`：默认走阿里云百炼实时 TTS；不可用时保留 macOS `say` fallback。
 
 ## 当前 API 契约
 
@@ -117,8 +140,20 @@ AI_RADIO_QWEATHER_TOKEN=
 GET  /api/profile       # 读取 user/ 下的用户资料
 GET  /api/now           # 当前播放状态
 GET  /api/history       # 播放历史 / 推荐记录
+GET  /api/queue         # 播放队列
+GET  /api/feedback      # 歌曲反馈记录
+GET  /api/weather       # 天气上下文
+GET  /api/audio/proxy   # 代理远端音频并保留 Range 请求
+GET  /api/qq/login/status # QQ 音乐登录状态
+GET  /api/qq/search     # QQ 音乐搜索
+GET  /api/lyrics        # 当前歌曲歌词
 GET  /api/context       # 当前组装后的 prompt 上下文
 POST /api/plan          # 根据用户输入生成新节目段落
+POST /api/tts           # 生成 DJ 语音
+POST /api/resolve-track # 解析单曲可播放状态
+POST /api/feedback      # 记录喜欢 / 跳过 / 重播
+POST /api/qq/login/cookie # 保存本地 QQ Cookie
+POST /api/qq/logout     # 清除本地 QQ Cookie
 ```
 
 `POST /api/plan` 请求体：
@@ -137,7 +172,8 @@ POST /api/plan          # 根据用户输入生成新节目段落
   "play": [
     {
       "title": "歌曲名",
-      "artist": "歌手"
+      "artist": "歌手",
+      "intro": "这首歌独立的 DJ 文案，60-100 个中文字符"
     }
   ],
   "reason": "推荐原因",
@@ -160,37 +196,45 @@ POST /api/plan          # 根据用户输入生成新节目段落
 - `matchedTitle`
 - `matchedArtist`
 - `externalUrl`
+- `coverUrl`
+- `playbackStatus`
+- `failureReason`
 
 ## 当前已完成能力
 
 - 前端播放器主界面。
 - 聊天输入和发送。
-- 调用千问生成 DJ 文案和歌曲推荐。
+- 通过百炼调用 DeepSeek 生成 DJ 文案和歌曲推荐。
 - `custom-http` 大模型 adapter。
 - `local` 音乐 adapter。
-- `netease` 音乐 adapter，依赖本地 `NeteaseCloudMusicApi`。
-- `macos-say` TTS adapter，通过 macOS `say` 生成语音，再用 `afconvert` 转成本地 M4A 音频。
+- `qq` 音乐 adapter，依赖本地 QQ 登录 Cookie 才能尽量拿到完整播放 URL。
+- Redio Bridge 浏览器扩展和桌面登录窗口可同步本地 QQ 音乐登录态。
+- `netease` 音乐 adapter 仍在代码中，但默认禁用，只作为 legacy 测试路径。
+- `aliyun-qwen-tts` TTS adapter，保留 `macos-say` fallback。
 - 歌曲播放、暂停、上一首、下一首、进度条、音量浮层。
-- DJ 文案播报按钮，生成节目后会尝试自动播报。
+- 每首歌有独立 DJ 文案，目标 60-100 个中文字符，后端硬上限 100。
+- 歌曲与 DJ 文案同时开始；DJ 播报期间歌曲音量缓降到 50%，结束后恢复。
 - 播放历史 / 推荐记录写入 `data/history.json`。
+- 播放队列写入 `data/queue.json`，歌曲反馈写入 `data/feedback.json`。
 - 前端“播放记忆”面板展示最近记录。
 
 ## 当前限制
 
-- 网易云返回的直链可能只有试听片段，版权完整播放后续再处理。
+- QQ 音乐完整播放通常依赖本地登录 Cookie；无可播放 URL 时必须明确显示失败，可尝试替换为已验证可播种子曲目，但不得把本地测试音频显示成原推荐歌曲。
+- NetEase 是 legacy 测试路径，默认不启动、不作为产品主路径。
 - 当前没有正式用户登录和云端账号系统。
 - 播放历史存在本地 JSON，不是云数据库。
-- 当前 TTS 依赖 macOS 自带 `say` 命令，还不是云端拟人声音。
+- TTS 默认使用阿里云百炼实时接口，本地环境或密钥不可用时才退回 macOS `say`。
 - 现在重点是验证 MVP，不要提前做复杂部署和权限系统。
 
 ## 推荐的下一步
 
-建议下一步把播放队列升级成真正的电台节目流：
+当前下一步优先稳定真实音源链路：
 
-1. 将队列从“歌曲列表”升级为“节目片段列表”。
-2. 播放顺序变成：DJ 语音 -> 歌曲 -> DJ 衔接语 -> 下一首歌。
-3. 让 `/api/plan` 返回的 DJ 文案和歌曲共同进入播放队列。
-4. 后续再考虑 Fish Audio / 阿里云 TTS / 火山 TTS 等更自然声音。
+1. 提高 QQ 搜索、匹配和 vkey 解析成功率。
+2. 验证 Redio Bridge 登录同步和退出登录闭环。
+3. 保持每首歌的 DJ `intro` 随歌曲连续播放。
+4. 新增其他 provider 前先定义明确的登录、解析和失败语义。
 
 ## 开发原则
 
@@ -199,7 +243,7 @@ POST /api/plan          # 根据用户输入生成新节目段落
 - 不要为了未来扩展提前写复杂抽象。
 - 优先修改最小范围文件。
 - 涉及大模型返回结构时，必须保持 JSON 校验。
-- 涉及音乐播放时，必须保留本地音频 fallback。
+- 涉及音乐播放时，必须保留显式本地测试路径；不得把 fallback 标成真实推荐歌曲。
 - 前端中文界面优先，避免中英文混杂，除非是品牌名或技术名。
 - 修改后至少运行：
 
@@ -237,7 +281,7 @@ npm run build
 
 6. 音乐播放链路
    - 如果本次改动涉及音乐 adapter 或播放器，必须确认至少一种音源可以播放。
-   - 网易云不可播放时，必须确认本地音频 fallback 仍然可用。
+   - QQ 音乐不可播放时，必须确认失败状态清晰；涉及 fallback 时确认本地测试音频仍然可用。
 
 发现明确 Bug 时，可以直接修复；修复后重新执行相关自查。最终回复用户时输出简短检测报告，至少包含：
 
@@ -283,21 +327,39 @@ http://127.0.0.1:8788/api/now
 ```env
 AI_RADIO_BRAIN_PROVIDER=custom-http
 AI_RADIO_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_RADIO_MODEL_NAME=qwen-plus
+AI_RADIO_MODEL_NAME=deepseek-v4-flash
 AI_RADIO_MODEL_API_KEY=
 ```
 
 不要把密钥打印到聊天里。
 
-### 网易云音乐不能播放
+### QQ 音乐不能播放
 
-确认本地网易云 API 服务：
+确认本地 QQ 登录状态：
+
+```text
+http://127.0.0.1:8788/api/qq/login/status
+```
+
+完整播放通常需要本地 Cookie 中包含 `qm_keyst`、`qqmusic_key`、`music_key` 或 `wxskey`。Cookie 只允许保存在本地 `data/qq-cookie.txt`，不要提交。
+
+### 旧 NetEase 音乐不能播放
+
+仅在 legacy 测试时启用：
+
+```env
+AI_RADIO_ENABLE_NETEASE_PROVIDER=1
+AI_RADIO_ENABLE_NETEASE_SERVICE=1
+AI_RADIO_MUSIC_PROVIDER=netease
+```
+
+然后确认本地 NetEase API 服务：
 
 ```text
 http://127.0.0.1:3000/search?keywords=周杰伦&limit=1
 ```
 
-如果 `/song/url` 没有返回可播放 URL，系统应 fallback 到本地测试音频。
+如果 `/song/url` 没有返回可播放 URL，legacy 路径应 fallback 到本地测试音频。
 
 ## 给后续 AI 助手的注意事项
 

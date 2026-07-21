@@ -63,14 +63,17 @@ Verification:
 
 ### Phase 3: Playback Provider Strategy
 
-- Keep NetEase as MVP/local fallback only.
+- Treat QQ Music as the current primary local provider.
+- Keep committed local audio as the reliable test fallback.
+- Keep NetEase as a disabled legacy test path only.
 - Add provider metadata to distinguish direct audio, external player, and fallback playback.
 - Evaluate optional personal-use sources separately from product recommendation logic.
 
 Verification:
 
 - Local fallback still works.
-- NetEase failures do not break the conversation or queue.
+- QQ provider failures do not break the conversation or queue.
+- Legacy NetEase failures do not affect the default product path.
 
 ### Phase 4: Personalization Loop
 

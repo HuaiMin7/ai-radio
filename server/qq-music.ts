@@ -7,8 +7,18 @@ export type QqLoginStatus = {
   hasCookie: boolean;
   userId?: string;
   nickname?: string;
+  avatarUrl?: string;
   playbackKeyReady: boolean;
+  profileSource?: "qq-profile" | "fallback";
   message?: string;
+};
+
+type QqProfileResponse = {
+  code?: number;
+  result?: number;
+  data?: unknown;
+  profile?: unknown;
+  creator?: unknown;
 };
 
 export type QqSongSearchResult = {
@@ -21,6 +31,19 @@ export type QqSongSearchResult = {
   album?: string;
   externalUrl?: string;
   coverUrl?: string;
+};
+
+export type QqLyricLine = {
+  time: number;
+  text: string;
+};
+
+export type QqLyricsResult = {
+  provider: "qq" | "lrclib";
+  songMid?: string;
+  matchedTitle: string;
+  matchedArtist: string;
+  lines: QqLyricLine[];
 };
 
 export type QqPlayableUrlResult =
@@ -82,6 +105,8 @@ type QqRawTrack = {
 
 const qqMusicuUrl = "https://u.y.qq.com/cgi-bin/musicu.fcg";
 const qqSmartboxUrl = "https://c.y.qq.com/splcloud/fcgi-bin/smartbox_new.fcg";
+const qqLyricUrl = "https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg";
+const lrcLibSearchUrl = "https://lrclib.net/api/search";
 const qqHeaders = {
   Accept: "application/json, text/plain, */*",
   "Accept-Language": "zh-CN,zh;q=0.9",
@@ -92,6 +117,7 @@ const qqHeaders = {
 };
 
 const qqQualityCandidates = [
+  { prefix: "F000", ext: ".flac", label: "Lossless FLAC" },
   { prefix: "M800", ext: ".mp3", label: "320k MP3" },
   { prefix: "M500", ext: ".mp3", label: "128k MP3" },
   { prefix: "C400", ext: ".m4a", label: "AAC/M4A" }
@@ -112,7 +138,7 @@ export async function saveQqCookie(rootDir: string, cookieText: string) {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${normalizedCookie}\n`, "utf8");
 
-  return readQqLoginStatusFromCookie(normalizedCookie);
+  return getQqLoginStatus(rootDir);
 }
 
 export async function clearQqCookie(rootDir: string) {
@@ -129,7 +155,94 @@ export async function clearQqCookie(rootDir: string) {
 
 export async function getQqLoginStatus(rootDir: string): Promise<QqLoginStatus> {
   const cookie = await readQqCookie(rootDir);
-  return readQqLoginStatusFromCookie(cookie);
+  const fallback = readQqLoginStatusFromCookie(cookie);
+
+  if (!fallback.loggedIn || !fallback.userId) {
+    return fallback;
+  }
+
+  const profile = await fetchQqProfile(cookie, fallback.userId);
+  if (!profile) {
+    return fallback;
+  }
+
+  return {
+    ...fallback,
+    nickname: profile.nickname,
+    avatarUrl: profile.avatarUrl || fallback.avatarUrl,
+    profileSource: "qq-profile"
+  };
+}
+
+async function fetchQqProfile(cookie: string, userId: string) {
+  const url = new URL("https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg");
+  url.searchParams.set("cid", "205360838");
+  url.searchParams.set("userid", userId);
+  url.searchParams.set("reqfrom", "1");
+  url.searchParams.set("g_tk", "5381");
+  url.searchParams.set("loginUin", userId);
+  url.searchParams.set("hostUin", "0");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("inCharset", "utf8");
+  url.searchParams.set("outCharset", "utf-8");
+  url.searchParams.set("notice", "0");
+  url.searchParams.set("platform", "yqq.json");
+  url.searchParams.set("needNewCode", "0");
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        ...qqHeaders,
+        Cookie: cookie
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+
+    if (!response.ok) return null;
+
+    const body = parseJsonText(await response.text()) as QqProfileResponse;
+    if (body.code === 1000 || body.result === 301) return null;
+
+    return readQqProfile(body);
+  } catch {
+    return null;
+  }
+}
+
+function readQqProfile(body: QqProfileResponse) {
+  const root = asQqProfileObject(body);
+  const data = asQqProfileObject(root.data ?? root.profile ?? root.creator ?? root);
+  const creator = asQqProfileObject(data.creator ?? data.user ?? data.profile ?? data);
+  const nickname = firstQqProfileString(
+    creator.nick,
+    creator.nickname,
+    creator.name,
+    creator.hostname,
+    creator.title
+  );
+
+  if (!nickname) return null;
+
+  return {
+    nickname,
+    avatarUrl: firstQqProfileString(
+      creator.headpic,
+      creator.avatar,
+      creator.avatarUrl,
+      creator.logo
+    )
+  };
+}
+
+function asQqProfileObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function firstQqProfileString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
 }
 
 export async function resolveQqPlayableUrl(
@@ -138,7 +251,8 @@ export async function resolveQqPlayableUrl(
   artist: string
 ): Promise<QqPlayableUrlResult> {
   const songs = await searchQqSongsWithFallback(title, artist, 6);
-  const song = pickBestQqSong(songs, title, artist);
+  const rankedSongs = rankQqSongs(songs, title, artist);
+  const song = rankedSongs[0];
 
   if (!song) {
     return {
@@ -146,6 +260,42 @@ export async function resolveQqPlayableUrl(
       playable: false,
       reason: "not_found",
       message: "QQ 音乐未找到这首歌",
+      playbackKeyReady: (await getQqLoginStatus(rootDir)).playbackKeyReady
+    };
+  }
+
+  let firstFailure: QqPlayableUrlResult | null = null;
+  let checkedCandidateCount = 0;
+
+  for (const candidate of rankedSongs) {
+    if (!isAcceptableQqSongCandidate(candidate, title, artist)) {
+      continue;
+    }
+
+    checkedCandidateCount += 1;
+    const result = await resolveQqSongUrl(rootDir, candidate);
+
+    if (result.playable) {
+      return result;
+    }
+
+    firstFailure ??= result;
+  }
+
+  if (firstFailure) {
+    return firstFailure;
+  }
+
+  if (checkedCandidateCount === 0) {
+    return {
+      provider: "qq",
+      playable: false,
+      matchedTitle: song.name,
+      matchedArtist: song.artist,
+      externalUrl: song.externalUrl,
+      coverUrl: song.coverUrl,
+      reason: "not_found",
+      message: "QQ 音乐未找到歌名和歌手都匹配的版本",
       playbackKeyReady: (await getQqLoginStatus(rootDir)).playbackKeyReady
     };
   }
@@ -176,9 +326,6 @@ async function searchQqSongsWithFallback(
       songs.push(song);
     }
 
-    if (songs.some((song) => normalize(song.name) === normalize(title))) {
-      break;
-    }
   }
 
   return songs;
@@ -253,6 +400,209 @@ export async function searchQqSongs(
       }
     })
   );
+}
+
+export async function resolveQqLyrics(
+  title: string,
+  artist: string,
+  requestedSongMid = "",
+  duration = 0
+): Promise<QqLyricsResult> {
+  const songMid = requestedSongMid.trim();
+  let song: QqSongSearchResult | undefined;
+
+  if (songMid) {
+    const fallbackSong: QqSongSearchResult = {
+      id: songMid,
+      mid: songMid,
+      songmid: songMid,
+      name: title,
+      artist
+    };
+
+    try {
+      song = await getQqSongDetail(songMid, fallbackSong);
+    } catch {
+      song = fallbackSong;
+    }
+  } else {
+    const songs = await searchQqSongsWithFallback(title, artist, 6);
+    const rankedSongs = rankQqSongs(songs, title, artist);
+    song =
+      rankedSongs.find((candidate) =>
+        isAcceptableQqSongCandidate(candidate, title, artist)
+      ) ?? rankedSongs[0];
+  }
+
+  if (!song?.mid) {
+    return {
+      provider: "qq",
+      matchedTitle: title,
+      matchedArtist: artist,
+      lines: []
+    };
+  }
+
+  const url = new URL(qqLyricUrl);
+  url.searchParams.set("songmid", song.mid);
+  url.searchParams.set("format", "json");
+  url.searchParams.set("nobase64", "1");
+  url.searchParams.set("g_tk", "5381");
+  url.searchParams.set("loginUin", "0");
+  url.searchParams.set("hostUin", "0");
+  url.searchParams.set("inCharset", "utf8");
+  url.searchParams.set("outCharset", "utf-8");
+  url.searchParams.set("notice", "0");
+  url.searchParams.set("platform", "yqq.json");
+  url.searchParams.set("needNewCode", "0");
+
+  const response = await fetch(url, { headers: qqHeaders });
+
+  if (!response.ok) {
+    throw new Error("QQ 音乐歌词请求失败");
+  }
+
+  const json = parseJsonText(await response.text()) as { lyric?: string };
+
+  const matchedTitle = song.name || title;
+  const matchedArtist = song.artist || artist;
+  const qqLines = parseQqLrc(json.lyric ?? "", matchedTitle, matchedArtist);
+  const fallbackLines = qqLines.length
+    ? []
+    : await resolveLrcLibLyrics(matchedTitle, matchedArtist, duration);
+
+  return {
+    provider: fallbackLines.length ? "lrclib" : "qq",
+    songMid: song.mid,
+    matchedTitle,
+    matchedArtist,
+    lines: qqLines.length ? qqLines : fallbackLines
+  };
+}
+
+export function parseQqLrc(lyric: string, title = "", artist = "") {
+  const offsetMatch = lyric.match(/\[offset:([+-]?\d+)]/i);
+  const offsetSeconds = Number(offsetMatch?.[1] ?? 0) / 1000;
+  const lines: QqLyricLine[] = [];
+
+  for (const rawLine of lyric.split(/\r?\n/)) {
+    const timestamps = [
+      ...rawLine.matchAll(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)]/g)
+    ];
+    const text = decodeQqLyricText(
+      rawLine.replace(/\[(\d{1,3}):(\d{2}(?:\.\d{1,3})?)]/g, "")
+    ).trim();
+
+    if (!timestamps.length || !text || isQqLyricMetadata(text, title, artist)) {
+      continue;
+    }
+
+    for (const timestamp of timestamps) {
+      const time = Number(timestamp[1]) * 60 + Number(timestamp[2]) + offsetSeconds;
+
+      if (Number.isFinite(time) && time >= 0) {
+        lines.push({ time, text });
+      }
+    }
+  }
+
+  return lines
+    .sort((left, right) => left.time - right.time)
+    .filter(
+      (line, index, allLines) =>
+        index === 0 ||
+        line.time !== allLines[index - 1].time ||
+        line.text !== allLines[index - 1].text
+    );
+}
+
+function isQqLyricMetadata(text: string, title: string, artist: string) {
+  const normalizedText = normalize(text.replace(/\s*[-–—]\s*/g, " "));
+  const titleKey = normalizeSearchValue(title);
+  const artistKey = normalizeSearchValue(artist);
+
+  if (
+    titleKey &&
+    artistKey &&
+    normalizedText.includes(titleKey) &&
+    normalizedText.includes(artistKey)
+  ) {
+    return true;
+  }
+
+  return /^(作?词|作?曲|编曲|制作人?|监制|录音|混音|母带|吉他|贝斯|鼓|和声|配唱|原唱|演唱|op|sp)\s*[:：]/i.test(
+    text
+  );
+}
+
+function decodeQqLyricText(value: string) {
+  return value
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'");
+}
+
+async function resolveLrcLibLyrics(title: string, artist: string, duration: number) {
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return [];
+  }
+
+  const url = new URL(lrcLibSearchUrl);
+  url.searchParams.set("track_name", title);
+  url.searchParams.set("artist_name", artist);
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Redio/0.1 (local development)"
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    const records = (await response.json()) as Array<{
+      trackName?: string;
+      artistName?: string;
+      duration?: number;
+      syncedLyrics?: string | null;
+    }>;
+    const titleKey = normalize(stripDiacritics(title));
+    const artistKey = normalize(stripDiacritics(artist));
+    const matchingRecord = records
+      .filter((record) => {
+        if (!record.syncedLyrics || !Number.isFinite(record.duration)) {
+          return false;
+        }
+
+        const recordTitle = normalize(stripDiacritics(record.trackName ?? ""));
+        const recordArtist = normalize(stripDiacritics(record.artistName ?? ""));
+
+        return (
+          recordTitle === titleKey &&
+          (recordArtist === artistKey ||
+            recordArtist.includes(artistKey) ||
+            artistKey.includes(recordArtist)) &&
+          Math.abs((record.duration ?? 0) - duration) <= 5
+        );
+      })
+      .sort(
+        (left, right) =>
+          Math.abs((left.duration ?? 0) - duration) -
+          Math.abs((right.duration ?? 0) - duration)
+      )[0];
+
+    return matchingRecord?.syncedLyrics
+      ? parseQqLrc(matchingRecord.syncedLyrics, title, artist)
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 async function resolveQqSongUrl(
@@ -413,7 +763,7 @@ function buildQqCoverUrl(albumMid: string) {
   return `https://y.qq.com/music/photo_new/T002R300x300M000${albumMid}.jpg`;
 }
 
-function pickBestQqSong(
+function rankQqSongs(
   songs: QqSongSearchResult[],
   title: string,
   artist: string
@@ -421,30 +771,84 @@ function pickBestQqSong(
   const titleKey = normalize(title);
   const artistKey = normalize(artist);
 
+  return [...songs].sort((left, right) => {
+    return (
+      scoreQqSong(right, titleKey, artistKey) -
+      scoreQqSong(left, titleKey, artistKey)
+    );
+  });
+}
+
+function scoreQqSong(song: QqSongSearchResult, titleKey: string, artistKey: string) {
+  const songTitle = normalizeSearchValue(song.name);
+  const songArtist = normalizeSearchValue(song.artist);
+  let score = 0;
+
+  if (songTitle === titleKey) {
+    score += 100;
+  } else if (songTitle.includes(titleKey) || titleKey.includes(songTitle)) {
+    score += 60;
+  }
+
+  if (artistKey && songArtist.includes(artistKey)) {
+    score += 40;
+  }
+
+  if (song.mediaMid) {
+    score += 5;
+  }
+
+  return score;
+}
+
+function isAcceptableQqSongCandidate(
+  song: QqSongSearchResult,
+  title: string,
+  artist: string
+) {
+  const titleKey = normalizeSearchValue(title);
+  const artistKey = normalizeSearchValue(artist);
+  const songTitle = normalizeSearchValue(song.name);
+  const songArtist = normalizeSearchValue(song.artist);
+  const titleMatches =
+    songTitle === titleKey ||
+    ((songTitle.includes(titleKey) || titleKey.includes(songTitle)) &&
+      artistKey &&
+      isArtistMatch(songArtist, artistKey));
+
+  if (!titleMatches) {
+    return false;
+  }
+
+  return !artistKey || isArtistMatch(songArtist, artistKey);
+}
+
+function isArtistMatch(candidateArtist: string, requestedArtist: string) {
+  if (!requestedArtist) {
+    return true;
+  }
+
   return (
-    songs.find(
-      (song) =>
-        normalize(song.name) === titleKey &&
-        (!artistKey || normalize(song.artist).includes(artistKey))
-    ) ??
-    songs.find((song) => normalize(song.name).includes(titleKey) || titleKey.includes(normalize(song.name))) ??
-    songs[0]
+    candidateArtist === requestedArtist ||
+    candidateArtist.includes(requestedArtist) ||
+    requestedArtist.includes(candidateArtist)
   );
 }
 
 function readQqLoginStatusFromCookie(cookie: string): QqLoginStatus {
   const obj = parseCookieString(cookie);
   const userId = qqCookieUin(obj);
-  const musicKey = qqCookieMusicKey(obj);
   const playbackKey = qqCookiePlaybackKey(obj);
 
   return {
     provider: "qq",
-    loggedIn: !!(userId && musicKey),
+    loggedIn: !!userId,
     hasCookie: !!cookie.trim(),
     userId,
-    nickname: qqCookieNickname(obj, userId) || (userId ? `QQ ${userId}` : undefined),
-    playbackKeyReady: !!(userId && playbackKey)
+    nickname: userId ? `QQ ${userId}` : undefined,
+    avatarUrl: userId ? `https://q1.qlogo.cn/g?b=qq&nk=${encodeURIComponent(userId)}&s=100` : undefined,
+    playbackKeyReady: !!(userId && playbackKey),
+    profileSource: userId ? "fallback" : undefined
   };
 }
 
@@ -496,12 +900,17 @@ function serializeCookieObject(obj: Record<string, string>) {
 }
 
 function qqCookieUin(obj: Record<string, string>) {
-  const raw =
+  const candidates =
     Number(obj.login_type) === 2
-      ? obj.wxuin || obj.uin || obj.p_uin
-      : obj.uin || obj.qqmusic_uin || obj.wxuin || obj.p_uin;
+      ? [obj.wxuin, obj.uin, obj.qqmusic_uin, obj.p_uin]
+      : [obj.uin, obj.qqmusic_uin, obj.wxuin, obj.p_uin];
 
-  return normalizeQqUin(raw);
+  for (const candidate of candidates) {
+    const normalized = normalizeQqUin(candidate);
+    if (normalized) return normalized;
+  }
+
+  return "";
 }
 
 function qqCookieMusicKey(obj: Record<string, string>) {
@@ -523,37 +932,9 @@ function qqCookiePlaybackKey(obj: Record<string, string>) {
   return obj.qm_keyst || obj.qqmusic_key || obj.music_key || obj.wxskey || "";
 }
 
-function qqCookieNickname(obj: Record<string, string>, uin: string) {
-  const padded = uin ? `0${uin}` : "";
-  const keys = [
-    uin ? `ptnick_${uin}` : "",
-    padded ? `ptnick_${padded}` : "",
-    "ptnick",
-    "nick",
-    "nickname",
-    "qq_nickname"
-  ].filter(Boolean);
-
-  for (const key of keys) {
-    if (obj[key]) {
-      return decodeCookieValue(obj[key]);
-    }
-  }
-
-  return "";
-}
-
 function normalizeQqUin(raw: string | undefined) {
   const digits = String(raw ?? "").replace(/\D/g, "");
-  return digits.replace(/^0+/, "") || digits;
-}
-
-function decodeCookieValue(value: string) {
-  try {
-    return decodeURIComponent(value.replace(/\+/g, "%20")).trim();
-  } catch {
-    return value.trim();
-  }
+  return /^0+$/.test(digits) ? "" : digits.replace(/^0+/, "");
 }
 
 function parseJsonText(text: string) {
@@ -580,6 +961,12 @@ function getQqCookiePath(rootDir: string) {
 
 function normalize(value: string) {
   return value.trim().toLowerCase();
+}
+
+function normalizeSearchValue(value: string) {
+  return normalize(stripDiacritics(value))
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ");
 }
 
 function stripDiacritics(value: string) {

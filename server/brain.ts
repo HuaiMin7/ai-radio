@@ -92,7 +92,11 @@ export async function generateAiTurn(input: GenerateDjPlanInput): Promise<AiTurn
     try {
       return await generateCustomHttpTurn(input.context);
     } catch (error) {
-      return createRecoveryTurn(error);
+      console.error(
+        "[brain] generation failed:",
+        error instanceof Error ? error.message : "unknown error"
+      );
+      return createRecoveryTurn();
     }
   }
 
@@ -111,7 +115,9 @@ function getBrainProvider(): BrainProvider {
 
 function createMockTurn(profile: UserProfile, context: PromptContext): AiTurn {
   const requestText = readUserRequestFromPrompt(context.prompt);
-  const shouldRecommend = /推|推荐|听|歌|音乐|配乐|开车|睡前|运动|放松/.test(requestText);
+  const shouldRecommend =
+    !isExplicitNoMusicRequest(requestText) &&
+    /推|推荐|听|歌|音乐|配乐|开车|睡前|运动|放松/.test(requestText);
 
   if (!shouldRecommend) {
     return {
@@ -148,13 +154,10 @@ function createMockTurn(profile: UserProfile, context: PromptContext): AiTurn {
   };
 }
 
-function createRecoveryTurn(error: unknown): AiTurn {
+function createRecoveryTurn(): AiTurn {
   return {
     mode: "chat",
-    text:
-      error instanceof Error
-        ? `我这边刚刚有点卡住了，先缓一下。(${error.message})`
-        : "我这边刚刚有点卡住了，先缓一下。"
+    text: "我这边刚刚有点卡住了，先缓一下。"
   };
 }
 
@@ -181,13 +184,16 @@ async function generateCustomHttpTurn(context: PromptContext): Promise<AiTurn> {
         {
           role: "system",
           content: [
-            "你是私人电台 DJ「Z」，也是用户的朋友。",
+            "你是私人电台 DJ「Redio」，也是用户的朋友。",
             "性格慵懒、有品味、自然，不端着。",
             "你必须判断用户意图：普通聊天就正常聊，不推歌，不输出 [RECOMMEND] 标签。",
+            "用户明确说不要、暂时不想或先别播放/推荐音乐时，必须按普通聊天处理，即使句子里出现歌或音乐。",
+            "否定词只有直接否定播放或推荐动作时才表示普通聊天；例如‘推荐一些不要太吵的歌’仍是推歌请求。",
             "只有用户明确想听歌、想要配乐、询问某个场景/心情适合的歌时，才进入推歌模式。",
             "推歌模式必须按上下文 requestedTrackCount 推荐歌曲。",
             "用户歌单是品味样本，不是封闭歌库；可以基于用户画像推荐歌单之外的歌曲。",
             "推荐时约 70% 贴合既有品味，约 30% 做有品味的新歌探索；避免反复推荐最近播过或被跳过的歌曲。",
+            "每段 say 和 intro 必须为 60-100 个中文字符，输出前自检，不要返回少于 60 个字符的模型文案。",
             "推歌模式只输出 JSON，不要输出 Markdown，不要输出额外解释。",
             "普通聊天只输出自然中文回复。",
             "推歌 JSON 格式：",
@@ -210,6 +216,7 @@ async function generateCustomHttpTurn(context: PromptContext): Promise<AiTurn> {
 
   const data = (await response.json()) as unknown;
   const content = readChatCompletionContent(data);
+  const requestedMusic = isMusicRequest(context);
   const jsonPlan = tryParseDjPlan(content, context.requestedTrackCount);
 
   if (jsonPlan) {
@@ -223,10 +230,18 @@ async function generateCustomHttpTurn(context: PromptContext): Promise<AiTurn> {
     };
   }
 
+  if (requestedMusic && looksLikeJson(content)) {
+    throw new Error("model returned invalid recommendation JSON");
+  }
+
   const recommendations = parseTaggedRecommendations(content).slice(
     0,
     context.requestedTrackCount
   );
+
+  if (requestedMusic && recommendations.length === 0) {
+    throw new Error("model did not return a valid recommendation");
+  }
 
   if (recommendations.length === 0) {
     return {
@@ -315,10 +330,14 @@ function normalizeDjPlan(plan: ModelDjPlan, requestedTrackCount: number): ModelD
     )
   }));
 
+  if (normalizedTracks.length === 0) {
+    throw new Error("model returned no playable recommendations");
+  }
+
   return {
     ...plan,
     say: limitDjCopy(plan.say.trim() || normalizedTracks[0]?.intro || "这首歌适合现在播放。"),
-    play: normalizedTracks.length > 0 ? normalizedTracks : plan.play
+    play: normalizedTracks
   };
 }
 
@@ -344,7 +363,7 @@ function sanitizeDjIntro(intro: string) {
 }
 
 function limitDjCopy(text: string) {
-  const maxCharacters = 55;
+  const maxCharacters = 100;
 
   if (text.length <= maxCharacters) {
     return text;
@@ -413,6 +432,30 @@ function tryParseDjPlan(
   }
 }
 
+function looksLikeJson(content: string) {
+  const trimmed = content.trim();
+  return trimmed.startsWith("{") || trimmed.startsWith("```json");
+}
+
+function isMusicRequest(context: PromptContext) {
+  const request = readUserRequestFromPrompt(context.prompt);
+
+  return (
+    !isExplicitNoMusicRequest(request) &&
+    (/(?:推|推荐|想听|要听|听点|放点|播点|来点|来些|给我(?:来|放|播|推|推荐)).{0,16}(?:歌|音乐|歌单|曲)/i.test(
+      request
+    ) ||
+      /来(?:一|两|几|三|四|五|六|七|八|九|十)?首/i.test(request) ||
+      /(?:适合|配).{0,16}(?:歌|音乐|歌单|曲)|配乐/i.test(request))
+  );
+}
+
+function isExplicitNoMusicRequest(request: string) {
+  return /(?:先|暂时|现在)?(?:不想|不要|不用|不需要|别)(?:听歌|听音乐|放歌|播放音乐|播歌|推歌|推荐歌曲|推荐音乐)|别(?:给我)?(?:放歌|播歌|推歌|推荐(?:歌|歌曲|音乐))/i.test(
+    request
+  );
+}
+
 function extractJson(content: string) {
   const trimmed = content.trim();
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
@@ -434,6 +477,7 @@ function isModelDjPlan(value: unknown): value is ModelDjPlan {
   return (
     typeof candidate.say === "string" &&
     Array.isArray(candidate.play) &&
+    candidate.play.length > 0 &&
     candidate.play.every(
       (track) =>
         typeof track === "object" &&

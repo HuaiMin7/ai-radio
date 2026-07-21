@@ -7,7 +7,8 @@ This project is a local-first AI radio prototype. Keep source files, user profil
 - `server/` local API server, model adapter, music adapter, TTS, history, and runtime state.
 - `web/src/` React player UI, chat panel, playback controls, and styles.
 - `prompts/` DJ persona and prompt templates.
-- `public/audio/` committed local fallback audio used when online providers fail.
+- `public/` committed audio, image, font, and local extension-download assets.
+- `bridge-extension/` source for the local QQ Music login-state bridge.
 - `scripts/` local development helpers, including full-stack startup and health checks.
 
 ## User Inputs
@@ -22,6 +23,9 @@ This project is a local-first AI radio prototype. Keep source files, user profil
 These are generated locally and should not be treated as source:
 
 - `data/history.json` playback and recommendation history.
+- `data/queue.json` persisted playback queue.
+- `data/feedback.json` likes, skips, and replay feedback.
+- `data/qq-cookie.txt` private local QQ Music session fields.
 - `cache/tts/` generated DJ speech audio.
 - `cache/music/` future downloaded or cached music assets.
 - `dist/` Vite production build output.

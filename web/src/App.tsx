@@ -1,4 +1,13 @@
-import { useEffect, useRef, useState, type CSSProperties, type SyntheticEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+  type SyntheticEvent
+} from "react";
+import { StarfieldCanvas } from "./StarfieldCanvas";
 
 declare global {
   interface Window {
@@ -23,6 +32,29 @@ type DesktopQqLoginResult =
       message?: string;
       error?: string;
     };
+
+type RedioBridgeStatus = {
+  connected: boolean;
+  version?: string;
+  checking: boolean;
+  message?: string;
+};
+
+type RedioBridgeResponse = {
+  ok?: boolean;
+  cookie?: string;
+  status?: QqLoginStatus;
+  message?: string;
+  error?: string;
+  partial?: boolean;
+  reused?: boolean;
+  opened?: boolean;
+  diagnostics?: {
+    cookieCount: number;
+    cookieNames: string[];
+    pageCookieCount: number;
+  };
+};
 
 type DjPlan = {
   episode: number;
@@ -50,6 +82,11 @@ type NowPlayingState = {
   status: "idle" | "planned";
   currentPlan: DjPlan | null;
   currentContext?: PromptContext | null;
+  playbackSummary?: {
+    status: "full" | "attemptable" | "failed" | "idle";
+    hasFullPlayableTrack: boolean;
+    hasAttemptableTrack: boolean;
+  };
   updatedAt: string;
 };
 
@@ -80,6 +117,8 @@ type ChatMessage = {
   text: string;
   plan?: DjPlan;
 };
+
+type RecommendedTrack = DjPlan["play"][number];
 
 type PlaybackHistoryEntry = {
   id: string;
@@ -124,8 +163,22 @@ type QqLoginStatus = {
   hasCookie: boolean;
   userId?: string;
   nickname?: string;
+  avatarUrl?: string;
   playbackKeyReady: boolean;
   message?: string;
+};
+
+type LyricLine = {
+  time: number;
+  text: string;
+};
+
+type LyricsResponse = {
+  provider: "qq" | "lrclib";
+  songMid?: string;
+  matchedTitle: string;
+  matchedArtist: string;
+  lines: LyricLine[];
 };
 
 type AppLogEntry = {
@@ -166,6 +219,9 @@ type PlayableTrack = Track & {
   audioLabel: string;
   audioUrl: string;
   source: "local" | "netease" | "qq";
+  queueId?: string;
+  queuedAt?: string;
+  episode?: number;
   djIntro?: string;
   matchedTitle?: string;
   matchedArtist?: string;
@@ -176,14 +232,36 @@ type PlayableTrack = Track & {
   failureReason?: string;
 };
 
+type CircularQueuePlayerProps = {
+  currentCaption: string;
+  currentTime: number;
+  duration: number;
+  isLiked: boolean;
+  isPlaying: boolean;
+  onLike: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  onSeek: (value: number) => void;
+  onSelectTrack: (index: number) => void;
+  onToggleMute: () => void;
+  onTogglePlayback: () => void;
+  onVolumeChange: (value: number) => void;
+  selectedTrack: PlayableTrack;
+  selectedTrackIndex: number;
+  tracks: PlayableTrack[];
+  volume: number;
+};
+
 const djDuckingRatio = 0.5;
 const musicIntentPattern =
-  /(推|推荐|听|放|播|来|歌|音乐|歌单|曲|适合|心情|开车|通勤|睡|阅读|工作|学习|下雨|夜晚|早上|午后|轻松|安静|兴奋|emo|治愈)/i;
+  /(?:推|推荐|想听|要听|听点|放点|播点|来点|来些|给我(?:来|放|播|推|推荐)).{0,16}(?:歌|音乐|歌单|曲)|来(?:一|两|几|三|四|五|六|七|八|九|十)?首|(?:适合|配).{0,16}(?:歌|音乐|歌单|曲)|配乐/i;
+const noMusicIntentPattern =
+  /(?:先|暂时|现在)?(?:不想|不要|不用|不需要|别)(?:听歌|听音乐|放歌|播放音乐|播歌|推歌|推荐歌曲|推荐音乐)|别(?:给我)?(?:放歌|播歌|推歌|推荐(?:歌|歌曲|音乐))/i;
 
 const fallbackTracks: PlayableTrack[] = [
   {
-    title: "Local Focus Loop",
-    artist: "Redio Lab",
+    title: "GOOD FOR ME.",
+    artist: "SEVENTEEN",
     audioLabel: "本地测试音频 A",
     audioUrl: "/audio/local-focus.wav",
     source: "local",
@@ -192,8 +270,8 @@ const fallbackTracks: PlayableTrack[] = [
     failureReason: "本地测试音频，不代表真实推荐歌曲已解析成功"
   },
   {
-    title: "Local Night Loop",
-    artist: "Redio Lab",
+    title: "OuterWilds",
+    artist: "Andrew Prahlow",
     audioLabel: "本地测试音频 B",
     audioUrl: "/audio/local-night.wav",
     source: "local",
@@ -202,8 +280,8 @@ const fallbackTracks: PlayableTrack[] = [
     failureReason: "本地测试音频，不代表真实推荐歌曲已解析成功"
   },
   {
-    title: "Warm Static",
-    artist: "Redio Lab",
+    title: "电台情歌",
+    artist: "莫文蔚",
     audioLabel: "本地测试音频 A",
     audioUrl: "/audio/local-focus.wav",
     source: "local",
@@ -233,10 +311,89 @@ const fallbackTracks: PlayableTrack[] = [
   }
 ];
 
+const queueFallbackCovers = [
+  "/images/redio-queue-cover-0.png",
+  "/images/redio-queue-cover-1.png",
+  "/images/redio-queue-cover-2.jpg",
+  "/images/redio-queue-cover-3.jpg",
+  "/images/redio-queue-cover-4.jpg",
+  "/images/redio-queue-cover-5.png",
+  "/images/redio-queue-cover-6.png"
+];
+
 const apiBaseUrl = "http://127.0.0.1:8788";
+const redioBridgeRequestTimeoutMs = 4500;
+const redioBridgeMinimumVersion = [0, 1, 4];
+
+function isRedioBridgeOutdated(version?: string) {
+  if (!version) return false;
+
+  const currentVersion = version.split(".").map((part) => Number(part) || 0);
+  for (let index = 0; index < redioBridgeMinimumVersion.length; index += 1) {
+    const currentPart = currentVersion[index] ?? 0;
+    const minimumPart = redioBridgeMinimumVersion[index];
+    if (currentPart !== minimumPart) return currentPart < minimumPart;
+  }
+
+  return false;
+}
 
 function getApiUrl(url: string) {
   return url.startsWith("/api/") ? `${apiBaseUrl}${url}` : url;
+}
+
+function getPlaybackAudioUrl(track: PlayableTrack) {
+  if (!track.audioUrl) {
+    return "";
+  }
+
+  if (track.source === "qq" && /^https?:\/\//i.test(track.audioUrl)) {
+    return getApiUrl(`/api/audio/proxy?url=${encodeURIComponent(track.audioUrl)}`);
+  }
+
+  return track.audioUrl;
+}
+
+function requestRedioBridge(
+  type:
+    | "REDIO_BRIDGE_PING"
+    | "REDIO_BRIDGE_GET_STATUS"
+    | "REDIO_BRIDGE_OPEN_QQ_LOGIN"
+    | "REDIO_BRIDGE_WARMUP_QQ_PLAYBACK"
+    | "REDIO_BRIDGE_SYNC_QQ_COOKIE",
+  timeoutMs = redioBridgeRequestTimeoutMs
+): Promise<RedioBridgeResponse & { version?: string }> {
+  return new Promise((resolve, reject) => {
+    const id = createMessageId();
+    const timer = window.setTimeout(() => {
+      window.removeEventListener("message", handleMessage);
+      reject(new Error("Redio Bridge 未连接"));
+    }, timeoutMs);
+
+    function handleMessage(event: MessageEvent) {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+
+      const data = event.data;
+      if (!data || data.source !== "redio-bridge-extension" || data.id !== id) return;
+
+      window.clearTimeout(timer);
+      window.removeEventListener("message", handleMessage);
+      resolve(data.response ?? { ok: true, version: data.version });
+    }
+
+    window.addEventListener("message", handleMessage);
+    window.postMessage({
+      source: "redio-web",
+      type,
+      id
+    }, window.location.origin);
+  });
+}
+
+function waitForBridgePoll(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -327,8 +484,26 @@ function getPlayableTrackKey(track: Track) {
   return `${track.title.trim().toLowerCase()}::${track.artist.trim().toLowerCase()}`;
 }
 
+function getQqSongMid(externalUrl: string | undefined) {
+  return externalUrl?.match(/songDetail\/([^/?#]+)/)?.[1] ?? "";
+}
+
+function getCurrentLyricText(lines: LyricLine[], currentTime: number) {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    if (lines[index].time <= currentTime + 0.05) {
+      return lines[index].text;
+    }
+  }
+
+  return undefined;
+}
+
+function getPlayableTrackIdentity(track: PlayableTrack, index: number) {
+  return track.queueId ?? `${getPlayableTrackKey(track)}::${index}`;
+}
+
 function shouldRefreshProviderTrack(track: PlayableTrack) {
-  if (track.playbackStatus === "full" && !track.isFallback) {
+  if (track.audioUrl && track.playbackStatus !== "failed" && !track.isFallback) {
     return false;
   }
 
@@ -390,13 +565,21 @@ function getTrackPlaybackWarning(track: PlayableTrack) {
   return null;
 }
 
-function isTrackPlayable(track: PlayableTrack) {
+function hasAttemptableAudio(track: PlayableTrack) {
   return Boolean(track.audioUrl && track.playbackStatus !== "failed");
 }
 
-function findNextPlayableTrackIndex(tracks: PlayableTrack[], startIndex: number) {
+function isVerifiedFullTrack(track: PlayableTrack) {
+  return track.playbackStatus === "full" && !track.isFallback;
+}
+
+function isTrackPlayable(track: PlayableTrack) {
+  return hasAttemptableAudio(track);
+}
+
+function findNextVerifiedTrackIndex(tracks: PlayableTrack[], startIndex: number) {
   for (let index = startIndex + 1; index < tracks.length; index += 1) {
-    if (isTrackPlayable(tracks[index])) {
+    if (isVerifiedFullTrack(tracks[index])) {
       return index;
     }
   }
@@ -404,14 +587,8 @@ function findNextPlayableTrackIndex(tracks: PlayableTrack[], startIndex: number)
   return -1;
 }
 
-function findPreviousPlayableTrackIndex(tracks: PlayableTrack[], startIndex: number) {
-  for (let index = startIndex - 1; index >= 0; index -= 1) {
-    if (isTrackPlayable(tracks[index])) {
-      return index;
-    }
-  }
-
-  return -1;
+function findFirstAttemptableTrackIndex(tracks: PlayableTrack[]) {
+  return tracks.findIndex(hasAttemptableAudio);
 }
 
 function getPlaybackErrorMessage(error: unknown) {
@@ -437,7 +614,7 @@ function getPlanningCopy(message: string) {
     };
   }
 
-  if (musicIntentPattern.test(message)) {
+  if (!noMusicIntentPattern.test(message) && musicIntentPattern.test(message)) {
     return {
       input: "正在挑歌...",
       bubble: "正在挑一首适合你的歌..."
@@ -472,7 +649,13 @@ function BackIcon() {
   );
 }
 
-function VolumeIcon({ color = "white" }: { color?: string }) {
+function VolumeIcon({
+  color = "currentColor",
+  muted = false
+}: {
+  color?: string;
+  muted?: boolean;
+}) {
   return (
     <svg
       aria-hidden="true"
@@ -487,14 +670,25 @@ function VolumeIcon({ color = "white" }: { color?: string }) {
         d="M3.44196 4.81854L6.74091 1.94527C6.95236 1.76546 7.22167 1.66663 7.50016 1.66663C8.1445 1.66663 8.66683 2.18483 8.66683 2.82406V13.1758C8.66683 13.4521 8.56721 13.7193 8.38596 13.9291C7.96664 14.4144 7.23012 14.4706 6.74091 14.0546L3.44196 11.1814C3.41175 11.1557 3.37328 11.1416 3.3335 11.1416H2.50016C1.85583 11.1416 1.3335 10.6234 1.3335 9.98412V6.01578C1.3335 5.37655 1.85583 4.85835 2.50016 4.85835H3.3335C3.37328 4.85835 3.41175 4.84423 3.44196 4.81854ZM3.3335 9.94155C3.64661 9.94155 3.95104 10.049 4.19512 10.2471L7.46683 13.0988V2.90109L4.1951 5.75283C3.95103 5.95088 3.64662 6.05835 3.3335 6.05835H2.5335V9.94155H3.3335Z"
         fill={color}
       />
-      <path
-        d="M9.97456 5.60423C10.2005 5.36181 10.5801 5.34843 10.8226 5.57436C11.4229 6.13387 11.9904 6.92913 11.9904 8.01331C11.9904 9.07394 11.4434 9.85032 10.8726 10.4047C10.6349 10.6356 10.255 10.63 10.0241 10.3923C9.79326 10.1546 9.79881 9.77472 10.0365 9.54386C10.4886 9.10483 10.7904 8.61931 10.7904 8.01331C10.7904 7.39079 10.4749 6.89068 10.0044 6.45223C9.76202 6.22631 9.74864 5.84664 9.97456 5.60423Z"
-        fill={color}
-      />
-      <path
-        d="M12.8587 4.07678C12.6287 3.83825 12.2489 3.83135 12.0103 4.06137C11.7718 4.29139 11.7649 4.67122 11.9949 4.90976C12.844 5.79026 13.4646 6.63312 13.4646 8.05612C13.4646 9.42443 12.8818 10.2296 12.0872 11.1039C11.8644 11.3491 11.8825 11.7286 12.1277 11.9515C12.373 12.1743 12.7524 12.1562 12.9753 11.9109C13.8376 10.9621 14.6646 9.87443 14.6646 8.05612C14.6646 6.1724 13.7901 5.04264 12.8587 4.07678Z"
-        fill={color}
-      />
+      {muted ? (
+        <path
+          d="M2.25 2.25L13.75 13.75"
+          stroke={color}
+          strokeLinecap="round"
+          strokeWidth="1.6"
+        />
+      ) : (
+        <>
+          <path
+            d="M9.97456 5.60423C10.2005 5.36181 10.5801 5.34843 10.8226 5.57436C11.4229 6.13387 11.9904 6.92913 11.9904 8.01331C11.9904 9.07394 11.4434 9.85032 10.8726 10.4047C10.6349 10.6356 10.255 10.63 10.0241 10.3923C9.79326 10.1546 9.79881 9.77472 10.0365 9.54386C10.4886 9.10483 10.7904 8.61931 10.7904 8.01331C10.7904 7.39079 10.4749 6.89068 10.0044 6.45223C9.76202 6.22631 9.74864 5.84664 9.97456 5.60423Z"
+            fill={color}
+          />
+          <path
+            d="M12.8587 4.07678C12.6287 3.83825 12.2489 3.83135 12.0103 4.06137C11.7718 4.29139 11.7649 4.67122 11.9949 4.90976C12.844 5.79026 13.4646 6.63312 13.4646 8.05612C13.4646 9.42443 12.8818 10.2296 12.0872 11.1039C11.8644 11.3491 11.8825 11.7286 12.1277 11.9515C12.373 12.1743 12.7524 12.1562 12.9753 11.9109C13.8376 10.9621 14.6646 9.87443 14.6646 8.05612C14.6646 6.1724 13.7901 5.04264 12.8587 4.07678Z"
+            fill={color}
+          />
+        </>
+      )}
     </svg>
   );
 }
@@ -575,42 +769,6 @@ function MicIcon() {
         </linearGradient>
       </defs>
     </svg>
-  );
-}
-
-function RedioMarkIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="redioMarkIcon"
-      fill="none"
-      height="16"
-      viewBox="0 0 16 16"
-      width="16"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M8 0C12.4183 0 16 3.58172 16 8C16 12.4183 12.4183 16 8 16C3.58172 16 0 12.4183 0 8C0 3.58172 3.58172 0 8 0ZM8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1Z"
-        fill="#FB3367"
-      />
-      <path
-        clipRule="evenodd"
-        d="M8 12C10.2091 12 12 10.2091 12 8C12 5.79086 10.2091 4 8 4C5.79086 4 4 5.79086 4 8C4 10.2091 5.79086 12 8 12Z"
-        fill="#FB3367"
-        fillRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function ChatStatusBars() {
-  return (
-    <span aria-hidden="true" className="chatStatusBars">
-      <i />
-      <i />
-      <i />
-      <i />
-    </span>
   );
 }
 
@@ -747,20 +905,30 @@ export function App() {
   const planningRequestInFlightRef = useRef(false);
   const djSpeechRequestIdRef = useRef(0);
   const resolvingTrackKeysRef = useRef(new Set<string>());
+  const playbackErrorRetryKeysRef = useRef(new Set<string>());
   const selectedTrackKeyRef = useRef("");
   const songVolumeAnimationRef = useRef<number | null>(null);
   const browserAudioUnlockedRef = useRef(false);
   const audioUnlockElementRef = useRef<HTMLAudioElement | null>(null);
+  const playbackToastTimerRef = useRef<number | null>(null);
+  const lyricsCacheRef = useRef(new Map<string, LyricLine[]>());
+  const bridgeAutoRefreshInFlightRef = useRef(false);
+  const lastSyncedBridgeCookieRef = useRef("");
+  const lastAudibleVolumeRef = useRef(0.5);
   const [nowPlaying, setNowPlaying] = useState<NowPlayingState | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [visibleHistoryEntryCount, setVisibleHistoryEntryCount] = useState(5);
-  const [selectedTrackIndex, setSelectedTrackIndex] = useState(0);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [playbackRequestId, setPlaybackRequestId] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [activeLyrics, setActiveLyrics] = useState<{
+    trackKey: string;
+    lines: LyricLine[];
+  } | null>(null);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.8);
+  const [volume, setVolume] = useState(0.5);
   const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlanning, setIsPlanning] = useState(false);
@@ -771,10 +939,14 @@ export function App() {
   const [isQqSourceOpen, setIsQqSourceOpen] = useState(false);
   const [isQqSaving, setIsQqSaving] = useState(false);
   const [isQqWebLoginBusy, setIsQqWebLoginBusy] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isManualCookieOpen, setIsManualCookieOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeDjText, setActiveDjText] = useState<string | null>(null);
   const [queueTracks, setQueueTracks] = useState<QueueTrack[]>([]);
   const [historyEntries, setHistoryEntries] = useState<PlaybackHistoryEntry[]>([]);
   const [feedbackEntries, setFeedbackEntries] = useState<TrackFeedbackEntry[]>([]);
+  const [hasEnteredRadio, setHasEnteredRadio] = useState(false);
   const [appView, setAppView] = useState<AppView>("radio");
   const [resolvedTrackOverrides, setResolvedTrackOverrides] = useState<
     Record<string, PlayableTrack>
@@ -782,6 +954,11 @@ export function App() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [qqLoginStatus, setQqLoginStatus] = useState<QqLoginStatus | null>(null);
   const [qqCookieDraft, setQqCookieDraft] = useState("");
+  const [redioBridgeStatus, setRedioBridgeStatus] = useState<RedioBridgeStatus>({
+    connected: false,
+    checking: true,
+    message: "正在检测 Redio Bridge"
+  });
   const [logs, setLogs] = useState<AppLogEntry[]>([
     {
       id: "boot",
@@ -792,6 +969,15 @@ export function App() {
     }
   ]);
   const [error, setError] = useState<string | null>(null);
+  const [playbackToast, setPlaybackToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (playbackToastTimerRef.current !== null) {
+        window.clearTimeout(playbackToastTimerRef.current);
+      }
+    };
+  }, []);
 
   function loadMoreChatHistory() {
     setVisibleHistoryEntryCount((count) =>
@@ -818,6 +1004,32 @@ export function App() {
     );
   }
 
+  function clearPlaybackToast() {
+    if (playbackToastTimerRef.current !== null) {
+      window.clearTimeout(playbackToastTimerRef.current);
+      playbackToastTimerRef.current = null;
+    }
+
+    setPlaybackToast(null);
+  }
+
+  function showPlaybackToast(message: string) {
+    clearPlaybackToast();
+    setPlaybackToast(message);
+    playbackToastTimerRef.current = window.setTimeout(() => {
+      setPlaybackToast(null);
+      playbackToastTimerRef.current = null;
+    }, 4200);
+  }
+
+  function showTrackPlaybackFailure(track: PlayableTrack, fallbackReason: string) {
+    const reason = track.failureReason?.trim() || fallbackReason;
+
+    setError(reason);
+    showPlaybackToast(`《${track.title}》播放失败：${reason}`);
+    return reason;
+  }
+
   async function loadNowPlaying() {
     setError(null);
     const state = await fetchJson<NowPlayingState>("/api/now");
@@ -836,7 +1048,23 @@ export function App() {
 
   async function loadQueue() {
     const entries = await fetchJson<QueueTrack[]>("/api/queue");
-    setQueueTracks(entries);
+    setQueueTracks((currentTracks) => {
+      const currentTracksById = new Map(
+        currentTracks.map((track) => [track.id, track] as const)
+      );
+
+      return entries.map((track) => {
+        const currentTrack = currentTracksById.get(track.id);
+
+        return currentTrack?.coverUrl
+          ? {
+              ...track,
+              coverUrl: currentTrack.coverUrl
+            }
+          : track;
+      });
+    });
+    return entries;
   }
 
   async function loadFeedback() {
@@ -854,7 +1082,66 @@ export function App() {
     setQqLoginStatus(status);
   }
 
-  async function persistQqCookie(cookie: string, source: "manual" | "desktop") {
+  function openLoginModal() {
+    setError(null);
+    setIsManualCookieOpen(false);
+    setIsLoginModalOpen(true);
+    void detectRedioBridge();
+  }
+
+  function closeLoginModal() {
+    setIsLoginModalOpen(false);
+    setIsManualCookieOpen(false);
+  }
+
+  async function detectRedioBridge() {
+    setRedioBridgeStatus((currentStatus) => ({
+      ...currentStatus,
+      checking: true,
+      message: "正在检测 Redio Bridge"
+    }));
+
+    try {
+      const response = await requestRedioBridge("REDIO_BRIDGE_PING", 1800);
+      setRedioBridgeStatus({
+        connected: true,
+        checking: false,
+        version: response.version,
+        message: response.version ? `Bridge 已连接 · v${response.version}` : "Bridge 已连接"
+      });
+    } catch {
+      setRedioBridgeStatus({
+        connected: false,
+        checking: false,
+        message: "未检测到 Redio Bridge"
+      });
+    }
+  }
+
+  async function refreshRedioBridgeQqStatus() {
+    try {
+      const response = await requestRedioBridge("REDIO_BRIDGE_GET_STATUS");
+      setRedioBridgeStatus((currentStatus) => ({
+        ...currentStatus,
+        connected: true,
+        checking: false,
+        message: response.message ?? currentStatus.message ?? "Bridge 已连接"
+      }));
+
+      if (response.status?.loggedIn) {
+        await loadQqLoginStatus();
+      }
+    } catch (requestError) {
+      setRedioBridgeStatus({
+        connected: false,
+        checking: false,
+        message:
+          requestError instanceof Error ? requestError.message : "Redio Bridge 检测失败"
+      });
+    }
+  }
+
+  async function persistQqCookie(cookie: string, source: "manual" | "desktop" | "bridge") {
     if (!cookie.trim()) {
       setError("请先粘贴 QQ 音乐 Cookie。");
       return;
@@ -874,6 +1161,9 @@ export function App() {
       });
 
       setQqLoginStatus(status);
+      if (status.loggedIn) {
+        closeLoginModal();
+      }
       resolvingTrackKeysRef.current.clear();
       setResolvedTrackOverrides({});
       if (source === "manual") {
@@ -883,7 +1173,9 @@ export function App() {
         status.playbackKeyReady ? "success" : "info",
         status.playbackKeyReady ? "QQ 音乐播放授权已保存" : "QQ 音乐账号态已保存",
         status.playbackKeyReady
-          ? "已检测到播放票据"
+          ? source === "bridge"
+            ? "Redio Bridge 已同步播放票据"
+            : "已检测到播放票据"
           : "缺少播放票据，部分歌曲仍可能不可播"
       );
       setError(status.playbackKeyReady ? null : status.message ?? "QQ 音乐播放授权不完整。");
@@ -900,6 +1192,160 @@ export function App() {
 
   async function saveQqCookie() {
     await persistQqCookie(qqCookieDraft, "manual");
+  }
+
+  async function openQqBridgeLogin() {
+    setIsQqWebLoginBusy(true);
+    setError(null);
+
+    try {
+      appendLog("info", "打开 QQ 音乐官方登录页", "Redio Bridge 正在等待扫码授权");
+      const response = await requestRedioBridge("REDIO_BRIDGE_OPEN_QQ_LOGIN", 8000);
+
+      if (response.status?.playbackKeyReady && response.cookie?.trim()) {
+        await persistQqCookie(response.cookie, "bridge");
+        await refreshRedioBridgeQqStatus();
+        return;
+      }
+
+      let accountSynced = false;
+      let playbackWarmupStarted = false;
+      let lastSyncedCookie = "";
+      const deadline = Date.now() + 120000;
+
+      while (Date.now() < deadline) {
+        await waitForBridgePoll(1500);
+        const current = await requestRedioBridge("REDIO_BRIDGE_GET_STATUS", 6000);
+
+        setRedioBridgeStatus((currentStatus) => ({
+          ...currentStatus,
+          connected: true,
+          checking: false,
+          message: current.message ?? "正在等待 QQ 音乐登录"
+        }));
+
+        if (!current.status?.loggedIn || !current.cookie?.trim()) {
+          continue;
+        }
+
+        if (
+          !accountSynced ||
+          (current.status.playbackKeyReady && current.cookie !== lastSyncedCookie)
+        ) {
+          await persistQqCookie(current.cookie, "bridge");
+          accountSynced = true;
+          lastSyncedCookie = current.cookie;
+          lastSyncedBridgeCookieRef.current = current.cookie;
+        }
+
+        if (current.status.playbackKeyReady) {
+          setError(null);
+          setRedioBridgeStatus((currentStatus) => ({
+            ...currentStatus,
+            message: "QQ 音乐播放授权已同步"
+          }));
+          appendLog("success", "QQ 音乐网页登录完成", "账号和播放票据已自动同步");
+          return;
+        }
+
+        if (!playbackWarmupStarted) {
+          playbackWarmupStarted = true;
+          setRedioBridgeStatus((currentStatus) => ({
+            ...currentStatus,
+            message: "账号已登录，正在获取播放票据"
+          }));
+          await requestRedioBridge("REDIO_BRIDGE_WARMUP_QQ_PLAYBACK", 8000);
+        }
+      }
+
+      if (accountSynced) {
+        setError("QQ 账号已同步，但尚未生成播放票据。请在 QQ 音乐网页播放任意一首歌，再点“刷新登录状态”。");
+        appendLog("info", "QQ 账号登录已同步", "播放票据尚未生成，可在 QQ 音乐网页播放一次后刷新状态");
+        return;
+      }
+
+      throw new Error(response.error ?? "两分钟内没有检测到 QQ 音乐登录态，请返回 Redio 后刷新登录状态");
+    } catch (requestError) {
+      const errorMessage =
+        requestError instanceof Error ? requestError.message : "Redio Bridge 登录失败。";
+
+      setError(errorMessage);
+      appendLog("error", "Redio Bridge 登录失败", errorMessage);
+    } finally {
+      setIsQqWebLoginBusy(false);
+    }
+  }
+
+  async function openQqLoginFromModal() {
+    if (
+      !redioBridgeStatus.connected ||
+      isRedioBridgeOutdated(redioBridgeStatus.version)
+    ) {
+      window.open("https://y.qq.com/", "_blank", "noopener,noreferrer");
+      setError("请先安装并启用 Redio Bridge，登录后再刷新登录状态。");
+      return;
+    }
+
+    await openQqBridgeLogin();
+  }
+
+  async function syncQqCookieFromBridge(options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setIsQqSaving(true);
+      setError(null);
+    }
+
+    try {
+      const response = await requestRedioBridge("REDIO_BRIDGE_SYNC_QQ_COOKIE");
+
+      setRedioBridgeStatus((currentStatus) => ({
+        ...currentStatus,
+        connected: true,
+        checking: false,
+        message: response.message ?? currentStatus.message
+      }));
+
+      if (!response.status?.loggedIn || !response.cookie?.trim()) {
+        if (!options.silent) {
+          const message = response.message ?? response.error ?? "未检测到 QQ 音乐登录状态";
+          const diagnostics = response.diagnostics;
+          const diagnosticDetail = diagnostics
+            ? `读取到 ${diagnostics.cookieCount} 个 QQ Cookie 字段（页面 ${diagnostics.pageCookieCount} 个）：${diagnostics.cookieNames.join(", ") || "无"}`
+            : message;
+          setError(message);
+          appendLog("info", "QQ 音乐登录状态未更新", diagnosticDetail);
+        }
+        return;
+      }
+
+      if (options.silent && response.cookie === lastSyncedBridgeCookieRef.current) {
+        await loadQqLoginStatus();
+        return;
+      }
+
+      await persistQqCookie(response.cookie, "bridge");
+      lastSyncedBridgeCookieRef.current = response.cookie;
+
+      if (!options.silent) {
+        appendLog(
+          response.status.playbackKeyReady ? "success" : "info",
+          "QQ 音乐登录状态已刷新",
+          response.status.playbackKeyReady ? "播放票据已同步" : "账号已登录，播放票据尚未生成"
+        );
+      }
+    } catch (requestError) {
+      const errorMessage =
+        requestError instanceof Error ? requestError.message : "Redio Bridge 同步失败。";
+
+      if (!options.silent) {
+        setError(errorMessage);
+        appendLog("error", "Redio Bridge 同步失败", errorMessage);
+      }
+    } finally {
+      if (!options.silent) {
+        setIsQqSaving(false);
+      }
+    }
   }
 
   async function openQqDesktopLogin() {
@@ -948,15 +1394,16 @@ export function App() {
       });
 
       setQqLoginStatus(status);
+      lastSyncedBridgeCookieRef.current = "";
       resolvingTrackKeysRef.current.clear();
       setResolvedTrackOverrides({});
-      appendLog("info", "QQ 音乐 Cookie 已清除");
+      appendLog("info", "QQ 音乐已退出登录");
     } catch (requestError) {
       const errorMessage =
-        requestError instanceof Error ? requestError.message : "QQ Cookie 清除失败。";
+        requestError instanceof Error ? requestError.message : "QQ 音乐退出登录失败。";
 
       setError(errorMessage);
-      appendLog("error", "QQ Cookie 清除失败", errorMessage);
+      appendLog("error", "QQ 音乐退出登录失败", errorMessage);
     } finally {
       setIsQqSaving(false);
     }
@@ -966,15 +1413,20 @@ export function App() {
     const audio = audioRef.current;
 
     if (!audio) {
-      setError("歌曲播放器还没有准备好。");
+      const errorMessage = "歌曲播放器还没有准备好。";
+
+      setError(errorMessage);
+      showPlaybackToast(`播放失败：${errorMessage}`);
       return false;
     }
 
     if (!isTrackPlayable(selectedTrack)) {
-      const errorMessage =
-        selectedTrack.failureReason ?? "这首歌暂时没有可播放 QQ 音源。";
+      stopPlaybackForUnavailableTrack();
+      const errorMessage = showTrackPlaybackFailure(
+        selectedTrack,
+        "这首歌暂时没有可播放 QQ 音源。"
+      );
 
-      setError(errorMessage);
       appendLog(
         "error",
         "歌曲无法播放",
@@ -985,6 +1437,7 @@ export function App() {
 
     try {
       await audio.play();
+      clearPlaybackToast();
       const playbackWarning = getTrackPlaybackWarning(selectedTrack);
 
       setError(playbackWarning);
@@ -998,6 +1451,7 @@ export function App() {
       const errorMessage = getPlaybackErrorMessage(playbackError);
 
       setError(errorMessage);
+      showPlaybackToast(`《${selectedTrack.title}》播放失败：${errorMessage}`);
       appendLog("error", "歌曲自动播放失败", errorMessage);
       return false;
     }
@@ -1037,6 +1491,34 @@ export function App() {
     pendingQueueAutoplayRef.current = true;
     pendingDjIntroRef.current = djIntro?.trim() || null;
     setPlaybackRequestId((requestId) => requestId + 1);
+  }
+
+  function stopPlaybackForUnavailableTrack() {
+    pendingQueueAutoplayRef.current = false;
+    pendingDjIntroRef.current = null;
+
+    const audio = audioRef.current;
+
+    if (audio) {
+      audio.pause();
+      audio.currentTime = 0;
+    }
+
+    djSpeechRequestIdRef.current += 1;
+
+    const djAudio = djAudioRef.current;
+
+    if (djAudio) {
+      djAudio.pause();
+      djAudio.currentTime = 0;
+    }
+
+    setIsPlaying(false);
+    setIsSpeaking(false);
+    setActiveDjText(null);
+    setCurrentTime(0);
+    setDuration(0);
+    setSongDucking(false);
   }
 
   function rampSongVolume(targetVolume: number, durationMs = 450) {
@@ -1084,13 +1566,18 @@ export function App() {
 
   function handleDjPlaybackStopped() {
     setIsSpeaking(false);
+    setActiveDjText(null);
     setSongDucking(false);
   }
 
-  function toPlayableTrack(track: DjPlan["play"][number]): PlayableTrack | null {
+  function toPlayableTrack(
+    track: DjPlan["play"][number] | QueueTrack
+  ): PlayableTrack | null {
     if (!track.title || !track.artist) {
       return null;
     }
+
+    const queueTrack = "id" in track ? track : null;
 
     return {
       title: track.title,
@@ -1098,6 +1585,9 @@ export function App() {
       audioLabel: track.audioLabel ?? "本地测试音频",
       audioUrl: track.audioUrl ?? "",
       source: track.source ?? "local",
+      queueId: queueTrack?.id,
+      queuedAt: queueTrack?.queuedAt,
+      episode: queueTrack?.episode,
       djIntro: track.intro,
       matchedTitle: track.matchedTitle,
       matchedArtist: track.matchedArtist,
@@ -1110,48 +1600,27 @@ export function App() {
   }
 
   function readRecommendedTracks() {
-    const recommendedTracks: PlayableTrack[] = [];
-    const seenTrackKeys = new Set<string>();
+    const sourceTracks = queueTracks.length > 0 ? queueTracks : plan?.play ?? [];
 
-    function addTrack(track: PlayableTrack | null) {
+    return sourceTracks.flatMap((sourceTrack) => {
+      const track = toPlayableTrack(sourceTrack);
+
       if (!track) {
-        return;
+        return [];
       }
 
-      const key = getPlayableTrackKey(track);
+      const resolvedTrack = resolvedTrackOverrides[getPlayableTrackKey(track)];
 
-      if (seenTrackKeys.has(key)) {
-        return;
-      }
-
-      seenTrackKeys.add(key);
-      const resolvedTrack = resolvedTrackOverrides[key];
-
-      recommendedTracks.push(
+      return [
         resolvedTrack
           ? {
+              ...track,
               ...resolvedTrack,
               djIntro: track.djIntro
             }
           : track
-      );
-    }
-
-    if (queueTracks.length > 0) {
-      for (const track of queueTracks) {
-        addTrack(toPlayableTrack(track));
-      }
-
-      return recommendedTracks;
-    }
-
-    if (plan?.play.length) {
-      for (const track of plan.play) {
-        addTrack(toPlayableTrack(track));
-      }
-    }
-
-    return recommendedTracks;
+      ];
+    });
   }
 
   async function playDjCopy(text: string | undefined) {
@@ -1190,12 +1659,14 @@ export function App() {
       audio.src = tts.audioUrl;
       audio.currentTime = 0;
       audio.volume = volume;
+      setActiveDjText(text.trim());
       await audio.play();
       setError(null);
       appendLog("success", "DJ 文案开始播报", tts.provider);
       return true;
     } catch (requestError) {
       setIsSpeaking(false);
+      setActiveDjText(null);
       const errorMessage =
         requestError instanceof Error ? requestError.message : "DJ 文案播报失败。";
 
@@ -1256,7 +1727,7 @@ export function App() {
       });
 
       if (response.mode === "chat") {
-        appendLog("success", "Z 已回复", "普通聊天，不触发播放");
+        appendLog("success", "Redio 已回复", "普通聊天，不触发播放");
         setMessages((currentMessages) => [
           ...currentMessages,
           {
@@ -1272,21 +1743,44 @@ export function App() {
 
       setNowPlaying(state);
       void loadHistory();
-      void loadQueue();
+      const refreshedQueue = await loadQueue();
       const firstTrack = state.currentPlan?.play[0];
-      const firstPlayableTrackIndex = state.currentPlan?.play.findIndex(
-        (track) => track.audioUrl && track.playbackStatus !== "failed"
+      const firstVerifiedPlanIndex = state.currentPlan?.play.findIndex(
+        (track) => track.playbackStatus === "full" && !track.isFallback
       ) ?? -1;
-      const firstPlayableTrack =
-        firstPlayableTrackIndex >= 0
-          ? state.currentPlan?.play[firstPlayableTrackIndex]
+      const firstVerifiedTrack =
+        firstVerifiedPlanIndex >= 0
+          ? state.currentPlan?.play[firstVerifiedPlanIndex]
           : undefined;
-      const hasPlayableTrack = Boolean(firstPlayableTrack);
-      const firstDjIntro = firstPlayableTrack?.intro ?? state.currentPlan?.say;
+      const firstDjIntro = firstVerifiedTrack?.intro ?? state.currentPlan?.say;
       const hasDjCopy = Boolean(firstDjIntro?.trim());
 
-      if (hasPlayableTrack) {
-        setSelectedTrackIndex(firstPlayableTrackIndex);
+      if (firstVerifiedTrack) {
+        let matchingQueueIndex = -1;
+
+        for (let index = refreshedQueue.length - 1; index >= 0; index -= 1) {
+          const queueTrack = refreshedQueue[index];
+
+          if (
+            queueTrack.episode === state.currentPlan?.episode &&
+            getPlayableTrackKey(queueTrack) === getPlayableTrackKey(firstVerifiedTrack)
+          ) {
+            matchingQueueIndex = index;
+            break;
+          }
+        }
+
+        const matchingQueueTrack =
+          matchingQueueIndex >= 0
+            ? toPlayableTrack(refreshedQueue[matchingQueueIndex])
+            : null;
+
+        if (matchingQueueTrack) {
+          setSelectedTrackId(
+            getPlayableTrackIdentity(matchingQueueTrack, matchingQueueIndex)
+          );
+        }
+
         requestTrackPlayback(hasDjCopy ? firstDjIntro : undefined);
       }
 
@@ -1341,6 +1835,52 @@ export function App() {
   }
 
   useEffect(() => {
+    const shouldRefreshBridgeLogin =
+      isLoginModalOpen || (appView === "settings" && isQqSourceOpen);
+
+    if (
+      !shouldRefreshBridgeLogin ||
+      !redioBridgeStatus.connected ||
+      isRedioBridgeOutdated(redioBridgeStatus.version)
+    ) {
+      return;
+    }
+
+    let disposed = false;
+
+    const refreshLoginStatus = () => {
+      if (
+        disposed ||
+        document.visibilityState !== "visible" ||
+        bridgeAutoRefreshInFlightRef.current
+      ) {
+        return;
+      }
+
+      bridgeAutoRefreshInFlightRef.current = true;
+      void syncQqCookieFromBridge({ silent: true }).finally(() => {
+        bridgeAutoRefreshInFlightRef.current = false;
+      });
+    };
+
+    window.addEventListener("focus", refreshLoginStatus);
+    document.addEventListener("visibilitychange", refreshLoginStatus);
+    refreshLoginStatus();
+
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", refreshLoginStatus);
+      document.removeEventListener("visibilitychange", refreshLoginStatus);
+    };
+  }, [
+    appView,
+    isLoginModalOpen,
+    isQqSourceOpen,
+    redioBridgeStatus.connected,
+    redioBridgeStatus.version
+  ]);
+
+  useEffect(() => {
     Promise.all([loadNowPlaying(), loadHistory(), loadQueue()])
       .then(async () => {
         appendLog("success", "核心数据读取完成", "/api/now + /api/history + /api/queue");
@@ -1363,6 +1903,12 @@ export function App() {
               requestError instanceof Error ? requestError.message : "QQ 音源状态读取失败。";
 
             appendLog("error", "QQ 音源状态读取失败", errorMessage);
+          }),
+          detectRedioBridge().catch((requestError) => {
+            const errorMessage =
+              requestError instanceof Error ? requestError.message : "Redio Bridge 检测失败。";
+
+            appendLog("error", "Redio Bridge 检测失败", errorMessage);
           })
         ]);
       })
@@ -1388,9 +1934,29 @@ export function App() {
   }, []);
 
   const plan = nowPlaying?.currentPlan;
-  const tracks = readRecommendedTracks();
+  const recommendedTracks = readRecommendedTracks();
+  const tracks = recommendedTracks.length > 0 ? recommendedTracks : fallbackTracks;
+  const selectedTrackIndexById = selectedTrackId
+    ? tracks.findIndex(
+        (track, index) => getPlayableTrackIdentity(track, index) === selectedTrackId
+      )
+    : -1;
+  const firstVerifiedTrackIndex = tracks.findIndex(isVerifiedFullTrack);
+  const firstAttemptableTrackIndex = findFirstAttemptableTrackIndex(tracks);
+  const selectedTrackIndex =
+    selectedTrackIndexById >= 0
+      ? selectedTrackIndexById
+      : firstVerifiedTrackIndex >= 0
+        ? firstVerifiedTrackIndex
+        : firstAttemptableTrackIndex >= 0
+          ? firstAttemptableTrackIndex
+        : 0;
   const selectedTrack = tracks[selectedTrackIndex] ?? fallbackTracks[0];
   const selectedTrackKey = getPlayableTrackKey(selectedTrack);
+  const currentCaption =
+    activeLyrics?.trackKey === selectedTrackKey
+      ? getCurrentLyricText(activeLyrics.lines, currentTime) ?? selectedTrack.artist
+      : selectedTrack.artist;
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const listenerName = qqLoginStatus?.nickname ?? qqLoginStatus?.userId ?? "你";
   const listenerCount = qqLoginStatus?.loggedIn ? 1 : 0;
@@ -1411,15 +1977,123 @@ export function App() {
   }, [selectedTrackKey]);
 
   useEffect(() => {
-    const nextTracks = readRecommendedTracks();
-    const firstPlayableTrackIndex = nextTracks.findIndex(isTrackPlayable);
+    let isCancelled = false;
 
-    setSelectedTrackIndex(firstPlayableTrackIndex >= 0 ? firstPlayableTrackIndex : 0);
-  }, [plan, queueTracks]);
+    if (selectedTrack.source !== "qq" || duration <= 0) {
+      setActiveLyrics(null);
+      return;
+    }
+
+    const cachedLines = lyricsCacheRef.current.get(selectedTrackKey);
+
+    if (cachedLines) {
+      setActiveLyrics({ trackKey: selectedTrackKey, lines: cachedLines });
+      return;
+    }
+
+    setActiveLyrics(null);
+
+    const params = new URLSearchParams({
+      title: selectedTrack.title,
+      artist: selectedTrack.artist,
+      duration: String(duration)
+    });
+    const songMid = getQqSongMid(selectedTrack.externalUrl);
+
+    if (songMid) {
+      params.set("songMid", songMid);
+    }
+
+    void fetchJson<LyricsResponse>(`/api/lyrics?${params.toString()}`)
+      .then((response) => {
+        if (isCancelled) {
+          return;
+        }
+
+        lyricsCacheRef.current.set(selectedTrackKey, response.lines);
+        setActiveLyrics({ trackKey: selectedTrackKey, lines: response.lines });
+      })
+      .catch((requestError) => {
+        if (!isCancelled) {
+          appendLog(
+            "info",
+            "歌词加载失败",
+            requestError instanceof Error ? requestError.message : "未取得歌词"
+          );
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [
+    duration,
+    selectedTrack.artist,
+    selectedTrack.externalUrl,
+    selectedTrack.source,
+    selectedTrack.title,
+    selectedTrackKey
+  ]);
+
+  useEffect(() => {
+    if (isTrackPlayable(selectedTrack)) {
+      return;
+    }
+
+    stopPlaybackForUnavailableTrack();
+    showTrackPlaybackFailure(selectedTrack, "这首歌暂时没有可播放音源。");
+  }, [
+    selectedTrack.audioUrl,
+    selectedTrack.failureReason,
+    selectedTrack.playbackStatus,
+    selectedTrackKey
+  ]);
+
+  useEffect(() => {
+    const selectedTrackStillExists = tracks.some(
+      (track, index) => getPlayableTrackIdentity(track, index) === selectedTrackId
+    );
+
+    if (selectedTrackStillExists) {
+      return;
+    }
+
+    const currentEpisode = plan?.episode;
+    let nextSelectedIndex = queueTracks.findIndex((track) => {
+      const playableTrack = toPlayableTrack(track);
+
+      return (
+        track.episode === currentEpisode &&
+        playableTrack !== null &&
+        isTrackPlayable(playableTrack)
+      );
+    });
+
+    if (nextSelectedIndex < 0) {
+      nextSelectedIndex = queueTracks.findIndex((track) => {
+        const playableTrack = toPlayableTrack(track);
+
+        return playableTrack !== null && isTrackPlayable(playableTrack);
+      });
+    }
+
+    const nextSelectedTrack =
+      nextSelectedIndex >= 0 ? toPlayableTrack(queueTracks[nextSelectedIndex]) : null;
+
+    if (nextSelectedTrack) {
+      setSelectedTrackId(getPlayableTrackIdentity(nextSelectedTrack, nextSelectedIndex));
+    }
+  }, [plan, queueTracks, selectedTrackId]);
 
   useEffect(() => {
     setCurrentTime(0);
     setDuration(0);
+
+    if (pendingQueueAutoplayRef.current && !isVerifiedFullTrack(selectedTrack)) {
+      pendingQueueAutoplayRef.current = false;
+      pendingDjIntroRef.current = null;
+      return;
+    }
 
     if (isPlaying || pendingQueueAutoplayRef.current) {
       const pendingDjIntro = pendingDjIntroRef.current;
@@ -1474,14 +2148,14 @@ export function App() {
         const playbackWarning = getTrackPlaybackWarning(resolvedTrack);
         const audio = audioRef.current;
         const resolvedAudioUrl = resolvedTrack.audioUrl
-          ? new URL(resolvedTrack.audioUrl, window.location.href).href
+          ? new URL(getPlaybackAudioUrl(resolvedTrack), window.location.href).href
           : "";
         const wasPlaying = !!audio && !audio.paused;
 
         setError(playbackWarning);
 
         if (audio && resolvedTrack.playbackStatus === "full" && audio.src !== resolvedAudioUrl) {
-          audio.src = resolvedTrack.audioUrl;
+          audio.src = getPlaybackAudioUrl(resolvedTrack);
           audio.load();
           appendLog(
             "success",
@@ -1524,14 +2198,42 @@ export function App() {
     }
   }, [volume, isSpeaking]);
 
+  function changeVolume(value: number) {
+    const nextVolume = clampVolume(value);
+
+    if (nextVolume > 0) {
+      lastAudibleVolumeRef.current = nextVolume;
+    }
+
+    setVolume(nextVolume);
+  }
+
+  function toggleMute() {
+    setVolume((currentVolume) => {
+      if (currentVolume > 0) {
+        lastAudibleVolumeRef.current = currentVolume;
+        return 0;
+      }
+
+      return lastAudibleVolumeRef.current || 0.5;
+    });
+  }
+
   function selectTrack(index: number) {
     const track = tracks[index];
 
-    if (track && !isTrackPlayable(track)) {
-      setError(track.failureReason ?? "这首歌暂时没有可播放 QQ 音源。");
+    if (!track) {
+      return;
     }
 
-    setSelectedTrackIndex(index);
+    if (!isTrackPlayable(track)) {
+      stopPlaybackForUnavailableTrack();
+      showTrackPlaybackFailure(track, "这首歌暂时没有可播放 QQ 音源。");
+    } else {
+      clearPlaybackToast();
+    }
+
+    setSelectedTrackId(getPlayableTrackIdentity(track, index));
   }
 
   function playTrackAt(index: number, shouldStartPlayback = true) {
@@ -1541,14 +2243,25 @@ export function App() {
       return;
     }
 
+    setSelectedTrackId(getPlayableTrackIdentity(track, index));
+
     if (!isTrackPlayable(track)) {
-      setError(track.failureReason ?? "这首歌暂时没有可播放 QQ 音源。");
+      stopPlaybackForUnavailableTrack();
+      showTrackPlaybackFailure(track, "正在重新解析这首歌的 QQ 音源。");
       return;
     }
 
-    setSelectedTrackIndex(index);
+    const playbackWarning = getTrackPlaybackWarning(track);
 
-    if (shouldStartPlayback) {
+    if (playbackWarning) {
+      setError(playbackWarning);
+      showPlaybackToast(playbackWarning);
+    } else {
+      clearPlaybackToast();
+    }
+
+    if (shouldStartPlayback && isVerifiedFullTrack(track)) {
+      unlockBrowserAudioPlayback();
       requestTrackPlayback(track.djIntro);
     }
   }
@@ -1589,17 +2302,17 @@ export function App() {
   }
 
   function playPreviousTrack() {
-    const previousTrackIndex = findPreviousPlayableTrackIndex(tracks, selectedTrackIndex);
+    const previousTrackIndex = selectedTrackIndex - 1;
 
-    if (previousTrackIndex !== -1) {
+    if (previousTrackIndex >= 0) {
       playTrackAt(previousTrackIndex);
     }
   }
 
   function playNextTrack() {
-    const nextTrackIndex = findNextPlayableTrackIndex(tracks, selectedTrackIndex);
+    const nextTrackIndex = selectedTrackIndex + 1;
 
-    if (nextTrackIndex !== -1) {
+    if (nextTrackIndex < tracks.length) {
       playTrackAt(nextTrackIndex);
     }
   }
@@ -1629,7 +2342,7 @@ export function App() {
   }
 
   function handleSongEnded() {
-    const nextTrackIndex = findNextPlayableTrackIndex(tracks, selectedTrackIndex);
+    const nextTrackIndex = findNextVerifiedTrackIndex(tracks, selectedTrackIndex);
 
     if (nextTrackIndex === -1) {
       setIsPlaying(false);
@@ -1638,8 +2351,78 @@ export function App() {
 
     const nextTrack = tracks[nextTrackIndex];
 
-    setSelectedTrackIndex(nextTrackIndex);
+    setSelectedTrackId(getPlayableTrackIdentity(nextTrack, nextTrackIndex));
     requestTrackPlayback(nextTrack?.djIntro);
+  }
+
+  async function retrySelectedTrackAfterPlaybackError(errorMessage: string) {
+    const trackKey = selectedTrackKey;
+
+    if (
+      playbackErrorRetryKeysRef.current.has(trackKey) ||
+      resolvingTrackKeysRef.current.has(trackKey) ||
+      selectedTrack.source !== "qq"
+    ) {
+      return false;
+    }
+
+    playbackErrorRetryKeysRef.current.add(trackKey);
+    resolvingTrackKeysRef.current.add(trackKey);
+    appendLog(
+      "info",
+      "歌曲播放失败，重新解析音源",
+      `${selectedTrack.title} / ${selectedTrack.artist} · ${errorMessage}`
+    );
+
+    try {
+      const resolvedTrack = await fetchJson<ResolveTrackResponse>("/api/resolve-track", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: selectedTrack.title,
+          artist: selectedTrack.artist
+        })
+      });
+
+      setResolvedTrackOverrides((currentOverrides) => ({
+        ...currentOverrides,
+        [trackKey]: resolvedTrack
+      }));
+
+      if (
+        selectedTrackKeyRef.current !== trackKey ||
+        resolvedTrack.playbackStatus !== "full" ||
+        !resolvedTrack.audioUrl
+      ) {
+        return false;
+      }
+
+      const audio = audioRef.current;
+
+      if (!audio) {
+        return false;
+      }
+
+      audio.src = getPlaybackAudioUrl(resolvedTrack);
+      audio.load();
+      appendLog(
+        "success",
+        "QQ 音源已重新解析",
+        `${resolvedTrack.title} / ${resolvedTrack.artist} · ${getPlaybackStatusLabel(resolvedTrack)}`
+      );
+      requestTrackPlayback();
+      return true;
+    } catch (requestError) {
+      const retryError =
+        requestError instanceof Error ? requestError.message : "音源重新解析失败。";
+
+      appendLog("error", "音源重新解析失败", retryError);
+      return false;
+    } finally {
+      resolvingTrackKeysRef.current.delete(trackKey);
+    }
   }
 
   function handleSongError(event: SyntheticEvent<HTMLAudioElement>) {
@@ -1659,7 +2442,7 @@ export function App() {
         ? "本地测试音频也无法播放，请检查音频文件或刷新页面。"
         : "当前推荐音源加载失败，请手动点击播放重试。";
 
-    setError(errorMessage);
+    showTrackPlaybackFailure(selectedTrack, errorMessage);
     setIsPlaying(false);
     appendLog(
       "error",
@@ -1667,14 +2450,20 @@ export function App() {
       `${selectedTrack.title} / ${selectedTrack.artist} · ${errorMessage}`
     );
 
-    const nextTrackIndex = findNextPlayableTrackIndex(tracks, selectedTrackIndex);
+    void retrySelectedTrackAfterPlaybackError(errorMessage).then((didRetry) => {
+      if (didRetry) {
+        return;
+      }
 
-    if (nextTrackIndex !== -1) {
-      const nextTrack = tracks[nextTrackIndex];
+      const nextTrackIndex = findNextVerifiedTrackIndex(tracks, selectedTrackIndex);
 
-      setSelectedTrackIndex(nextTrackIndex);
-      requestTrackPlayback(nextTrack?.djIntro);
-    }
+      if (nextTrackIndex !== -1) {
+        const nextTrack = tracks[nextTrackIndex];
+
+        setSelectedTrackId(getPlayableTrackIdentity(nextTrack, nextTrackIndex));
+        requestTrackPlayback(nextTrack?.djIntro);
+      }
+    });
   }
 
   async function togglePlayback() {
@@ -1695,10 +2484,13 @@ export function App() {
       const didStartPlayback = await startSongPlayback();
 
       if (!didStartPlayback) {
-        setError("当前歌曲无法播放，请换一首或重新解析 QQ 音源。");
+        setIsPlaying(false);
       }
     } catch {
-      setError("当前歌曲无法播放，请换一首或重新解析 QQ 音源。");
+      const errorMessage = "当前歌曲无法播放，请换一首或重新解析 QQ 音源。";
+
+      setError(errorMessage);
+      showPlaybackToast(`《${selectedTrack.title}》播放失败：${errorMessage}`);
     }
   }
 
@@ -1713,38 +2505,136 @@ export function App() {
     setCurrentTime(nextTime);
   }
 
+  const sharedAudioPlayers = (
+    <>
+      <audio
+        onDurationChange={(event) => setDuration(event.currentTarget.duration)}
+        onEnded={handleSongEnded}
+        onError={handleSongError}
+        onCanPlay={() => {
+          if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
+            setError(null);
+          }
+        }}
+        onLoadStart={() => {
+          if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
+            setError(null);
+          }
+        }}
+        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
+        onPause={() => setIsPlaying(false)}
+        onPlay={() => setIsPlaying(true)}
+        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        preload="metadata"
+        ref={audioRef}
+        src={getPlaybackAudioUrl(selectedTrack)}
+      />
+      <audio
+        onEnded={handleDjPlaybackEnded}
+        onPause={handleDjPlaybackStopped}
+        onPlay={handleDjPlaybackStarted}
+        preload="auto"
+        ref={djAudioRef}
+      />
+    </>
+  );
+
+  const chatWindow = isChatOpen ? (
+    <ChatWindow
+      error={error}
+      historyEntries={historyEntries}
+      isLoading={isLoading}
+      isLandingChat={!hasEnteredRadio}
+      isPlanning={isPlanning}
+      message={draftMessage}
+      messages={messages}
+      onClose={() => setIsChatOpen(false)}
+      onLoadMoreHistory={loadMoreChatHistory}
+      onOpenAgentProfile={() => {
+        setHasEnteredRadio(true);
+        setIsChatOpen(false);
+        setAppView("agent");
+      }}
+      onMessageChange={setDraftMessage}
+      onSend={generateSegment}
+      plan={plan}
+      planningInputText={planningCopy.input}
+      planningText={planningCopy.bubble}
+      visibleHistoryEntryCount={visibleHistoryEntryCount}
+    />
+  ) : null;
+  const loginModal = isLoginModalOpen ? (
+    <LoginModal
+      bridgeStatus={redioBridgeStatus}
+      cookieDraft={qqCookieDraft}
+      error={error}
+      isLoginBusy={isQqWebLoginBusy}
+      isManualCookieOpen={isManualCookieOpen}
+      isSaving={isQqSaving}
+      onClose={closeLoginModal}
+      onCookieChange={setQqCookieDraft}
+      onDetectBridge={() => void detectRedioBridge()}
+      onOpenQqLogin={() => void openQqLoginFromModal()}
+      onRefresh={() => void syncQqCookieFromBridge()}
+      onSaveCookie={() => void saveQqCookie()}
+      onToggleManualCookie={() => setIsManualCookieOpen((isOpen) => !isOpen)}
+    />
+  ) : null;
+  const enterRadioView = (view: AppView) => {
+    setAppView(view);
+    setHasEnteredRadio(true);
+    setIsChatOpen(false);
+  };
+
+  if (!hasEnteredRadio) {
+    return (
+      <>
+        {sharedAudioPlayers}
+        {playbackToast ? (
+          <p aria-live="assertive" className="playbackToast" role="alert">
+            {playbackToast}
+          </p>
+        ) : null}
+        {isSpeaking && activeDjText ? <DjSpeechBubble text={activeDjText} /> : null}
+        <LandingPage
+          chatWindow={chatWindow}
+          error={error}
+          isLoginBusy={isQqWebLoginBusy}
+          onEnter={enterRadioView}
+          onLogin={openLoginModal}
+          onLogout={() => void clearQqCookie()}
+          onOpenChat={() => setIsChatOpen(true)}
+          player={{
+            currentCaption,
+            currentTime,
+            duration,
+            isLiked: isTrackFeedbackActive("like"),
+            isPlaying,
+            onLike: () => void recordTrackFeedback("like"),
+            onNext: playNextTrack,
+            onPrevious: playPreviousTrack,
+            onSeek: seekPlayback,
+            onSelectTrack: (index) => playTrackAt(index),
+            onToggleMute: toggleMute,
+            onTogglePlayback: () => void togglePlayback(),
+            onVolumeChange: changeVolume,
+            selectedTrack,
+            selectedTrackIndex,
+            tracks,
+            volume
+          }}
+          status={qqLoginStatus}
+        />
+        {loginModal}
+      </>
+    );
+  }
+
   return (
-    <main className="pageShell">
-      <section className="radioFrame">
-        <audio
-          onDurationChange={(event) => setDuration(event.currentTarget.duration)}
-          onEnded={handleSongEnded}
-          onError={handleSongError}
-          onCanPlay={() => {
-            if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
-              setError(null);
-            }
-          }}
-          onLoadStart={() => {
-            if (selectedTrack.playbackStatus === "full" && !selectedTrack.isFallback) {
-              setError(null);
-            }
-          }}
-          onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
-          onPause={() => setIsPlaying(false)}
-          onPlay={() => setIsPlaying(true)}
-          onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
-          preload="metadata"
-          ref={audioRef}
-          src={selectedTrack.audioUrl}
-        />
-        <audio
-          onEnded={handleDjPlaybackEnded}
-          onPause={handleDjPlaybackStopped}
-          onPlay={handleDjPlaybackStarted}
-          preload="auto"
-          ref={djAudioRef}
-        />
+    <>
+      <main className="pageShell">
+        <section className="radioFrame">
+        {sharedAudioPlayers}
 
         <header className={`radioTop ${appView === "agent" ? "agentTop" : ""}`}>
           {appView === "agent" ? (
@@ -1777,7 +2667,7 @@ export function App() {
             isLoginBusy={isQqWebLoginBusy}
             listenerCount={listenerCount}
             listenerName={listenerName}
-            onLogin={() => void openQqDesktopLogin()}
+            onLogin={openLoginModal}
             status={qqLoginStatus}
           />
         ) : appView === "settings" ? (
@@ -1795,13 +2685,17 @@ export function App() {
               />
 
               <QqSourceSection
+                bridgeStatus={redioBridgeStatus}
                 cookieDraft={qqCookieDraft}
                 isOpen={isQqSourceOpen}
                 isSaving={isQqSaving}
                 onClear={() => void clearQqCookie()}
                 onCookieChange={setQqCookieDraft}
+                onDetectBridge={() => void detectRedioBridge()}
                 onDesktopLogin={() => void openQqDesktopLogin()}
+                onBridgeLogin={() => void openQqBridgeLogin()}
                 onSave={() => void saveQqCookie()}
+                onSyncBridge={() => void syncQqCookieFromBridge()}
                 onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
                 isDesktop={Boolean(window.redioDesktop?.isDesktop)}
                 isWebLoginBusy={isQqWebLoginBusy}
@@ -1862,7 +2756,7 @@ export function App() {
                     disabled={duration <= 0}
                     max={duration || 0}
                     min="0"
-                    onChange={(event) => seekPlayback(Number(event.target.value))}
+                    onInput={(event) => seekPlayback(Number(event.currentTarget.value))}
                     step="0.1"
                     style={
                       {
@@ -1889,7 +2783,7 @@ export function App() {
                           aria-label="音量"
                           max="1"
                           min="0"
-                          onChange={(event) => setVolume(Number(event.target.value))}
+                          onChange={(event) => changeVolume(Number(event.target.value))}
                           step="0.01"
                           type="range"
                           value={volume}
@@ -1940,32 +2834,863 @@ export function App() {
               />
             ) : null}
 
-            {isChatOpen ? (
-              <ChatWindow
-                error={error}
-                historyEntries={historyEntries}
-                isLoading={isLoading}
-                isPlanning={isPlanning}
-                message={draftMessage}
-                messages={messages}
-                onLoadMoreHistory={loadMoreChatHistory}
-                onClose={() => setIsChatOpen(false)}
-                onOpenAgentProfile={() => {
-                  setIsChatOpen(false);
-                  setAppView("agent");
-                }}
-                onMessageChange={setDraftMessage}
-                onSend={generateSegment}
-                plan={plan}
-                planningInputText={planningCopy.input}
-                planningText={planningCopy.bubble}
-                visibleHistoryEntryCount={visibleHistoryEntryCount}
-              />
-            ) : null}
+            {chatWindow}
           </>
         )}
+        </section>
+      </main>
+      {loginModal}
+    </>
+  );
+}
+
+function LoginModal({
+  bridgeStatus,
+  cookieDraft,
+  error,
+  isLoginBusy,
+  isManualCookieOpen,
+  isSaving,
+  onClose,
+  onCookieChange,
+  onDetectBridge,
+  onOpenQqLogin,
+  onRefresh,
+  onSaveCookie,
+  onToggleManualCookie
+}: {
+  bridgeStatus: RedioBridgeStatus;
+  cookieDraft: string;
+  error: string | null;
+  isLoginBusy: boolean;
+  isManualCookieOpen: boolean;
+  isSaving: boolean;
+  onClose: () => void;
+  onCookieChange: (value: string) => void;
+  onDetectBridge: () => void;
+  onOpenQqLogin: () => void;
+  onRefresh: () => void;
+  onSaveCookie: () => void;
+  onToggleManualCookie: () => void;
+}) {
+  const bridgeReady =
+    bridgeStatus.connected && !isRedioBridgeOutdated(bridgeStatus.version);
+
+  return (
+    <section
+      aria-labelledby="login-modal-title"
+      aria-modal="true"
+      className="loginModalOverlay"
+      data-node-id="164:2573"
+      role="dialog"
+    >
+      <div className="loginModal" data-node-id="233:760">
+        <button
+          aria-label="关闭登录弹窗"
+          className="loginModalClose"
+          data-node-id="233:781"
+          onClick={onClose}
+          type="button"
+        >
+          <img alt="" aria-hidden="true" src="/images/login-close.svg" />
+        </button>
+
+        <div className="loginModalPrimary" data-node-id="233:761">
+          <h2 data-node-id="233:762" id="login-modal-title">
+            欢迎登录
+          </h2>
+
+          <div
+            aria-label="登录平台"
+            className="loginPlatformTabs"
+            data-node-id="234:788"
+            role="tablist"
+          >
+            <span aria-hidden="true" className="loginPlatformIndicator" />
+            <button aria-selected="true" role="tab" type="button">
+              QQ音乐
+            </button>
+            <button aria-selected="false" disabled role="tab" type="button">
+              网易云
+            </button>
+            <button aria-selected="false" disabled role="tab" type="button">
+              酷狗
+            </button>
+          </div>
+
+          <div className="loginQqBlock" data-node-id="233:763">
+            <button
+              aria-busy={isLoginBusy}
+              aria-label="打开 QQ 音乐登录页"
+              className="loginQrPlaceholder"
+              data-node-id="233:764"
+              disabled={isLoginBusy}
+              onClick={onOpenQqLogin}
+              type="button"
+            />
+            <p className="loginQrCaption" data-node-id="233:773">
+              <span>点击</span>
+              <strong>
+                <img alt="" aria-hidden="true" src="/images/qq-music-icon.png" />
+                QQ音乐
+              </strong>
+              <span>{isLoginBusy ? "等待登录" : "扫码登录"}</span>
+            </p>
+          </div>
+        </div>
+
+        <div aria-hidden="true" className="loginModalDivider" data-node-id="239:822" />
+
+        <div className="loginModalActions" data-node-id="239:798">
+          <button
+            className="loginBridgeCheck"
+            disabled={bridgeStatus.checking}
+            onClick={onDetectBridge}
+            type="button"
+          >
+            <i className={bridgeReady ? "isReady" : ""} />
+            <span>{bridgeStatus.checking ? "检测中" : "Bridge检测"}</span>
+          </button>
+          <button disabled={isSaving || !bridgeReady} onClick={onRefresh} type="button">
+            {isSaving ? "刷新中" : "刷新登录状态"}
+          </button>
+          <button
+            aria-expanded={isManualCookieOpen}
+            onClick={onToggleManualCookie}
+            type="button"
+          >
+            手动导入Cookie
+          </button>
+        </div>
+
+        {isManualCookieOpen ? (
+          <div className="loginManualCookiePanel">
+            <label htmlFor="login-cookie-input">QQ 音乐 Cookie</label>
+            <textarea
+              id="login-cookie-input"
+              onChange={(event) => onCookieChange(event.target.value)}
+              placeholder="uin=...; qm_keyst=...; qqmusic_key=..."
+              spellCheck={false}
+              value={cookieDraft}
+            />
+            <div>
+              <button disabled={isSaving || !cookieDraft.trim()} onClick={onSaveCookie} type="button">
+                {isSaving ? "导入中" : "确认导入"}
+              </button>
+              <button onClick={onToggleManualCookie} type="button">
+                取消
+              </button>
+            </div>
+            {error ? (
+              <p aria-live="polite" className="loginManualCookieError">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <p className="loginBridgeNotice" data-node-id="239:813">
+          网页版搜索、播放和账号同步都依赖本机 Bridge扩展代理音乐API；请先安装扩展，再继续登录。
+          <a download href="/downloads/redio-bridge.zip">
+            点击安装
+          </a>
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function DjSpeechBubble({ text }: { text: string }) {
+  return (
+    <aside
+      aria-live="polite"
+      className="djSpeechBubble"
+      data-node-id="193:665"
+      role="status"
+    >
+      <img
+        alt="Redio DJ"
+        className="djSpeechBubbleAvatar"
+        data-node-id="193:666"
+        src="/images/agent-dj.png"
+      />
+      <p data-node-id="193:668">{text}</p>
+      <img
+        alt=""
+        aria-hidden="true"
+        className="djSpeechBubbleWaveform"
+        data-node-id="193:669"
+        src="/images/redio-dj-waveform.png"
+      />
+    </aside>
+  );
+}
+
+function LandingPage({
+  chatWindow,
+  error,
+  isLoginBusy,
+  onEnter,
+  onLogin,
+  onLogout,
+  onOpenChat,
+  player,
+  status
+}: {
+  chatWindow: ReactNode;
+  error: string | null;
+  isLoginBusy: boolean;
+  onEnter: (view: AppView) => void;
+  onLogin: () => void;
+  onLogout: () => void;
+  onOpenChat: () => void;
+  player: CircularQueuePlayerProps;
+  status: QqLoginStatus | null;
+}) {
+  const accountLabel = status?.nickname ?? status?.userId ?? "账号昵称";
+  const isLoggedIn = status?.loggedIn === true;
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setIsAccountMenuOpen(false);
+    }
+  }, [isLoggedIn]);
+
+  return (
+    <main className={`landingPage ${isLoggedIn ? "isLoggedIn" : ""}`} data-node-id="164:1145">
+      <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
+        <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
+          <button
+            className="landingBrand"
+            data-node-id={isLoggedIn ? "239:869" : "232:736"}
+            onClick={onOpenChat}
+            type="button"
+          >
+            Redio
+          </button>
+        </div>
+
+        <nav
+          aria-label="主要导航"
+          className="landingLinks"
+          data-node-id={isLoggedIn ? "239:870" : "232:737"}
+        >
+          <button
+            aria-current="page"
+            data-node-id={isLoggedIn ? "239:871" : "232:738"}
+            onClick={() => onEnter("radio")}
+            type="button"
+          >
+            Home
+          </button>
+          <button
+            data-node-id={isLoggedIn ? "239:872" : "232:739"}
+            onClick={onOpenChat}
+            type="button"
+          >
+            Chat
+          </button>
+          <button
+            data-node-id={isLoggedIn ? "239:873" : "232:740"}
+            onClick={() => onEnter("settings")}
+            type="button"
+          >
+            Setting
+          </button>
+          <button
+            data-node-id={isLoggedIn ? "239:874" : "232:741"}
+            onClick={() => onEnter("agent")}
+            type="button"
+          >
+            About
+          </button>
+        </nav>
+
+        <div className="landingNavRight" data-node-id={isLoggedIn ? "239:875" : "232:742"}>
+          {isLoggedIn ? (
+            <>
+              <div className="landingChatAnchor">
+                <AskAnythingButton onClick={onOpenChat} />
+                {chatWindow}
+              </div>
+              <div className="landingAccountMenuAnchor" ref={accountMenuRef}>
+                <button
+                  aria-expanded={isAccountMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label={`当前登录账号：${accountLabel}`}
+                  className="landingAccount"
+                  data-node-id="262:698"
+                  onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+                  title={accountLabel}
+                  type="button"
+                >
+                  <img
+                    alt=""
+                    onError={(event) => {
+                      event.currentTarget.src = "/images/redio-account-placeholder.png";
+                    }}
+                    referrerPolicy="no-referrer"
+                    src={status.avatarUrl ?? "/images/redio-account-placeholder.png"}
+                  />
+                </button>
+
+                {isAccountMenuOpen ? (
+                  <div
+                    aria-label="账号菜单"
+                    className="landingAccountMenu"
+                    data-node-id="262:700"
+                    role="menu"
+                  >
+                    <div className="landingAccountPlatform" data-node-id="262:753">
+                      <img
+                        alt="QQ Music"
+                        className="landingAccountPlatformIcon"
+                        data-node-id="262:767"
+                        src="/images/account-menu-qq-music.png"
+                      />
+                      <span data-node-id="262:759" title={accountLabel}>
+                        {accountLabel}
+                      </span>
+                    </div>
+
+                    <div className="landingAccountMenuDivider" data-node-id="262:763" />
+                    <div className="landingAccountMenuDividerGap" data-node-id="262:764" />
+
+                    <button
+                      aria-label="Settings（暂未开放）"
+                      className="landingAccountMenuItem"
+                      data-node-id="262:729"
+                      role="menuitem"
+                      type="button"
+                    >
+                      <img alt="" data-node-id="262:731" src="/images/account-menu-settings.svg" />
+                      <span data-node-id="262:734">Settings</span>
+                    </button>
+
+                    <button
+                      className="landingAccountMenuItem"
+                      data-node-id="262:747"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        onLogout();
+                      }}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <img alt="" data-node-id="262:749" src="/images/account-menu-logout.svg" />
+                      <span data-node-id="262:752">Logout</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <button
+              className="landingJoin"
+              data-node-id="239:840"
+              disabled={isLoginBusy}
+              onClick={onLogin}
+              type="button"
+            >
+              {isLoginBusy ? "Signing in…" : "sign in"}
+            </button>
+          )}
+        </div>
+      </header>
+
+      {error ? (
+        <p aria-live="polite" className="landingStatusNotice">
+          {error}
+        </p>
+      ) : null}
+
+      <section
+        className="landingHero"
+        data-node-id={isLoggedIn ? "271:1283" : "164:1156"}
+      >
+        {isLoggedIn ? (
+          <CircularQueuePlayer {...player} />
+        ) : (
+          <div className="landingHeroCopy" data-node-id="164:1638">
+            <h1 data-node-id="164:1639">Music&apos;s</h1>
+            <p data-node-id="164:1640">你的心情，自有频率</p>
+          </div>
+        )}
+
       </section>
+
+      <img
+        alt=""
+        aria-hidden="true"
+        className="landingGlow"
+        data-node-id="164:1648"
+        src="/images/redio-landing-ellipse.svg"
+      />
+      <img
+        alt=""
+        aria-hidden="true"
+        className="landingStars"
+        data-node-id="164:1649"
+        src="/images/redio-landing-starfield.svg"
+      />
+      <StarfieldCanvas />
     </main>
+  );
+}
+
+function useFlowingGradientMotion(autoStart = true) {
+  const gradientRef = useRef<HTMLDivElement>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  const stopAnimation = () => {
+    if (intervalRef.current !== null) {
+      window.clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const startAnimation = () => {
+    if (!gradientRef.current) {
+      return;
+    }
+
+    stopAnimation();
+    const colors = gradientRef.current.querySelectorAll<HTMLElement>(".color");
+    const moveColors = () => {
+      colors.forEach((color) => {
+        color.style.transform = `translate(${Math.floor(Math.random() * 200 - 100)}%, ${Math.floor(Math.random() * 200 - 100)}%)`;
+      });
+    };
+
+    window.setTimeout(moveColors, 100);
+    intervalRef.current = window.setInterval(moveColors, 1500);
+  };
+
+  useEffect(() => {
+    if (autoStart) {
+      startAnimation();
+    }
+    return stopAnimation;
+  }, []);
+
+  return { gradientRef, startAnimation };
+}
+
+function AskAnythingButton({ onClick }: { onClick: () => void }) {
+  const { gradientRef, startAnimation } = useFlowingGradientMotion();
+
+  return (
+    <div className="landingAskAnythingSlot">
+      <button
+        aria-label="Ask Anything"
+        className="button-gradient visible"
+        onClick={onClick}
+        onMouseEnter={startAnimation}
+        type="button"
+      >
+        <div className="btn-content">
+          <span className="gen-btn__icon">
+            <svg
+              aria-hidden="true"
+              fill="#ffffff"
+              height="24"
+              viewBox="0 0 24 24"
+              width="24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <g clipPath="url(#clip0_3261_12990)">
+                <path
+                  d="M9.90999 6.62001C9.90999 6.62001 9.90999 6.59001 9.91999 6.57001C10.13 5.26001 11.04 4.12001 12.31 3.62001L15.91 2.23001C16.93 1.83001 18.09 1.97001 18.99 2.59001C19.9 3.20001 20.44 4.24001 20.44 5.33001C20.44 6.61001 19.5 7.97001 18.31 8.43001L11.63 11.02C11.46 11.09 11.32 11.29 11.32 11.47V17.56C11.32 20.31 8.78999 22.49 5.92999 21.89C4.25999 21.54 2.89999 20.19 2.54999 18.51C1.94999 15.65 4.12999 13.12 6.87999 13.12C8.02999 13.12 9.06999 13.55 9.85999 14.27V7.20001L9.90999 6.62001Z"
+                  fill="white"
+                />
+                <path
+                  d="M21.17 16.98C21.17 17.05 21.13 17.21 20.94 17.27L19.96 17.54C19.11 17.77 18.47 18.41 18.24 19.26L17.98 20.22C17.92 20.44 17.75 20.46 17.67 20.46C17.59 20.46 17.42 20.44 17.36 20.22L17.1 19.25C16.87 18.41 16.22 17.77 15.38 17.54L14.41 17.28C14.2 17.22 14.18 17.04 14.18 16.97C14.18 16.89 14.2 16.71 14.41 16.65L15.39 16.39C16.23 16.15 16.87 15.51 17.1 14.67L17.36 13.72L17.38 13.65C17.45 13.48 17.61 13.45 17.67 13.45C17.73 13.45 17.9 13.47 17.96 13.63L18.24 14.66C18.47 15.5 19.12 16.14 19.96 16.38L20.93 16.64L20.96 16.66C21.16 16.74 21.17 16.92 21.17 16.98Z"
+                  fill="white"
+                />
+              </g>
+              <defs>
+                <clipPath id="clip0_3261_12990">
+                  <rect fill="white" height="24" width="24" />
+                </clipPath>
+              </defs>
+            </svg>
+          </span>
+          <span>Ask Anything</span>
+        </div>
+        <div className="border" />
+        <div className="gradient-0" />
+        <div className="gradient-1" />
+        <div className="glass" />
+        <div className="gradient-2" ref={gradientRef}>
+          <div className="color-1 color" />
+          <div className="color-2 color" />
+          <div className="color-3 color" />
+          <div className="color-4 color" />
+          <div className="color-5 color" />
+          <div className="color-6 color" />
+        </div>
+      </button>
+    </div>
+  );
+}
+
+function CircularQueuePlayer({
+  currentCaption,
+  currentTime,
+  duration,
+  isLiked,
+  isPlaying,
+  onLike,
+  onNext,
+  onPrevious,
+  onSeek,
+  onSelectTrack,
+  onToggleMute,
+  onTogglePlayback,
+  onVolumeChange,
+  selectedTrack,
+  selectedTrackIndex,
+  tracks,
+  volume
+}: CircularQueuePlayerProps) {
+  const dragStartXRef = useRef<number | null>(null);
+  const orbitRef = useRef<HTMLDivElement>(null);
+  const suppressClickUntilRef = useRef(0);
+  const volumeControlRef = useRef<HTMLDivElement>(null);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [orbitSize, setOrbitSize] = useState({ height: 0, width: 0 });
+  const [isVolumePopoverOpen, setIsVolumePopoverOpen] = useState(false);
+  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const volumePercent = Math.round(volume * 100);
+  const isMuted = volume <= 0;
+  const visibleTracks = tracks
+    .map((track, index) => ({ index, offset: index - selectedTrackIndex, track }))
+    .filter(({ offset }) => Math.abs(offset) <= 4);
+
+  useEffect(() => {
+    const orbit = orbitRef.current;
+    if (!orbit) {
+      return;
+    }
+
+    const updateOrbitSize = () => {
+      const { height, width } = orbit.getBoundingClientRect();
+      setOrbitSize((currentSize) =>
+        currentSize.height === height && currentSize.width === width
+          ? currentSize
+          : { height, width }
+      );
+    };
+
+    updateOrbitSize();
+    const observer = new ResizeObserver(updateOrbitSize);
+    observer.observe(orbit);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!isVolumePopoverOpen) {
+      return;
+    }
+
+    function closeVolumePopoverOnOutsidePointer(event: PointerEvent) {
+      if (volumeControlRef.current?.contains(event.target as Node)) {
+        return;
+      }
+
+      setIsVolumePopoverOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeVolumePopoverOnOutsidePointer);
+
+    return () => {
+      document.removeEventListener("pointerdown", closeVolumePopoverOnOutsidePointer);
+    };
+  }, [isVolumePopoverOpen]);
+
+  function finishDrag(event: ReactPointerEvent<HTMLDivElement>, shouldNavigate: boolean) {
+    const dragStartX = dragStartXRef.current;
+
+    if (dragStartX === null) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragStartX;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    dragStartXRef.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
+
+    if (!shouldNavigate || Math.abs(deltaX) < 48) {
+      return;
+    }
+
+    suppressClickUntilRef.current = Date.now() + 250;
+
+    if (deltaX > 0) {
+      onPrevious();
+    } else {
+      onNext();
+    }
+  }
+
+  return (
+    <section
+      aria-label={`当前播放：${selectedTrack.title}，${selectedTrack.artist}`}
+      className="circularQueuePlayer"
+      data-node-id="165:4787"
+    >
+      <div
+        aria-label="即将播放队列，可左右滑动切歌"
+        className={`queueOrbit ${isDragging ? "isDragging" : ""}`}
+        ref={orbitRef}
+        onPointerCancel={(event) => finishDrag(event, false)}
+        onPointerDown={(event) => {
+          if (event.button !== 0) {
+            return;
+          }
+
+          dragStartXRef.current = event.clientX;
+          setDragOffset(0);
+          setIsDragging(true);
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          if (dragStartXRef.current === null) {
+            return;
+          }
+
+          const nextOffset = event.clientX - dragStartXRef.current;
+
+          setDragOffset(Math.max(-140, Math.min(140, nextOffset)));
+        }}
+        onPointerUp={(event) => finishDrag(event, true)}
+        role="group"
+        style={{ "--queue-drag-x": `${dragOffset}px` } as CSSProperties}
+      >
+        <div className="queueOrbitTrack">
+          {visibleTracks.map(({ index, offset, track }) => {
+            const absoluteOffset = Math.abs(offset);
+            const orbitWidth = orbitSize.width || 1200;
+            const orbitHeight = orbitSize.height || 600;
+            const xRatios = [0, 0.23, 0.41, 0.55, 0.67];
+            const yRatios = [0, 0.1, 0.25, 0.46, 0.7];
+            const direction = offset < 0 ? -1 : 1;
+            const coverUrl =
+              track.coverUrl ?? queueFallbackCovers[index % queueFallbackCovers.length];
+
+            return (
+              <button
+                aria-current={offset === 0 ? "true" : undefined}
+                aria-label={
+                  offset === 0
+                    ? `正在播放：${track.title}，${track.artist}`
+                    : `播放 ${track.title}，${track.artist}`
+                }
+                className={`queueOrbitItem ${offset === 0 ? "isCurrent" : ""} ${
+                  absoluteOffset === 4 ? "isBuffer" : ""
+                } ${!isTrackPlayable(track) ? "isUnavailable" : ""}`}
+                key={getPlayableTrackIdentity(track, index)}
+                onClick={() => {
+                  if (Date.now() < suppressClickUntilRef.current || offset === 0) {
+                    return;
+                  }
+
+                  onSelectTrack(index);
+                }}
+                style={
+                  {
+                    "--queue-cover-rotation": `${offset * 20}deg`,
+                    "--queue-cover-x": `${direction * orbitWidth * xRatios[absoluteOffset]}px`,
+                    "--queue-cover-y": `${orbitHeight * yRatios[absoluteOffset]}px`,
+                    zIndex: 10 - absoluteOffset
+                  } as CSSProperties
+                }
+                type="button"
+              >
+                <img
+                  alt=""
+                  draggable={false}
+                  onError={(event) => {
+                    event.currentTarget.src =
+                      queueFallbackCovers[index % queueFallbackCovers.length];
+                  }}
+                  src={coverUrl}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="queuePlayerContent">
+        <div className="queuePlayerHeading" data-node-id="165:4957">
+          <h1 data-node-id="165:4958" title={selectedTrack.title}>
+            {selectedTrack.title}
+          </h1>
+          <p aria-live="polite" data-node-id="165:4959">
+            {currentCaption}
+          </p>
+        </div>
+
+        <section
+          className="queueMediaControls"
+          aria-label="播放控制"
+          data-node-id="165:4960"
+        >
+          <div className="queueControlButtons" data-node-id="165:4961">
+            <button
+              aria-label={isLiked ? "已喜欢" : "喜欢当前歌曲"}
+              aria-pressed={isLiked}
+              className={`queueLikeButton ${isLiked ? "isActive" : ""}`}
+              onClick={onLike}
+              type="button"
+            >
+              <img alt="" aria-hidden="true" src="/images/redio-player-like.svg" />
+            </button>
+            <div className="queueTransportButtons" data-node-id="165:4963">
+              <button aria-label="上一首" onClick={onPrevious} type="button">
+                <PreviousIcon />
+              </button>
+              <button
+                aria-label={isPlaying ? "暂停" : "播放"}
+                onClick={onTogglePlayback}
+                type="button"
+              >
+                {isPlaying ? <PauseTransportIcon /> : <PlayTransportIcon />}
+              </button>
+              <button aria-label="下一首" onClick={onNext} type="button">
+                <NextIcon />
+              </button>
+            </div>
+            <div
+              className={`queueVolumeControl ${isMuted ? "isMuted" : ""}`}
+              data-node-id={isMuted ? "198:710" : "198:696"}
+              ref={volumeControlRef}
+            >
+              <button
+                aria-controls="queue-volume-popover"
+                aria-expanded={isVolumePopoverOpen}
+                aria-label={isVolumePopoverOpen ? "收起音量控制" : "展开音量控制"}
+                className="queueVolumeToolbarButton"
+                onClick={() => setIsVolumePopoverOpen((isOpen) => !isOpen)}
+                title={isVolumePopoverOpen ? "收起音量" : "调节音量"}
+                type="button"
+              >
+                <VolumeIcon muted={isMuted} />
+              </button>
+              {isVolumePopoverOpen ? (
+                <div className="queueVolumePopover" id="queue-volume-popover">
+                  <img
+                    alt=""
+                    aria-hidden="true"
+                    className="queueVolumePopoverBackground"
+                    src="/images/redio-volume-control-bg.svg"
+                  />
+                  <div className="queueVolumePopoverContent">
+                    <div className="queueVolumeSliderSlot">
+                      <input
+                        aria-label="音量"
+                        className="queueVolumeSlider"
+                        disabled={isMuted}
+                        max="1"
+                        min="0"
+                        onInput={(event) =>
+                          onVolumeChange(Number(event.currentTarget.value))
+                        }
+                        step="0.01"
+                        style={
+                          {
+                            "--volume-percent": `${volumePercent}%`
+                          } as CSSProperties
+                        }
+                        type="range"
+                        value={volume}
+                      />
+                    </div>
+                    <output aria-live="polite" className="queueVolumePercent">
+                      {volumePercent}%
+                    </output>
+                    <button
+                      aria-label={isMuted ? "取消静音" : "静音"}
+                      aria-pressed={isMuted}
+                      className="queueVolumePopoverButton"
+                      onClick={onToggleMute}
+                      type="button"
+                    >
+                      <img
+                        alt=""
+                        aria-hidden="true"
+                        src={
+                          isMuted
+                            ? "/images/redio-volume-muted.svg"
+                            : "/images/redio-volume-sound.svg"
+                        }
+                      />
+                    </button>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="queueProgressRow" data-node-id="165:4970">
+            <span>{formatPlaybackTime(currentTime)}</span>
+            <input
+              aria-label="播放进度"
+              className="progressTrack"
+              disabled={duration <= 0}
+              max={duration || 0}
+              min="0"
+              onInput={(event) => onSeek(Number(event.currentTarget.value))}
+              step="0.1"
+              style={
+                {
+                  "--progress-percent": `${progressPercent}%`
+                } as CSSProperties
+              }
+              type="range"
+              value={duration > 0 ? currentTime : 0}
+            />
+            <span>{formatPlaybackTime(duration)}</span>
+          </div>
+        </section>
+      </div>
+    </section>
   );
 }
 
@@ -2106,27 +3831,35 @@ function HistorySection({
 }
 
 function QqSourceSection({
+  bridgeStatus,
   cookieDraft,
   isDesktop,
   isOpen,
   isSaving,
   isWebLoginBusy,
+  onBridgeLogin,
   onClear,
   onCookieChange,
+  onDetectBridge,
   onDesktopLogin,
   onSave,
+  onSyncBridge,
   onToggle,
   status
 }: {
+  bridgeStatus: RedioBridgeStatus;
   cookieDraft: string;
   isDesktop: boolean;
   isOpen: boolean;
   isSaving: boolean;
   isWebLoginBusy: boolean;
+  onBridgeLogin: () => void;
   onClear: () => void;
   onCookieChange: (value: string) => void;
+  onDetectBridge: () => void;
   onDesktopLogin: () => void;
   onSave: () => void;
+  onSyncBridge: () => void;
   onToggle: () => void;
   status: QqLoginStatus | null;
 }) {
@@ -2137,6 +3870,19 @@ function QqSourceSection({
       : status?.hasCookie
         ? "Cookie 不完整"
         : "未连接";
+  const hasSavedLogin = Boolean(status?.loggedIn || status?.hasCookie);
+  const clearButtonLabel = status?.loggedIn ? "退出登录" : "清除 Cookie";
+  const bridgeNeedsReload =
+    bridgeStatus.connected && isRedioBridgeOutdated(bridgeStatus.version);
+  const primaryLoginLabel = isWebLoginBusy
+    ? "等待扫码"
+    : bridgeNeedsReload
+      ? "请重新加载 Bridge"
+    : bridgeStatus.connected
+      ? "扫码登录 QQ 音乐"
+      : isDesktop
+        ? "桌面端扫码登录"
+        : "安装 Bridge 后登录";
 
   return (
     <section className="sourceSection" aria-label="QQ 音源">
@@ -2147,10 +3893,24 @@ function QqSourceSection({
       {isOpen ? (
         <div className="sourcePanel">
           <p>
-            {isDesktop
-              ? "桌面客户端可以打开 QQ 音乐官方窗口扫码登录。Cookie 只保存在本机 data 目录，不会展示回页面。"
-              : "当前浏览器版需要手动导入 QQ 音乐 Cookie。Cookie 只保存在本机 data 目录，不会展示回页面。"}
+            Redio Bridge 可以读取你在 QQ 音乐官方网页的登录态，并只把必要 Cookie
+            保存到本机 data 目录。未安装 Bridge 时仍可使用桌面端登录或手动导入。
           </p>
+          <div className="bridgeStatusCard">
+            <span>Redio Bridge</span>
+            <strong className={bridgeStatus.connected && !bridgeNeedsReload ? "isReady" : ""}>
+              {bridgeStatus.checking
+                ? "检测中"
+                : bridgeNeedsReload
+                  ? `需重新加载 · v${bridgeStatus.version}`
+                : bridgeStatus.connected
+                  ? bridgeStatus.version
+                    ? `已连接 · v${bridgeStatus.version}`
+                    : "已连接"
+                  : "未安装"}
+            </strong>
+            <small>{bridgeStatus.message}</small>
+          </div>
           <div className="sourceStatusGrid">
             <span>账号</span>
             <strong>{status?.nickname ?? status?.userId ?? "未登录"}</strong>
@@ -2160,20 +3920,25 @@ function QqSourceSection({
           <div className="sourceLoginBlock">
             <button
               className="sourceLoginButton"
-              disabled={isSaving || isWebLoginBusy}
-              onClick={onDesktopLogin}
+              disabled={
+                isSaving ||
+                isWebLoginBusy ||
+                bridgeNeedsReload ||
+                (!bridgeStatus.connected && !isDesktop)
+              }
+              onClick={bridgeStatus.connected ? onBridgeLogin : onDesktopLogin}
               type="button"
             >
-              {isWebLoginBusy
-                ? "等待扫码"
-                : isDesktop
-                  ? "扫码登录 QQ 音乐"
-                  : "桌面端扫码登录"}
+              {primaryLoginLabel}
             </button>
             <small>
-              {isDesktop
-                ? "退出账号后可以从这里重新打开 QQ 音乐登录窗口。"
-                : "当前是浏览器预览，扫码登录需要在桌面客户端中使用；也可以继续手动粘贴 Cookie。"}
+              {bridgeStatus.connected
+                ? bridgeNeedsReload
+                  ? "请在 Chrome 扩展管理页重新加载 Redio Bridge，然后刷新当前页面。"
+                  : "点击后会打开 QQ 音乐官方网页，扫码完成后自动同步播放票据。"
+                : isDesktop
+                  ? "未检测到 Bridge，当前会使用桌面客户端登录窗口。"
+                  : "浏览器版需要先加载 bridge-extension 目录，或继续手动粘贴 Cookie。"}
             </small>
           </div>
           <textarea
@@ -2184,11 +3949,21 @@ function QqSourceSection({
             value={cookieDraft}
           />
           <div className="sourceActions">
+            <button disabled={bridgeStatus.checking} onClick={onDetectBridge} type="button">
+              {bridgeStatus.checking ? "检测中" : "重新检测"}
+            </button>
+            <button
+              disabled={isSaving || !bridgeStatus.connected || bridgeNeedsReload}
+              onClick={onSyncBridge}
+              type="button"
+            >
+              刷新登录状态
+            </button>
             <button disabled={isSaving} onClick={onSave} type="button">
               {isSaving ? "保存中" : "保存 Cookie"}
             </button>
-            <button disabled={isSaving || !status?.hasCookie} onClick={onClear} type="button">
-              清除
+            <button disabled={isSaving || !hasSavedLogin} onClick={onClear} type="button">
+              {isSaving && hasSavedLogin ? "处理中" : clearButtonLabel}
             </button>
           </div>
         </div>
@@ -2233,6 +4008,7 @@ function LogSection({
 
 function AskDock({
   disabled,
+  isLandingChat = false,
   isPlanning,
   message,
   onFocus,
@@ -2242,6 +4018,7 @@ function AskDock({
   showMicButton = false
 }: {
   disabled: boolean;
+  isLandingChat?: boolean;
   isPlanning: boolean;
   message: string;
   onFocus: () => void;
@@ -2250,15 +4027,25 @@ function AskDock({
   planningInputText: string;
   showMicButton?: boolean;
 }) {
+  const inputValue = isPlanning ? planningInputText : message;
+  const isLandingInputActive = isLandingChat && inputValue.trim().length > 0;
+  const isSendDisabled = disabled || (isLandingChat && inputValue.trim().length === 0);
+  const { gradientRef: sendGradientRef, startAnimation: startSendGradientAnimation } =
+    useFlowingGradientMotion(false);
+
   function handleSubmit() {
-    if (!disabled) {
+    if (!isSendDisabled) {
       onSend();
     }
   }
 
   return (
-    <div className="askDock">
+    <div
+      className={`askDock${isLandingChat ? " landingChatDefaultInput" : ""}${isLandingInputActive ? " isTyping" : ""}`}
+      data-node-id={isLandingChat ? (isLandingInputActive ? "277:1700" : "277:1661") : undefined}
+    >
       <input
+        data-node-id={isLandingChat ? (isLandingInputActive ? "277:1701" : "277:1662") : undefined}
         disabled={isPlanning}
         onChange={(event) => onMessageChange(event.target.value)}
         onClick={onFocus}
@@ -2269,8 +4056,8 @@ function AskDock({
             handleSubmit();
           }
         }}
-        placeholder="Ask Anything"
-        value={isPlanning ? planningInputText : message}
+        placeholder={isLandingChat ? "Tell me your mood" : "Ask Anything"}
+        value={inputValue}
       />
       {showMicButton ? (
         <button
@@ -2285,12 +4072,40 @@ function AskDock({
       ) : null}
       <button
         aria-label="发送"
-        className="sendButton"
-        disabled={disabled}
+        className={`sendButton${isLandingChat ? " sendGradientButton" : ""}`}
+        data-node-id={isLandingChat ? (isSendDisabled ? "281:419" : "281:426") : undefined}
+        disabled={isSendDisabled}
         onClick={handleSubmit}
+        onMouseEnter={isLandingChat && !isSendDisabled ? startSendGradientAnimation : undefined}
         type="button"
       >
-        <MessageSendIcon />
+        {isLandingChat ? (
+          <>
+            <img
+              alt=""
+              aria-hidden="true"
+              className="messageSendIcon"
+              data-node-id={isSendDisabled ? "281:420" : "281:427"}
+              src="/images/figma-chat-send.svg"
+            />
+            <div aria-hidden="true" className="button-gradient visible sendGradientEffect">
+              <div className="border" />
+              <div className="gradient-0" />
+              <div className="gradient-1" />
+              <div className="glass" />
+              <div className="gradient-2" ref={sendGradientRef}>
+                <div className="color-1 color" />
+                <div className="color-2 color" />
+                <div className="color-3 color" />
+                <div className="color-4 color" />
+                <div className="color-5 color" />
+                <div className="color-6 color" />
+              </div>
+            </div>
+          </>
+        ) : (
+          <MessageSendIcon />
+        )}
       </button>
     </div>
   );
@@ -2300,6 +4115,7 @@ function ChatWindow({
   error,
   historyEntries,
   isLoading,
+  isLandingChat,
   isPlanning,
   message,
   messages,
@@ -2316,6 +4132,7 @@ function ChatWindow({
   error: string | null;
   historyEntries: PlaybackHistoryEntry[];
   isLoading: boolean;
+  isLandingChat: boolean;
   isPlanning: boolean;
   message: string;
   messages: ChatMessage[];
@@ -2331,13 +4148,30 @@ function ChatWindow({
 }) {
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const previousVisibleHistoryCountRef = useRef(visibleHistoryEntryCount);
-  const liveUserMessages = new Set(
-    messages
-      .filter((chatMessage) => chatMessage.role === "user")
-      .map((chatMessage) => chatMessage.text)
+  const [expandedTrackMessageIds, setExpandedTrackMessageIds] = useState<Set<string>>(
+    () => new Set()
   );
+  const liveUserMessageCounts = messages
+    .filter((chatMessage) => chatMessage.role === "user")
+    .reduce((counts, chatMessage) => {
+      counts.set(chatMessage.text, (counts.get(chatMessage.text) ?? 0) + 1);
+      return counts;
+    }, new Map<string, number>());
   const historyMessages = historyEntries
-    .filter((entry) => !entry.userMessage || !liveUserMessages.has(entry.userMessage))
+    .filter((entry) => {
+      if (!entry.userMessage) {
+        return true;
+      }
+
+      const remainingLiveCount = liveUserMessageCounts.get(entry.userMessage) ?? 0;
+
+      if (remainingLiveCount <= 0) {
+        return true;
+      }
+
+      liveUserMessageCounts.set(entry.userMessage, remainingLiveCount - 1);
+      return false;
+    })
     .slice(0, visibleHistoryEntryCount)
     .reverse()
     .flatMap((entry) => {
@@ -2383,6 +4217,20 @@ function ChatWindow({
   const hasMoreHistory = visibleHistoryEntryCount < historyEntries.length;
   const latestMessageId = visibleMessages[visibleMessages.length - 1]?.id ?? "";
 
+  function toggleAllTracks(messageId: string) {
+    setExpandedTrackMessageIds((currentIds) => {
+      const nextIds = new Set(currentIds);
+
+      if (nextIds.has(messageId)) {
+        nextIds.delete(messageId);
+      } else {
+        nextIds.add(messageId);
+      }
+
+      return nextIds;
+    });
+  }
+
   useEffect(() => {
     const chatMessages = chatMessagesRef.current;
 
@@ -2414,19 +4262,39 @@ function ChatWindow({
   }, [latestMessageId, isPlanning, visibleHistoryEntryCount]);
 
   return (
-    <section className="chatWindow">
-      <header className="chatHeader">
-        <div>
-          <RedioMarkIcon />
-          <h2>Redio</h2>
+    <section
+      className={`chatWindow ${isLandingChat ? "isLandingChat" : ""}`}
+      data-node-id={isLandingChat ? "276:884" : undefined}
+    >
+      <header className="chatHeader" data-node-id={isLandingChat ? "276:885" : undefined}>
+        <div data-node-id={isLandingChat ? "276:886" : undefined}>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="redioMarkIcon"
+            data-node-id={isLandingChat ? "276:887" : undefined}
+            src="/images/figma-chat-redio-mark.svg"
+          />
+          <h2 data-node-id={isLandingChat ? "276:888" : undefined}>Redio</h2>
         </div>
-        <button aria-label="关闭对话" onClick={onClose} type="button">
-          <ChatStatusBars />
+        <button
+          aria-label="关闭对话"
+          data-node-id={isLandingChat ? "276:889" : undefined}
+          onClick={onClose}
+          type="button"
+        >
+          <img
+            alt=""
+            aria-hidden="true"
+            className="chatCloseIcon"
+            src="/images/figma-chat-close.svg"
+          />
         </button>
       </header>
 
       <div
         className="chatMessages"
+        data-node-id={isLandingChat ? "276:891" : undefined}
         ref={chatMessagesRef}
         onScroll={(event) => {
           if (event.currentTarget.scrollTop <= 12 && hasMoreHistory) {
@@ -2454,28 +4322,19 @@ function ChatWindow({
             ) : null}
             <div>
               <small>{chatMessage.role === "user" ? "Me" : "Redio"}</small>
-              <p>{chatMessage.text}</p>
+              <p>
+                {chatMessage.role === "assistant" ? (
+                  <TypewriterText text={getAssistantBubbleText(chatMessage)} />
+                ) : (
+                  chatMessage.text
+                )}
+              </p>
               {chatMessage.plan?.play.length ? (
-                <div className="trackCardList">
-                  {chatMessage.plan.play.map((track, index) => (
-                    <div className="trackCard" key={`${track.title}-${index}`}>
-                      <span>推荐歌曲 {chatMessage.plan?.play.length === 1 ? "" : index + 1}</span>
-                      <strong>{track.title}</strong>
-                      <em>
-                        {track.artist}
-                        {track.audioLabel ? ` · ${track.audioLabel}` : ""}
-                        {` · ${getPlaybackStatusLabel(track)}`}
-                      </em>
-                      {track.matchedTitle && track.matchedTitle !== track.title ? (
-                        <em>
-                          命中：{track.matchedTitle}
-                          {track.matchedArtist ? ` / ${track.matchedArtist}` : ""}
-                        </em>
-                      ) : null}
-                      {track.failureReason ? <em>{track.failureReason}</em> : null}
-                    </div>
-                  ))}
-                </div>
+                <RecommendedTrackCards
+                  isExpanded={expandedTrackMessageIds.has(chatMessage.id)}
+                  onToggleExpanded={() => toggleAllTracks(chatMessage.id)}
+                  tracks={chatMessage.plan.play}
+                />
               ) : null}
             </div>
             {chatMessage.role === "user" ? <div className="avatar userAvatar" /> : null}
@@ -2502,14 +4361,121 @@ function ChatWindow({
 
       <AskDock
         disabled={isPlanning}
+        isLandingChat={isLandingChat}
         isPlanning={isPlanning}
         message={message}
         onFocus={() => undefined}
         onMessageChange={onMessageChange}
         onSend={onSend}
         planningInputText={planningInputText}
-        showMicButton
+        showMicButton={!isLandingChat}
       />
     </section>
+  );
+}
+
+function getAssistantBubbleText(message: ChatMessage) {
+  const reason = message.plan?.reason?.trim();
+
+  if (reason) {
+    return reason;
+  }
+
+  return message.text;
+}
+
+function TypewriterText({ text }: { text: string }) {
+  const [visibleLength, setVisibleLength] = useState(text.length);
+  const hasMountedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasMountedRef.current) {
+      setVisibleLength(text.length);
+      return;
+    }
+
+    hasMountedRef.current = true;
+    setVisibleLength(0);
+
+    if (!text) {
+      return;
+    }
+
+    let nextLength = 0;
+    const interval = window.setInterval(() => {
+      nextLength += 1;
+      setVisibleLength(nextLength);
+
+      if (nextLength >= text.length) {
+        window.clearInterval(interval);
+      }
+    }, 18);
+
+    return () => window.clearInterval(interval);
+  }, [text]);
+
+  const isTyping = visibleLength < text.length;
+
+  return (
+    <>
+      <span>{text.slice(0, visibleLength)}</span>
+      {isTyping ? <span aria-hidden="true" className="typewriterCursor" /> : null}
+    </>
+  );
+}
+
+function RecommendedTrackCards({
+  isExpanded,
+  onToggleExpanded,
+  tracks
+}: {
+  isExpanded: boolean;
+  onToggleExpanded: () => void;
+  tracks: RecommendedTrack[];
+}) {
+  const visibleTracks = isExpanded ? tracks : tracks.slice(0, 3);
+  const hasMoreTracks = tracks.length > 3;
+
+  return (
+    <div className="trackCardList">
+      {visibleTracks.map((track, index) => (
+        <RecommendedTrackCard
+          key={`${track.title}-${track.artist}-${index}`}
+          track={track}
+        />
+      ))}
+
+      {hasMoreTracks ? (
+        <button className="showAllTracks" onClick={onToggleExpanded} type="button">
+          {isExpanded ? "收起歌曲" : "全部歌曲"}
+          <span aria-hidden="true">{isExpanded ? "⌃" : "⌄"}</span>
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function RecommendedTrackCard({ track }: { track: RecommendedTrack }) {
+  const [hasCoverError, setHasCoverError] = useState(false);
+  const shouldShowCover = Boolean(track.coverUrl && !hasCoverError);
+
+  return (
+    <div className="trackCard">
+      {shouldShowCover ? (
+        <img
+          alt=""
+          className="trackCover"
+          onError={() => setHasCoverError(true)}
+          referrerPolicy="no-referrer"
+          src={track.coverUrl}
+        />
+      ) : (
+        <div aria-hidden="true" className="trackCover trackCoverFallback" />
+      )}
+      <div>
+        <strong title={track.title}>{track.title}</strong>
+        <em title={track.artist}>{track.artist}</em>
+      </div>
+    </div>
   );
 }
