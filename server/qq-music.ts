@@ -9,7 +9,16 @@ export type QqLoginStatus = {
   nickname?: string;
   avatarUrl?: string;
   playbackKeyReady: boolean;
+  profileSource?: "qq-profile" | "fallback";
   message?: string;
+};
+
+type QqProfileResponse = {
+  code?: number;
+  result?: number;
+  data?: unknown;
+  profile?: unknown;
+  creator?: unknown;
 };
 
 export type QqSongSearchResult = {
@@ -129,7 +138,7 @@ export async function saveQqCookie(rootDir: string, cookieText: string) {
   await mkdir(dirname(path), { recursive: true });
   await writeFile(path, `${normalizedCookie}\n`, "utf8");
 
-  return readQqLoginStatusFromCookie(normalizedCookie);
+  return getQqLoginStatus(rootDir);
 }
 
 export async function clearQqCookie(rootDir: string) {
@@ -146,7 +155,94 @@ export async function clearQqCookie(rootDir: string) {
 
 export async function getQqLoginStatus(rootDir: string): Promise<QqLoginStatus> {
   const cookie = await readQqCookie(rootDir);
-  return readQqLoginStatusFromCookie(cookie);
+  const fallback = readQqLoginStatusFromCookie(cookie);
+
+  if (!fallback.loggedIn || !fallback.userId) {
+    return fallback;
+  }
+
+  const profile = await fetchQqProfile(cookie, fallback.userId);
+  if (!profile) {
+    return fallback;
+  }
+
+  return {
+    ...fallback,
+    nickname: profile.nickname,
+    avatarUrl: profile.avatarUrl || fallback.avatarUrl,
+    profileSource: "qq-profile"
+  };
+}
+
+async function fetchQqProfile(cookie: string, userId: string) {
+  const url = new URL("https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg");
+  url.searchParams.set("cid", "205360838");
+  url.searchParams.set("userid", userId);
+  url.searchParams.set("reqfrom", "1");
+  url.searchParams.set("g_tk", "5381");
+  url.searchParams.set("loginUin", userId);
+  url.searchParams.set("hostUin", "0");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("inCharset", "utf8");
+  url.searchParams.set("outCharset", "utf-8");
+  url.searchParams.set("notice", "0");
+  url.searchParams.set("platform", "yqq.json");
+  url.searchParams.set("needNewCode", "0");
+
+  try {
+    const response = await fetch(url, {
+      headers: {
+        ...qqHeaders,
+        Cookie: cookie
+      },
+      signal: AbortSignal.timeout(6000)
+    });
+
+    if (!response.ok) return null;
+
+    const body = parseJsonText(await response.text()) as QqProfileResponse;
+    if (body.code === 1000 || body.result === 301) return null;
+
+    return readQqProfile(body);
+  } catch {
+    return null;
+  }
+}
+
+function readQqProfile(body: QqProfileResponse) {
+  const root = asQqProfileObject(body);
+  const data = asQqProfileObject(root.data ?? root.profile ?? root.creator ?? root);
+  const creator = asQqProfileObject(data.creator ?? data.user ?? data.profile ?? data);
+  const nickname = firstQqProfileString(
+    creator.nick,
+    creator.nickname,
+    creator.name,
+    creator.hostname,
+    creator.title
+  );
+
+  if (!nickname) return null;
+
+  return {
+    nickname,
+    avatarUrl: firstQqProfileString(
+      creator.headpic,
+      creator.avatar,
+      creator.avatarUrl,
+      creator.logo
+    )
+  };
+}
+
+function asQqProfileObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function firstQqProfileString(...values: unknown[]) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
 }
 
 export async function resolveQqPlayableUrl(
@@ -742,17 +838,17 @@ function isArtistMatch(candidateArtist: string, requestedArtist: string) {
 function readQqLoginStatusFromCookie(cookie: string): QqLoginStatus {
   const obj = parseCookieString(cookie);
   const userId = qqCookieUin(obj);
-  const musicKey = qqCookieMusicKey(obj);
   const playbackKey = qqCookiePlaybackKey(obj);
 
   return {
     provider: "qq",
-    loggedIn: !!(userId && musicKey),
+    loggedIn: !!userId,
     hasCookie: !!cookie.trim(),
     userId,
-    nickname: qqCookieNickname(obj, userId) || (userId ? `QQ ${userId}` : undefined),
+    nickname: userId ? `QQ ${userId}` : undefined,
     avatarUrl: userId ? `https://q1.qlogo.cn/g?b=qq&nk=${encodeURIComponent(userId)}&s=100` : undefined,
-    playbackKeyReady: !!(userId && playbackKey)
+    playbackKeyReady: !!(userId && playbackKey),
+    profileSource: userId ? "fallback" : undefined
   };
 }
 
@@ -804,12 +900,17 @@ function serializeCookieObject(obj: Record<string, string>) {
 }
 
 function qqCookieUin(obj: Record<string, string>) {
-  const raw =
+  const candidates =
     Number(obj.login_type) === 2
-      ? obj.wxuin || obj.uin || obj.p_uin
-      : obj.uin || obj.qqmusic_uin || obj.wxuin || obj.p_uin;
+      ? [obj.wxuin, obj.uin, obj.qqmusic_uin, obj.p_uin]
+      : [obj.uin, obj.qqmusic_uin, obj.wxuin, obj.p_uin];
 
-  return normalizeQqUin(raw);
+  for (const candidate of candidates) {
+    const normalized = normalizeQqUin(candidate);
+    if (normalized) return normalized;
+  }
+
+  return "";
 }
 
 function qqCookieMusicKey(obj: Record<string, string>) {
@@ -831,37 +932,9 @@ function qqCookiePlaybackKey(obj: Record<string, string>) {
   return obj.qm_keyst || obj.qqmusic_key || obj.music_key || obj.wxskey || "";
 }
 
-function qqCookieNickname(obj: Record<string, string>, uin: string) {
-  const padded = uin ? `0${uin}` : "";
-  const keys = [
-    uin ? `ptnick_${uin}` : "",
-    padded ? `ptnick_${padded}` : "",
-    "ptnick",
-    "nick",
-    "nickname",
-    "qq_nickname"
-  ].filter(Boolean);
-
-  for (const key of keys) {
-    if (obj[key]) {
-      return decodeCookieValue(obj[key]);
-    }
-  }
-
-  return "";
-}
-
 function normalizeQqUin(raw: string | undefined) {
   const digits = String(raw ?? "").replace(/\D/g, "");
-  return digits.replace(/^0+/, "") || digits;
-}
-
-function decodeCookieValue(value: string) {
-  try {
-    return decodeURIComponent(value.replace(/\+/g, "%20")).trim();
-  } catch {
-    return value.trim();
-  }
+  return /^0+$/.test(digits) ? "" : digits.replace(/^0+/, "");
 }
 
 function parseJsonText(text: string) {

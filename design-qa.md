@@ -235,6 +235,144 @@ Verification:
 
 final result: blocked
 
+## Figma Login Modal And Bridge Flow
+
+- Source node: Figma `sYN4FG7B7fNo7Mkkp1mX6D`, node `164:2105`.
+- Source visual truth: `/tmp/figma-login-modal.png`.
+- Implementation screenshot: `/tmp/redio-login-modal-implementation-final.png`.
+- Full-view comparison: `/tmp/redio-login-modal-comparison-final.png`.
+- Focused modal comparison: `/tmp/redio-login-modal-focus-comparison.png`.
+- Viewport: `1440 × 900`.
+- State: unauthenticated landing page, login modal open, Bridge not installed.
+
+### Findings
+
+No actionable P0, P1, or P2 mismatch remains.
+
+- Fonts and typography: PingFang SC and Noto Sans SC match the Figma text
+  roles, with the 24/36 title, 15px segmented tabs, 14/22 QQ login caption,
+  and 12px action/footer copy preserved.
+- Spacing and layout rhythm: the modal is 462px wide with 40px padding, 24px
+  stack gaps, a 240 × 49px segmented control, 156 × 156px login placeholder,
+  and 24px close control. The rendered modal is 573px tall versus roughly
+  568px in the source capture; this is a P3 browser-font metric difference and
+  does not change alignment or interaction.
+- Colors and visual tokens: the `rgba(0,0,0,0.8)` blurred overlay, black modal,
+  `#1b1b1b` borders, 20% white action borders, disabled 40% tabs, gray Bridge
+  dot, and green ready-state token match the requested states.
+- Image quality and asset fidelity: the QQ Music full-color icon and 24px close
+  icon are the original Figma assets. The white login square intentionally
+  remains the future QR-code placeholder shown in the source.
+- Copy and content: the title, three platform labels, QR caption, Bridge
+  actions, install notice, and underlined `点击安装` copy match the source and
+  requested flow.
+
+### Interaction Verification
+
+- Clicking `sign in` opens the modal.
+- QQ Music is selected; NetEase Cloud Music and Kugou are disabled.
+- With no Bridge installed, detection resolves to a gray dot and refresh is
+  disabled. The connected class maps the same dot to `#00ab47`.
+- Clicking the white placeholder opens `https://y.qq.com/` while keeping the
+  Redio modal available for status refresh.
+- `手动导入Cookie` opens the textarea, enables import after input, and can be
+  cancelled without persistence.
+- The close icon removes the dialog.
+- `/downloads/redio-bridge.zip` returns HTTP 200 with
+  `Content-Type: application/zip`.
+- Existing QQ login data was temporarily removed for the unauthenticated QA
+  state and restored afterward; the account avatar returned after reload.
+- Browser console errors: none.
+
+### Comparison History
+
+- First pass: action text inherited a browser-normal line height, making the
+  modal approximately 7px taller than the source.
+- Fix: pinned the 12px action text to a 14px line height.
+- Post-fix evidence: action buttons render at 38px and the modal at 573px;
+  source and implementation keep matching content positions and hierarchy.
+
+### Residual Test Gap
+
+- The in-app browser does not have Redio Bridge installed, so the green-dot
+  state and a real QQ scan-to-auto-close cycle were verified through the
+  existing Bridge message/state wiring rather than a live extension session.
+
+final result: passed
+
+## Desktop One-screen Responsive Layout
+
+- Source visual truth:
+  `/var/folders/pn/h6vkvtw56x72xw0ks5wszdnr0000gp/T/codex-clipboard-84e0cd7d-cb96-4dcb-85ca-ddb3226247b9.png`.
+- Implementation screenshot:
+  `/Users/zengxiangmin/Documents/AI电台/design-qa-responsive-2048x1064.png`.
+- Viewports: `1280 × 600`, `1440 × 900`, `1920 × 1080`,
+  `2560 × 1440`, and `3840 × 2160`.
+- State: QQ Music logged in, circular queue player visible.
+
+### Findings
+
+No actionable P0, P1, or P2 responsive mismatch remains.
+
+- Fonts and typography: the existing Doto and Inter families are preserved;
+  player title and caption now scale by viewport height as well as width, with
+  bounded minimum and maximum sizes and no clipping or wrapping.
+- Spacing and layout rhythm: the landing shell is exactly one `100dvh` screen,
+  the navigation and hero padding use bounded fluid values, and the player is
+  vertically capped and centered on 2K/4K screens. All media controls remain
+  visible at the 600px minimum tested height.
+- Colors and visual tokens: no palette, particle, glow, border, or opacity
+  tokens were changed.
+- Image quality and asset fidelity: all existing cover artwork and Mineradio
+  particle assets remain unchanged. Current and side covers scale without image
+  stretching because their square masks and `object-fit: cover` remain intact.
+- Copy and content: song title, live lyric/artist caption, navigation, and
+  account controls remain data-driven and unchanged.
+- Responsive geometry: the queue no longer uses fixed `330/585/755/900px`
+  positions. A `ResizeObserver` measures the actual player and maps each cover
+  to normalized arc coordinates, preserving order and the circular trajectory
+  across all tested widths.
+
+### Full-view Comparison Evidence
+
+The source and implementation were inspected together at the same 2048px page
+width. The source includes browser chrome and documents the overflow problem;
+the implementation uses the full CSS viewport and retains the same cover,
+title, caption, controls, and particle hierarchy without the vertical scrollbar.
+
+### Focused Region Comparison
+
+A separate detail crop was not required because this change affects only the
+full-screen shell, player bounds, and queue trajectory. Bounding-box checks at
+every target viewport directly verified the current cover, heading, controls,
+and visible queue covers.
+
+### Comparison History
+
+- First pass: the fixed 520px orbit, 120px title, and 80px hero padding could
+  exceed a short desktop viewport, while fixed cover coordinates drifted off
+  the intended arc.
+- Fix: introduced height-aware `clamp()` sizing, a one-screen shell, and
+  container-measured normalized cover coordinates.
+- Second pass: the 4K layout left excessive vertical space because the player
+  continued growing with the viewport.
+- Fix: capped the player stage at 1200px and the content offset at 640px,
+  centering the bounded composition on 2K/4K screens.
+- Post-fix evidence: document and body scroll dimensions exactly match the
+  viewport at all five test sizes; media controls remain within the viewport.
+
+### Interaction And Runtime Verification
+
+- Next track changed `Wave` to `爱情转移`; previous track restored `Wave`.
+- Browser console: one transient pre-existing React warning about an empty
+  `src` appeared during data hydration; the settled DOM contains no empty
+  `src` attribute and the responsive change does not create media elements.
+- The API reported an authenticated QQ account with playback authorization.
+- `npm run build`: passed before the final large-screen cap; rerun in the
+  closing verification below.
+
+final result: passed
+
 ## Iconsax ButtonGradient Feasibility Port
 
 - Source visual truth: live `https://ai.iconsax.io/` `ButtonGradient` control and
@@ -382,3 +520,77 @@ final result: passed
   render the logged-out state, so the Media Controls region is not present.
 
 final result: blocked
+
+## Current QA Gate
+
+- Latest build target: logged-in account dropdown, Figma node `262:696`.
+- The latest full-view and focused comparisons are recorded in the
+  `Logged-in Account Dropdown` section below.
+- Earlier `blocked` results remain as historical records for unrelated UI
+  passes and do not describe the current account-menu implementation.
+
+final result: passed
+
+## Logged-in Account Dropdown
+
+- Source visual truth: `/tmp/figma-redio-account-menu.png`, captured from Figma
+  file `sYN4FG7B7fNo7Mkkp1mX6D`, node `262:696` at its native `220 × 220px`.
+- Implementation screenshot: `/tmp/redio-account-menu-implementation.png`.
+- Combined comparison evidence: `/tmp/redio-account-menu-comparison.png`.
+- Viewport/state: desktop Chrome, logged-in account `Z`, account menu open.
+- Full-view comparison: the 42px avatar trigger, 10px trigger-to-panel gap,
+  right alignment, 220px panel width, and complete three-row hierarchy match
+  the source component.
+- Focused comparison: the source and implementation were combined at native
+  size. QQ Music, Settings, and Logout use the source assets; text size,
+  10px item gaps, 15px horizontal padding, 20px radius, divider, and translucent
+  black surface match the Dev Mode values.
+
+### Fidelity Surfaces
+
+- Fonts and typography: 14px/18px medium labels match the source hierarchy;
+  the bundled Outfit variable font is loaded through the project `@font-face`.
+- Spacing and layout rhythm: trigger, panel, rows, padding, divider, gaps, and
+  icon sizes match the Figma measurements.
+- Colors and visual tokens: white foreground, `#1b1b1b` border/divider,
+  60% black surface, and 5px backdrop blur match Dev Mode.
+- Image quality and asset fidelity: the current account avatar remains dynamic;
+  QQ Music, Settings, and Logout use the original Figma-provided artwork.
+- Copy and content: the platform row shows the current QQ nickname, followed by
+  `Settings` and `Logout` exactly as designed.
+
+### Interaction Verification
+
+- Clicking the 42px avatar opens the menu; clicking it again, pressing Escape,
+  or clicking outside closes it.
+- Settings is intentionally present without a destination and keeps the menu
+  open.
+- Logout called the existing `/api/qq/logout` path, removed the menu, and
+  returned the header to `sign in`. The QA account state was restored afterward.
+- Mobile `390 × 844`: menu remains within the viewport with no horizontal
+  overflow (`scrollWidth: 390`).
+- Browser console warnings/errors: none.
+- `npm run build`: passed.
+
+### Comparison History
+
+- First pass: the existing QQ Music icon showed a white square behind the mark.
+- Fix: replaced it with the exact transparent Figma asset.
+- Post-fix evidence: the combined native-size comparison shows matching platform
+  and action icons with no remaining P0/P1/P2 mismatch.
+
+### Follow-up Polish
+
+- No remaining typography follow-up: Outfit is bundled in `public/fonts/` and
+  used by the account-menu labels.
+
+final result: passed
+
+## Current QA Gate: Desktop Responsive Layout
+
+- Latest build target: one-screen desktop layout from 1280px through 4K.
+- Full comparison evidence and the five-viewport matrix are recorded in
+  `Desktop One-screen Responsive Layout` above.
+- No actionable P0, P1, or P2 finding remains.
+
+final result: passed

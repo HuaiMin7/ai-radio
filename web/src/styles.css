@@ -14,6 +14,14 @@
   font-weight: 100 900;
 }
 
+@font-face {
+  font-family: "Outfit";
+  src: url("/fonts/Outfit-VariableFont_wght.ttf") format("truetype");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 100 900;
+}
+
 :root {
   --app-cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2235%22%20height%3D%2235%22%20viewBox%3D%220%200%2035%2035%22%20fill%3D%22none%22%3E%3Cg%20filter%3D%22url(%23filter0_d_98_44)%22%3E%3Cpath%20d%3D%22M10.3624%208.57854C9.25892%208.20278%208.20395%209.25634%208.57775%2010.3608L13.717%2025.5454C14.0968%2026.6675%2015.6086%2026.8458%2016.2389%2025.8428L19.3428%2019.4602C19.445%2019.25%2019.6176%2019.0823%2019.8306%2018.9861L25.8419%2016.2721C26.8448%2015.6428%2026.6686%2014.1311%2025.5479%2013.7495L10.3624%208.57854Z%22%20fill%3D%22black%22%2F%3E%3Cpath%20d%3D%22M10.3624%208.57854C9.25892%208.20278%208.20395%209.25634%208.57775%2010.3608L13.717%2025.5454C14.0968%2026.6675%2015.6086%2026.8458%2016.2389%2025.8428L19.3428%2019.4602C19.445%2019.25%2019.6176%2019.0823%2019.8306%2018.9861L25.8419%2016.2721C26.8448%2015.6428%2026.6686%2014.1311%2025.5479%2013.7495L10.3624%208.57854Z%22%20stroke%3D%22white%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fg%3E%3Cdefs%3E%3Cfilter%20id%3D%22filter0_d_98_44%22%20x%3D%220%22%20y%3D%220%22%20width%3D%2235.001%22%20height%3D%2235.0011%22%20filterUnits%3D%22userSpaceOnUse%22%20color-interpolation-filters%3D%22sRGB%22%3E%3CfeFlood%20flood-opacity%3D%220%22%20result%3D%22BackgroundImageFix%22%2F%3E%3CfeColorMatrix%20in%3D%22SourceAlpha%22%20type%3D%22matrix%22%20values%3D%220%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%20127%200%22%20result%3D%22hardAlpha%22%2F%3E%3CfeOffset%2F%3E%3CfeGaussianBlur%20stdDeviation%3D%224%22%2F%3E%3CfeComposite%20in2%3D%22hardAlpha%22%20operator%3D%22out%22%2F%3E%3CfeColorMatrix%20type%3D%22matrix%22%20values%3D%220%200%200%200%200.340416%200%200%200%200%200.250141%200%200%200%200%200.825045%200%200%200%201%200%22%2F%3E%3CfeBlend%20mode%3D%22normal%22%20in2%3D%22BackgroundImageFix%22%20result%3D%22effect1_dropShadow_98_44%22%2F%3E%3CfeBlend%20mode%3D%22normal%22%20in%3D%22SourceGraphic%22%20in2%3D%22effect1_dropShadow_98_44%22%20result%3D%22shape%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3C%2Fsvg%3E")
       10 9,
@@ -98,10 +106,10 @@ p {
 .landingPage {
   position: relative;
   display: flex;
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
   width: 100%;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   flex-direction: column;
   color: #fff;
   background: #0a0908;
@@ -120,6 +128,292 @@ p {
   background: rgba(255, 191, 102, 0.08);
   font-size: 13px;
   line-height: 1.5;
+}
+
+.loginModalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  overflow: auto;
+  min-width: 320px;
+  place-items: center;
+  padding: 80px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(12px);
+}
+
+.loginModal {
+  position: relative;
+  display: flex;
+  overflow-x: hidden;
+  overflow-y: auto;
+  width: 462px;
+  max-width: 100%;
+  max-height: calc(100vh - 32px);
+  flex-direction: column;
+  gap: 24px;
+  align-items: center;
+  border: 1px solid #1b1b1b;
+  border-radius: 24px;
+  padding: 40px;
+  color: #fff;
+  background: #000;
+  font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+}
+
+.loginModalPrimary {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.loginModalPrimary h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 36px;
+}
+
+.loginPlatformTabs {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  width: 240px;
+  height: 49px;
+  grid-template-columns: 61px 87px 82px;
+  gap: 1px;
+  align-items: center;
+  border: 1px solid #1b1b1b;
+  border-radius: 14px;
+  padding: 4px 3px 5px;
+  background: #000;
+}
+
+.loginPlatformIndicator {
+  position: absolute;
+  top: 4px;
+  left: 3px;
+  width: 61px;
+  height: 39px;
+  border-radius: 10px;
+  background: #1b1b1b;
+  transition: left 300ms ease, width 300ms ease;
+}
+
+.loginPlatformTabs button {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 39px;
+  border: 0;
+  padding: 0;
+  color: #fff;
+  background: transparent;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: normal;
+}
+
+.loginPlatformTabs button:disabled {
+  opacity: 0.4;
+}
+
+.loginQqBlock {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.loginQrPlaceholder {
+  width: 156px;
+  height: 156px;
+  flex: 0 0 156px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  padding: 0;
+  background: #fff;
+}
+
+.loginQrPlaceholder:hover,
+.loginQrPlaceholder:focus-visible {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.24);
+}
+
+.loginQrCaption {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: #f5f5f5;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+.loginQrCaption strong {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  color: #fff;
+  font-weight: 500;
+}
+
+.loginQrCaption img {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.loginModalDivider {
+  width: 100%;
+  height: 1px;
+  flex: 0 0 1px;
+  background: #1b1b1b;
+}
+
+.loginModalActions {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.loginModalActions button,
+.loginManualCookiePanel button {
+  display: flex;
+  min-width: 0;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(217, 217, 217, 0.2);
+  border-radius: 12px;
+  padding: 11px 16px;
+  color: #fff;
+  background: transparent;
+  font-family: "Noto Sans SC", "PingFang SC", sans-serif;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.loginModalActions button:hover:not(:disabled),
+.loginModalActions button:focus-visible,
+.loginManualCookiePanel button:hover:not(:disabled),
+.loginManualCookiePanel button:focus-visible {
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+.loginBridgeCheck i {
+  width: 4px;
+  height: 4px;
+  flex: 0 0 4px;
+  border-radius: 50%;
+  background: #808080;
+}
+
+.loginBridgeCheck i.isReady {
+  background: #00ab47;
+  box-shadow: 0 0 6px rgba(0, 171, 71, 0.72);
+}
+
+.loginManualCookiePanel {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid #1b1b1b;
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.loginManualCookiePanel label {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 12px;
+}
+
+.loginManualCookiePanel textarea {
+  min-height: 84px;
+  resize: vertical;
+  border: 1px solid rgba(217, 217, 217, 0.2);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fff;
+  outline: none;
+  background: #050505;
+  font: 12px/1.5 "SF Mono", "Cascadia Mono", ui-monospace, monospace;
+}
+
+.loginManualCookiePanel textarea:focus {
+  border-color: rgba(255, 255, 255, 0.72);
+}
+
+.loginManualCookiePanel > div {
+  display: flex;
+  gap: 8px;
+}
+
+.loginManualCookiePanel button {
+  padding: 8px 14px;
+}
+
+.loginManualCookieError {
+  margin: 0;
+  color: #ff9bb5;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.loginBridgeNotice {
+  width: 100%;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: normal;
+  white-space: normal;
+}
+
+.loginBridgeNotice a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-position: from-font;
+}
+
+.loginModalClose {
+  position: absolute;
+  top: 23px;
+  right: 23px;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.loginModalClose img {
+  display: block;
+  width: 24px;
+  height: 24px;
+}
+
+.loginModalClose:hover,
+.loginModalClose:focus-visible {
+  opacity: 0.72;
 }
 
 .playbackToast {
@@ -221,14 +515,14 @@ p {
 
 .landingNav {
   position: relative;
-  z-index: 2;
+  z-index: 30;
   display: flex;
   width: 100%;
-  height: 96px;
-  flex: 0 0 96px;
+  min-height: 72px;
+  flex: 0 0 auto;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 80px;
+  gap: 24px;
+  padding: 15px 40px;
 }
 
 .landingBrand,
@@ -239,13 +533,23 @@ p {
   background: transparent;
 }
 
+.landingNavLeft {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+}
+
 .landingBrand {
+  display: block;
   justify-self: start;
+  border: 0;
   padding: 0;
-  font-family: "Doto", "SF Mono", ui-monospace, monospace;
-  font-size: 40px;
-  font-weight: 400;
+  font-family: "Outfit", "Helvetica Neue", Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
   line-height: normal;
+  white-space: nowrap;
 }
 
 .landingLinks {
@@ -255,80 +559,194 @@ p {
 }
 
 .landingLinks button {
-  padding: 8px 0;
-  font-size: 12px;
-  font-weight: 500;
+  padding: 0;
+  font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  font-variation-settings: "wdth" 100;
   line-height: normal;
   opacity: 0.6;
 }
 
-.landingLinks button[aria-current="page"],
+.landingLinks button[aria-current="page"] {
+  font-weight: 590;
+  opacity: 1;
+}
+
 .landingLinks button:hover,
 .landingLinks button:focus-visible {
   opacity: 1;
 }
 
+.landingNavRight {
+  display: flex;
+  min-width: 0;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+}
+
+.landingChatAnchor {
+  position: relative;
+  z-index: 40;
+  flex: 0 0 auto;
+}
+
+.landingAccountMenuAnchor {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+}
+
 .landingJoin {
-  min-height: 42px;
   justify-self: end;
-  border: 1px solid #fff;
-  border-radius: 100px;
-  padding: 11px 24px;
+  border: 1px solid rgba(217, 217, 217, 0.2);
+  border-radius: 48px;
+  padding: 11px 24px 12px;
+  font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 510;
+  font-variation-settings: "wdth" 100;
   line-height: normal;
   white-space: nowrap;
-  transition:
-    color 160ms ease,
-    background-color 160ms ease;
+  transition: border-color 160ms ease;
 }
 
 .landingJoin:hover,
 .landingJoin:focus-visible {
-  color: #0a0908;
-  background: #fff;
+  color: #fff;
+  border-color: #fff;
+  background: transparent;
 }
 
 .landingAccount {
-  display: flex;
-  min-width: 0;
-  height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 100px;
-  padding: 6px 12px;
-  color: #fff;
-  background: transparent;
-  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  line-height: normal;
+  position: relative;
+  display: block;
+  overflow: hidden;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border: 0.913px solid #1b1b1b;
+  border-radius: 50%;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .landingAccount img {
+  position: absolute;
+  top: 0;
+  left: 0;
   display: block;
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   object-fit: cover;
 }
 
-.landingAccount span {
+.landingAccount:hover,
+.landingAccount:focus-visible {
+  filter: brightness(1.08);
+}
+
+.landingAccountMenu {
+  position: absolute;
+  top: 52px;
+  right: 0;
+  display: flex;
   overflow: hidden;
-  max-width: 160px;
+  width: 220px;
+  flex-direction: column;
+  align-items: stretch;
+  border: 1px solid #1b1b1b;
+  border-radius: 20px;
+  padding: 5px 15px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+}
+
+.landingAccountPlatform {
+  display: flex;
+  overflow: hidden;
+  height: 66px;
+  flex: 0 0 66px;
+  align-items: center;
+  gap: 10px;
+}
+
+.landingAccountPlatformIcon {
+  display: block;
+  width: 22px;
+  height: 23.048px;
+  flex: 0 0 auto;
+  object-fit: cover;
+}
+
+.landingAccountPlatform span,
+.landingAccountMenuItem span {
+  overflow: hidden;
+  min-width: 0;
+  font-family: "Outfit", "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 18px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.landingAccount:hover,
-.landingAccount:focus-visible {
-  border-color: rgba(255, 255, 255, 0.8);
+.landingAccountPlatform span {
+  max-width: 154px;
 }
 
-.landingBrand:focus-visible,
+.landingAccountMenuDivider {
+  width: 100%;
+  height: 1px;
+  flex: 0 0 1px;
+  background: #1b1b1b;
+}
+
+.landingAccountMenuDividerGap {
+  width: 100%;
+  height: 7px;
+  flex: 0 0 7px;
+}
+
+.landingAccountMenuItem {
+  display: flex;
+  overflow: hidden;
+  width: 100%;
+  height: 42px;
+  flex: 0 0 42px;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0;
+  color: #fff;
+  background: transparent;
+  text-align: left;
+}
+
+.landingAccountMenuItem img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
+.landingAccountMenuItem:hover,
+.landingAccountMenuItem:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.landingAccountMenuItem:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.8);
+  outline-offset: -1px;
+}
+
 .landingLinks button:focus-visible,
 .landingJoin:focus-visible,
 .landingAccount:focus-visible {
@@ -342,27 +760,28 @@ p {
   display: flex;
   width: 100%;
   min-height: 1px;
-  flex: 1 0 0;
+  flex: 1 1 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 60px 80px;
+  padding: clamp(24px, 5vh, 60px) clamp(32px, 5vw, 112px);
 }
 
 .landingPage.isLoggedIn .landingHero {
-  gap: 40px;
-  padding: 80px 80px 40px;
+  gap: 0;
+  justify-content: flex-end;
+  padding: 80px;
 }
 
-.landingBuyTokensSlot {
-  position: absolute;
-  bottom: 136px;
-  left: clamp(24px, 5.5vw, 80px);
+.landingAskAnythingSlot {
+  position: relative;
   z-index: 16;
+  flex: 0 0 auto;
 }
 
 .button-gradient {
   position: relative;
+  z-index: 10;
   display: flex;
   overflow: hidden;
   height: 42px;
@@ -380,7 +799,6 @@ p {
   outline: none;
   transition: 0.3s;
   user-select: none;
-  z-index: 10;
 }
 
 .button-gradient.visible:hover .gradient-2 {
@@ -420,8 +838,8 @@ p {
 }
 
 .button-gradient svg {
-  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.5));
   min-width: 14px;
+  filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.5));
 }
 
 .button-gradient .glass {
@@ -526,7 +944,7 @@ p {
 .landingHeroCopy h1 {
   margin: 0;
   color: #fff;
-  font-size: 120px;
+  font-size: clamp(72px, min(9vw, 17vh), 144px);
   font-weight: 900;
   line-height: 1;
 }
@@ -535,17 +953,21 @@ p {
   margin: 0;
   color: rgba(255, 255, 255, 0.7);
   font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
-  font-size: 24px;
+  font-size: clamp(18px, min(1.7vw, 3.2vh), 28px);
   font-weight: 400;
   line-height: 1.4;
   white-space: nowrap;
 }
 
 .circularQueuePlayer {
+  --queue-current-cover-size: clamp(180px, 28vmin, 360px);
+  --queue-side-cover-size: clamp(104px, 15vmin, 180px);
   position: relative;
   display: flex;
-  width: min(1440px, calc(100vw - 160px));
-  min-height: 520px;
+  width: min(1600px, 100%);
+  height: 100%;
+  max-height: 1200px;
+  min-height: 0;
   flex: 1 1 0;
   align-items: center;
   justify-content: flex-end;
@@ -554,11 +976,11 @@ p {
 
 .queueOrbit {
   position: absolute;
-  top: -24px;
+  top: 0;
   right: 0;
   left: 0;
   z-index: 1;
-  height: 520px;
+  height: 100%;
   overflow: visible;
   touch-action: pan-y;
   user-select: none;
@@ -588,8 +1010,8 @@ p {
   top: 0;
   left: 0;
   overflow: hidden;
-  width: 160px;
-  height: 160px;
+  width: var(--queue-side-cover-size);
+  height: var(--queue-side-cover-size);
   border: 0;
   border-radius: 20px;
   padding: 0;
@@ -609,9 +1031,9 @@ p {
 }
 
 .queueOrbitItem.isCurrent {
-  width: 260px;
-  height: 260px;
-  border-radius: 32px;
+  width: var(--queue-current-cover-size);
+  height: var(--queue-current-cover-size);
+  border-radius: clamp(24px, 2.2vw, 40px);
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.44);
 }
 
@@ -642,11 +1064,16 @@ p {
   position: relative;
   z-index: 12;
   display: flex;
-  width: min(800px, 100%);
+  width: min(920px, 78vw, 100%);
+  height: 100%;
   flex-direction: column;
   align-items: center;
-  gap: 40px;
-  padding-top: 250px;
+  justify-content: flex-start;
+  gap: clamp(14px, 2.2vh, 28px);
+  padding-top: max(
+    calc(var(--queue-current-cover-size) + 24px),
+    min(43vh, 640px)
+  );
 }
 
 .queuePlayerHeading {
@@ -654,7 +1081,7 @@ p {
   width: 100%;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: clamp(10px, 1.8vh, 20px);
   text-align: center;
 }
 
@@ -664,7 +1091,7 @@ p {
   margin: 0;
   color: #fff;
   font-family: "Inter", "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: 120px;
+  font-size: clamp(52px, 10vmin, 120px);
   font-weight: 900;
   line-height: 1;
   text-overflow: ellipsis;
@@ -677,7 +1104,7 @@ p {
   margin: 0;
   color: rgba(255, 255, 255, 0.7);
   font-family: "PingFang SC", "Noto Sans SC", sans-serif;
-  font-size: 24px;
+  font-size: clamp(16px, min(1.8vw, 3vh), 24px);
   font-weight: 400;
   line-height: 1.4;
   text-overflow: ellipsis;
@@ -936,109 +1363,6 @@ p {
   height: 0;
   border: 0;
   box-shadow: none;
-}
-
-.landingAsk {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  overflow: hidden;
-  width: 800px;
-  max-width: 100%;
-  height: 80px;
-  flex: 0 0 80px;
-  align-items: center;
-  justify-content: space-between;
-  border: 0;
-  border-radius: 68px;
-  padding: 8px 16px 8px 20px;
-  background: #000;
-}
-
-.landingAsk::before {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(
-    100deg,
-    #d93bdc 0%,
-    rgba(202, 94, 204, 0.62) 10%,
-    rgba(96, 91, 106, 0.42) 30%,
-    rgba(58, 58, 66, 0.38) 54%,
-    rgba(76, 73, 99, 0.56) 78%,
-    #341fff 100%
-  );
-  content: "";
-  pointer-events: none;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-}
-
-.landingAsk input {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  flex: 1 1 auto;
-  border: 0;
-  outline: 0;
-  padding: 7px 12px;
-  color: rgba(255, 255, 255, 0.92);
-  background: transparent;
-  font-family: "Nowar Rounded CN", "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial,
-    sans-serif;
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 22px;
-}
-
-.landingAsk input::placeholder {
-  color: rgba(255, 255, 255, 0.8);
-  opacity: 0.4;
-}
-
-.landingAsk button {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
-  place-items: center;
-  overflow: hidden;
-  border: 0;
-  border-radius: 9px;
-  padding: 9px;
-  background: rgba(0, 0, 0, 0.38);
-  cursor: pointer;
-}
-
-.landingAsk button:hover:not(:disabled),
-.landingAsk button:focus-visible {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.landingAsk button:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.72);
-  outline-offset: -2px;
-}
-
-.landingAsk button:disabled {
-  cursor: default;
-  opacity: 0.45;
-}
-
-.landingAsk button img {
-  display: block;
-  width: 24px;
-  height: 24px;
 }
 
 .landingGlow {
@@ -2076,6 +2400,38 @@ p {
   font-size: 11px;
 }
 
+.bridgeStatusCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 12px;
+  border: 1px solid rgba(246, 245, 241, 0.12);
+  border-radius: 14px;
+  padding: 11px 12px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.bridgeStatusCard span {
+  color: rgba(246, 245, 241, 0.86);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.bridgeStatusCard strong {
+  color: rgba(246, 245, 241, 0.48);
+  font-size: 11px;
+}
+
+.bridgeStatusCard strong.isReady {
+  color: rgba(0, 236, 120, 0.82);
+}
+
+.bridgeStatusCard small {
+  grid-column: 1 / -1;
+  color: rgba(246, 245, 241, 0.42);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
 .sourceStatusGrid strong {
   overflow: hidden;
   color: rgba(246, 245, 241, 0.82);
@@ -2306,15 +2662,21 @@ p {
 }
 
 .chatWindow.isLandingChat {
-  top: 111px;
-  right: auto;
+  top: calc(100% + 14px);
+  right: 0;
   bottom: auto;
-  left: 50%;
-  width: min(800px, calc(100% - 48px));
-  height: min(661px, calc(100vh - 150px));
+  left: auto;
+  display: flex;
+  width: min(600px, calc(100vw - 48px));
+  height: min(764px, calc(100vh - 88px));
+  align-items: stretch;
+  flex-direction: column;
+  border: 1px solid #1b1b1b;
   border-radius: 31px;
   padding: 0;
-  transform: translateX(-50%);
+  background: #000;
+  box-shadow: 0 8px 42px rgba(0, 0, 0, 0.8);
+  transform: none;
 }
 
 .chatWindow > * {
@@ -2327,12 +2689,15 @@ p {
   align-items: center;
   justify-content: space-between;
   height: 78px;
-  padding: 20px 40px;
+  padding: 24px;
+}
+
+.chatWindow.isLandingChat .chatHeader {
+  flex: 0 0 78px;
 }
 
 .chatHeader div {
   display: flex;
-  height: 38px;
   gap: 12px;
   align-items: center;
 }
@@ -2340,10 +2705,9 @@ p {
 .chatHeader h2 {
   margin: 0;
   color: #fff;
-  font-family: "Doto", "SF Mono", "Cascadia Mono", "Roboto Mono", ui-monospace,
-    Menlo, Monaco, Consolas, monospace;
-  font-size: 32px;
-  font-weight: 400;
+  font-family: "Outfit", "Helvetica Neue", Arial, sans-serif;
+  font-size: 24px;
+  font-weight: 600;
   line-height: normal;
   text-shadow: none;
 }
@@ -2356,16 +2720,24 @@ p {
   padding: 0;
 }
 
+.chatWindow.isLandingChat .chatHeader > button {
+  opacity: 1;
+}
+
+.chatWindow.isLandingChat .chatHeader > button:hover {
+  opacity: 0.6;
+}
+
 .redioMarkIcon {
   display: block;
   width: 16px;
   height: 16px;
 }
 
-.chatCollapseIcon {
+.chatCloseIcon {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 15px;
+  height: 15px;
 }
 
 .chatMessages {
@@ -2380,8 +2752,10 @@ p {
 }
 
 .chatWindow.isLandingChat .chatMessages {
-  height: calc(100% - 78px);
-  padding: 0 40px 40px;
+  min-height: 0;
+  height: auto;
+  flex: 1 1 auto;
+  padding: 0 24px;
 }
 
 .loadMoreHistory {
@@ -2408,6 +2782,25 @@ p {
 .message > div {
   max-width: calc(100% - 116px);
   min-width: 0;
+}
+
+.chatWindow.isLandingChat .message {
+  align-items: flex-start;
+}
+
+.chatWindow.isLandingChat .message > div:not(.avatar) {
+  display: flex;
+  width: min(478px, calc(100% - 58px));
+  max-width: calc(100% - 58px);
+  flex-direction: column;
+}
+
+.chatWindow.isLandingChat .message.inbound > div:not(.avatar) {
+  align-items: flex-start;
+}
+
+.chatWindow.isLandingChat .message.outbound > div:not(.avatar) {
+  align-items: flex-end;
 }
 
 .avatar {
@@ -2469,6 +2862,16 @@ p {
   font-weight: 500;
   line-height: 22px;
   backdrop-filter: blur(4px);
+}
+
+.chatWindow.isLandingChat .message p {
+  border: 0;
+  background: rgba(246, 246, 246, 0.2);
+  backdrop-filter: none;
+}
+
+.chatWindow.isLandingChat .message.outbound p {
+  text-align: right;
 }
 
 .typewriterCursor {
@@ -2619,7 +3022,130 @@ p {
   max-width: 316px;
 }
 
+.chatWindow.isLandingChat > .askDock {
+  position: relative;
+  width: calc(100% - 48px);
+  height: 80px;
+  flex: 0 0 80px;
+  margin: 40px 24px;
+  border: 2px solid #1b1b1b;
+  border-radius: 68px;
+  padding: 8px 16px 8px 24px;
+  background: #000;
+  cursor: text;
+}
+
+.chatWindow.isLandingChat > .askDock > input,
+.chatWindow.isLandingChat > .askDock > button {
+  position: relative;
+}
+
+.chatWindow.isLandingChat > .askDock input {
+  max-width: none;
+  padding: 0;
+  color: rgba(255, 255, 255, 0.8);
+  caret-color: #fff;
+  font-family: "SF Pro", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 22px;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendButton {
+  width: 42px;
+  height: 42px;
+  border-radius: 100px;
+  padding: 9px;
+  background: #000;
+  opacity: 1;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendGradientButton {
+  position: relative;
+  isolation: isolate;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendGradientEffect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: inherit;
+  padding: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendGradientButton:not(:disabled):hover .sendGradientEffect {
+  opacity: 1;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendGradientButton:disabled .sendGradientEffect {
+  opacity: 0;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendGradientButton > .messageSendIcon {
+  position: relative;
+  z-index: 20;
+  opacity: 1;
+  transform: rotate(-90deg);
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendGradientButton:disabled {
+  opacity: 1;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput .sendGradientButton:disabled > .messageSendIcon {
+  opacity: 0.6;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput:focus-within,
+.chatWindow.isLandingChat > .landingChatDefaultInput.isTyping {
+  border-color: #fff;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput.isTyping input {
+  color: #fff;
+}
+
+.chatWindow.isLandingChat > .landingChatDefaultInput.isTyping .sendButton {
+  background: #000;
+  opacity: 1;
+}
+
+@media (max-width: 720px) {
+  .landingChatAnchor .chatWindow.isLandingChat {
+    position: fixed;
+    top: 72px;
+    right: 24px;
+    bottom: 24px;
+    left: 24px;
+    width: auto;
+    height: auto;
+    border-radius: 31px;
+  }
+}
+
 @media (max-width: 560px) {
+  .loginModalOverlay {
+    padding: 16px;
+  }
+
+  .loginModal {
+    width: 100%;
+    gap: 20px;
+    padding: 32px 24px 24px;
+  }
+
+  .loginModalActions {
+    flex-wrap: wrap;
+  }
+
+  .loginModalActions button {
+    flex: 1 1 auto;
+  }
+
   .landingPage {
     overflow-x: hidden;
     overflow-y: auto;
@@ -2632,13 +3158,14 @@ p {
   }
 
   .landingNav {
-    height: 80px;
-    flex-basis: 80px;
-    padding: 0 24px;
+    height: 72px;
+    flex-basis: 72px;
+    gap: 16px;
+    padding: 12px 24px;
   }
 
   .landingBrand {
-    font-size: 32px;
+    font-size: 24px;
   }
 
   .landingLinks {
@@ -2646,23 +3173,30 @@ p {
   }
 
   .landingJoin {
-    min-height: 38px;
-    padding: 9px 16px;
+    height: 40px;
+    padding: 8px 16px 10px;
     font-size: 13px;
   }
 
   .landingAccount {
-    max-width: 180px;
     height: 40px;
-    gap: 8px;
-    padding: 4px 10px;
-    font-size: 13px;
+    width: 40px;
+    flex-basis: 40px;
+  }
+
+  .landingAccountMenuAnchor {
+    width: 40px;
+    height: 40px;
+    flex-basis: 40px;
+  }
+
+  .landingAccountMenu {
+    top: 50px;
   }
 
   .landingAccount img {
-    width: 30px;
-    height: 30px;
-    flex-basis: 30px;
+    width: 40px;
+    height: 40px;
   }
 
   .landingHero {
@@ -2673,9 +3207,10 @@ p {
     padding: 52px 24px 28px;
   }
 
-  .landingBuyTokensSlot {
-    bottom: 108px;
-    left: 24px;
+  .landingAskAnythingSlot .button-gradient {
+    height: 40px;
+    min-height: 40px;
+    padding: 8px 16px;
   }
 
   .landingHeroCopy {
@@ -2730,17 +3265,6 @@ p {
 
   .queueProgressRow {
     gap: 8px;
-  }
-
-  .landingAsk {
-    height: 64px;
-    flex-basis: 64px;
-    padding: 6px 10px 6px 14px;
-  }
-
-  .landingAsk input {
-    padding: 7px 8px;
-    font-size: 16px;
   }
 
   .landingGlow {
@@ -2826,6 +3350,19 @@ p {
   .chatWindow {
     height: 447px;
     border-radius: 48px 48px 0 0;
+  }
+
+  .chatWindow.isLandingChat > .askDock {
+    width: calc(100% - 48px);
+    height: 64px;
+    flex-basis: 64px;
+    margin: 24px auto;
+    padding: 6px 10px 6px 14px;
+  }
+
+  .chatWindow.isLandingChat > .askDock input {
+    padding: 7px 8px;
+    font-size: 16px;
   }
 
   .chatHeader,

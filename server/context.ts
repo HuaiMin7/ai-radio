@@ -264,7 +264,9 @@ export async function buildPromptContext(
     buildSection(
       "Required Response Format",
       `Intent rules:
-- If the user wants normal conversation, reply naturally as Z. Do not recommend music. Do not output [RECOMMEND] or [DJ].
+- If the user wants normal conversation, reply naturally as Redio. Do not recommend music. Do not output [RECOMMEND] or [DJ].
+- If the user explicitly says not to play or recommend music, treat it as normal conversation even when the message contains words such as song or music.
+- A negative adjective does not cancel a recommendation request. For example, "推荐一些不要太吵的歌" is still a music request.
 - If the user clearly wants to hear music, asks for a song, asks for music for a mood/scene, or implies they want a soundtrack, recommend exactly ${requestedTrackCount} song(s) based on the taste profile, runtime context, and your broader music knowledge.
 - The seed playlist is not a closed library. You may recommend songs outside the seed playlist.
 - Balance familiarity and discovery: around 70% aligned with known taste, around 30% tasteful new exploration, unless the user asks for familiar songs.
@@ -274,18 +276,18 @@ export async function buildPromptContext(
 - If requestedTrackCount is greater than 1, output exactly ${requestedTrackCount} items in play, one intro per song.
 
 DJ copy rule:
-- Write each DJ copy at around 50 Chinese characters, ideally 45-55 characters.
-- It should sound like a 10-15 second spoken radio segue.
+- Each generated DJ copy must contain 60-100 Chinese characters. Check the length before responding and do not return model-written copy shorter than 60 characters.
+- It should sound like a natural spoken radio segue.
 - Keep it natural, atmospheric, and specific to the song and user context.
 
 Recommend mode JSON format only:
 {
-  "say": "Natural spoken Chinese DJ copy for the first song, around 50 Chinese characters, spoken in 10-15 seconds.",
+  "say": "Natural spoken Chinese DJ copy for the first song, 60-100 Chinese characters.",
   "play": [
     {
       "title": "clean song title",
       "artist": "clean artist name",
-      "intro": "Natural spoken Chinese DJ copy for this song, around 50 Chinese characters, spoken in 10-15 seconds."
+      "intro": "Natural spoken Chinese DJ copy for this song, 60-100 Chinese characters."
     }
   ],
   "reason": "why these songs fit the request",

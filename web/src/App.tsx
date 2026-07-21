@@ -4,6 +4,7 @@ import {
   useState,
   type CSSProperties,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type SyntheticEvent
 } from "react";
 import { StarfieldCanvas } from "./StarfieldCanvas";
@@ -31,6 +32,29 @@ type DesktopQqLoginResult =
       message?: string;
       error?: string;
     };
+
+type RedioBridgeStatus = {
+  connected: boolean;
+  version?: string;
+  checking: boolean;
+  message?: string;
+};
+
+type RedioBridgeResponse = {
+  ok?: boolean;
+  cookie?: string;
+  status?: QqLoginStatus;
+  message?: string;
+  error?: string;
+  partial?: boolean;
+  reused?: boolean;
+  opened?: boolean;
+  diagnostics?: {
+    cookieCount: number;
+    cookieNames: string[];
+    pageCookieCount: number;
+  };
+};
 
 type DjPlan = {
   episode: number;
@@ -230,7 +254,9 @@ type CircularQueuePlayerProps = {
 
 const djDuckingRatio = 0.5;
 const musicIntentPattern =
-  /(推|推荐|听|放|播|来|歌|音乐|歌单|曲|适合|心情|开车|通勤|睡|阅读|工作|学习|下雨|夜晚|早上|午后|轻松|安静|兴奋|emo|治愈)/i;
+  /(?:推|推荐|想听|要听|听点|放点|播点|来点|来些|给我(?:来|放|播|推|推荐)).{0,16}(?:歌|音乐|歌单|曲)|来(?:一|两|几|三|四|五|六|七|八|九|十)?首|(?:适合|配).{0,16}(?:歌|音乐|歌单|曲)|配乐/i;
+const noMusicIntentPattern =
+  /(?:先|暂时|现在)?(?:不想|不要|不用|不需要|别)(?:听歌|听音乐|放歌|播放音乐|播歌|推歌|推荐歌曲|推荐音乐)|别(?:给我)?(?:放歌|播歌|推歌|推荐(?:歌|歌曲|音乐))/i;
 
 const fallbackTracks: PlayableTrack[] = [
   {
@@ -296,6 +322,21 @@ const queueFallbackCovers = [
 ];
 
 const apiBaseUrl = "http://127.0.0.1:8788";
+const redioBridgeRequestTimeoutMs = 4500;
+const redioBridgeMinimumVersion = [0, 1, 4];
+
+function isRedioBridgeOutdated(version?: string) {
+  if (!version) return false;
+
+  const currentVersion = version.split(".").map((part) => Number(part) || 0);
+  for (let index = 0; index < redioBridgeMinimumVersion.length; index += 1) {
+    const currentPart = currentVersion[index] ?? 0;
+    const minimumPart = redioBridgeMinimumVersion[index];
+    if (currentPart !== minimumPart) return currentPart < minimumPart;
+  }
+
+  return false;
+}
 
 function getApiUrl(url: string) {
   return url.startsWith("/api/") ? `${apiBaseUrl}${url}` : url;
@@ -311,6 +352,48 @@ function getPlaybackAudioUrl(track: PlayableTrack) {
   }
 
   return track.audioUrl;
+}
+
+function requestRedioBridge(
+  type:
+    | "REDIO_BRIDGE_PING"
+    | "REDIO_BRIDGE_GET_STATUS"
+    | "REDIO_BRIDGE_OPEN_QQ_LOGIN"
+    | "REDIO_BRIDGE_WARMUP_QQ_PLAYBACK"
+    | "REDIO_BRIDGE_SYNC_QQ_COOKIE",
+  timeoutMs = redioBridgeRequestTimeoutMs
+): Promise<RedioBridgeResponse & { version?: string }> {
+  return new Promise((resolve, reject) => {
+    const id = createMessageId();
+    const timer = window.setTimeout(() => {
+      window.removeEventListener("message", handleMessage);
+      reject(new Error("Redio Bridge 未连接"));
+    }, timeoutMs);
+
+    function handleMessage(event: MessageEvent) {
+      if (event.source !== window || event.origin !== window.location.origin) return;
+
+      const data = event.data;
+      if (!data || data.source !== "redio-bridge-extension" || data.id !== id) return;
+
+      window.clearTimeout(timer);
+      window.removeEventListener("message", handleMessage);
+      resolve(data.response ?? { ok: true, version: data.version });
+    }
+
+    window.addEventListener("message", handleMessage);
+    window.postMessage({
+      source: "redio-web",
+      type,
+      id
+    }, window.location.origin);
+  });
+}
+
+function waitForBridgePoll(ms: number) {
+  return new Promise<void>((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -531,7 +614,7 @@ function getPlanningCopy(message: string) {
     };
   }
 
-  if (musicIntentPattern.test(message)) {
+  if (!noMusicIntentPattern.test(message) && musicIntentPattern.test(message)) {
     return {
       input: "正在挑歌...",
       bubble: "正在挑一首适合你的歌..."
@@ -689,31 +772,6 @@ function MicIcon() {
   );
 }
 
-function RedioMarkIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="redioMarkIcon"
-      fill="none"
-      height="16"
-      viewBox="0 0 16 16"
-      width="16"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M8 0C12.4183 0 16 3.58172 16 8C16 12.4183 12.4183 16 8 16C3.58172 16 0 12.4183 0 8C0 3.58172 3.58172 0 8 0ZM8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1Z"
-        fill="#FB3367"
-      />
-      <path
-        clipRule="evenodd"
-        d="M8 12C10.2091 12 12 10.2091 12 8C12 5.79086 10.2091 4 8 4C5.79086 4 4 5.79086 4 8C4 10.2091 5.79086 12 8 12Z"
-        fill="#FB3367"
-        fillRule="evenodd"
-      />
-    </svg>
-  );
-}
-
 function StatisticsIcon() {
   return (
     <svg
@@ -854,6 +912,8 @@ export function App() {
   const audioUnlockElementRef = useRef<HTMLAudioElement | null>(null);
   const playbackToastTimerRef = useRef<number | null>(null);
   const lyricsCacheRef = useRef(new Map<string, LyricLine[]>());
+  const bridgeAutoRefreshInFlightRef = useRef(false);
+  const lastSyncedBridgeCookieRef = useRef("");
   const lastAudibleVolumeRef = useRef(0.5);
   const [nowPlaying, setNowPlaying] = useState<NowPlayingState | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
@@ -879,6 +939,8 @@ export function App() {
   const [isQqSourceOpen, setIsQqSourceOpen] = useState(false);
   const [isQqSaving, setIsQqSaving] = useState(false);
   const [isQqWebLoginBusy, setIsQqWebLoginBusy] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isManualCookieOpen, setIsManualCookieOpen] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeDjText, setActiveDjText] = useState<string | null>(null);
   const [queueTracks, setQueueTracks] = useState<QueueTrack[]>([]);
@@ -892,6 +954,11 @@ export function App() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [qqLoginStatus, setQqLoginStatus] = useState<QqLoginStatus | null>(null);
   const [qqCookieDraft, setQqCookieDraft] = useState("");
+  const [redioBridgeStatus, setRedioBridgeStatus] = useState<RedioBridgeStatus>({
+    connected: false,
+    checking: true,
+    message: "正在检测 Redio Bridge"
+  });
   const [logs, setLogs] = useState<AppLogEntry[]>([
     {
       id: "boot",
@@ -1015,7 +1082,66 @@ export function App() {
     setQqLoginStatus(status);
   }
 
-  async function persistQqCookie(cookie: string, source: "manual" | "desktop") {
+  function openLoginModal() {
+    setError(null);
+    setIsManualCookieOpen(false);
+    setIsLoginModalOpen(true);
+    void detectRedioBridge();
+  }
+
+  function closeLoginModal() {
+    setIsLoginModalOpen(false);
+    setIsManualCookieOpen(false);
+  }
+
+  async function detectRedioBridge() {
+    setRedioBridgeStatus((currentStatus) => ({
+      ...currentStatus,
+      checking: true,
+      message: "正在检测 Redio Bridge"
+    }));
+
+    try {
+      const response = await requestRedioBridge("REDIO_BRIDGE_PING", 1800);
+      setRedioBridgeStatus({
+        connected: true,
+        checking: false,
+        version: response.version,
+        message: response.version ? `Bridge 已连接 · v${response.version}` : "Bridge 已连接"
+      });
+    } catch {
+      setRedioBridgeStatus({
+        connected: false,
+        checking: false,
+        message: "未检测到 Redio Bridge"
+      });
+    }
+  }
+
+  async function refreshRedioBridgeQqStatus() {
+    try {
+      const response = await requestRedioBridge("REDIO_BRIDGE_GET_STATUS");
+      setRedioBridgeStatus((currentStatus) => ({
+        ...currentStatus,
+        connected: true,
+        checking: false,
+        message: response.message ?? currentStatus.message ?? "Bridge 已连接"
+      }));
+
+      if (response.status?.loggedIn) {
+        await loadQqLoginStatus();
+      }
+    } catch (requestError) {
+      setRedioBridgeStatus({
+        connected: false,
+        checking: false,
+        message:
+          requestError instanceof Error ? requestError.message : "Redio Bridge 检测失败"
+      });
+    }
+  }
+
+  async function persistQqCookie(cookie: string, source: "manual" | "desktop" | "bridge") {
     if (!cookie.trim()) {
       setError("请先粘贴 QQ 音乐 Cookie。");
       return;
@@ -1035,6 +1161,9 @@ export function App() {
       });
 
       setQqLoginStatus(status);
+      if (status.loggedIn) {
+        closeLoginModal();
+      }
       resolvingTrackKeysRef.current.clear();
       setResolvedTrackOverrides({});
       if (source === "manual") {
@@ -1044,7 +1173,9 @@ export function App() {
         status.playbackKeyReady ? "success" : "info",
         status.playbackKeyReady ? "QQ 音乐播放授权已保存" : "QQ 音乐账号态已保存",
         status.playbackKeyReady
-          ? "已检测到播放票据"
+          ? source === "bridge"
+            ? "Redio Bridge 已同步播放票据"
+            : "已检测到播放票据"
           : "缺少播放票据，部分歌曲仍可能不可播"
       );
       setError(status.playbackKeyReady ? null : status.message ?? "QQ 音乐播放授权不完整。");
@@ -1061,6 +1192,160 @@ export function App() {
 
   async function saveQqCookie() {
     await persistQqCookie(qqCookieDraft, "manual");
+  }
+
+  async function openQqBridgeLogin() {
+    setIsQqWebLoginBusy(true);
+    setError(null);
+
+    try {
+      appendLog("info", "打开 QQ 音乐官方登录页", "Redio Bridge 正在等待扫码授权");
+      const response = await requestRedioBridge("REDIO_BRIDGE_OPEN_QQ_LOGIN", 8000);
+
+      if (response.status?.playbackKeyReady && response.cookie?.trim()) {
+        await persistQqCookie(response.cookie, "bridge");
+        await refreshRedioBridgeQqStatus();
+        return;
+      }
+
+      let accountSynced = false;
+      let playbackWarmupStarted = false;
+      let lastSyncedCookie = "";
+      const deadline = Date.now() + 120000;
+
+      while (Date.now() < deadline) {
+        await waitForBridgePoll(1500);
+        const current = await requestRedioBridge("REDIO_BRIDGE_GET_STATUS", 6000);
+
+        setRedioBridgeStatus((currentStatus) => ({
+          ...currentStatus,
+          connected: true,
+          checking: false,
+          message: current.message ?? "正在等待 QQ 音乐登录"
+        }));
+
+        if (!current.status?.loggedIn || !current.cookie?.trim()) {
+          continue;
+        }
+
+        if (
+          !accountSynced ||
+          (current.status.playbackKeyReady && current.cookie !== lastSyncedCookie)
+        ) {
+          await persistQqCookie(current.cookie, "bridge");
+          accountSynced = true;
+          lastSyncedCookie = current.cookie;
+          lastSyncedBridgeCookieRef.current = current.cookie;
+        }
+
+        if (current.status.playbackKeyReady) {
+          setError(null);
+          setRedioBridgeStatus((currentStatus) => ({
+            ...currentStatus,
+            message: "QQ 音乐播放授权已同步"
+          }));
+          appendLog("success", "QQ 音乐网页登录完成", "账号和播放票据已自动同步");
+          return;
+        }
+
+        if (!playbackWarmupStarted) {
+          playbackWarmupStarted = true;
+          setRedioBridgeStatus((currentStatus) => ({
+            ...currentStatus,
+            message: "账号已登录，正在获取播放票据"
+          }));
+          await requestRedioBridge("REDIO_BRIDGE_WARMUP_QQ_PLAYBACK", 8000);
+        }
+      }
+
+      if (accountSynced) {
+        setError("QQ 账号已同步，但尚未生成播放票据。请在 QQ 音乐网页播放任意一首歌，再点“刷新登录状态”。");
+        appendLog("info", "QQ 账号登录已同步", "播放票据尚未生成，可在 QQ 音乐网页播放一次后刷新状态");
+        return;
+      }
+
+      throw new Error(response.error ?? "两分钟内没有检测到 QQ 音乐登录态，请返回 Redio 后刷新登录状态");
+    } catch (requestError) {
+      const errorMessage =
+        requestError instanceof Error ? requestError.message : "Redio Bridge 登录失败。";
+
+      setError(errorMessage);
+      appendLog("error", "Redio Bridge 登录失败", errorMessage);
+    } finally {
+      setIsQqWebLoginBusy(false);
+    }
+  }
+
+  async function openQqLoginFromModal() {
+    if (
+      !redioBridgeStatus.connected ||
+      isRedioBridgeOutdated(redioBridgeStatus.version)
+    ) {
+      window.open("https://y.qq.com/", "_blank", "noopener,noreferrer");
+      setError("请先安装并启用 Redio Bridge，登录后再刷新登录状态。");
+      return;
+    }
+
+    await openQqBridgeLogin();
+  }
+
+  async function syncQqCookieFromBridge(options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setIsQqSaving(true);
+      setError(null);
+    }
+
+    try {
+      const response = await requestRedioBridge("REDIO_BRIDGE_SYNC_QQ_COOKIE");
+
+      setRedioBridgeStatus((currentStatus) => ({
+        ...currentStatus,
+        connected: true,
+        checking: false,
+        message: response.message ?? currentStatus.message
+      }));
+
+      if (!response.status?.loggedIn || !response.cookie?.trim()) {
+        if (!options.silent) {
+          const message = response.message ?? response.error ?? "未检测到 QQ 音乐登录状态";
+          const diagnostics = response.diagnostics;
+          const diagnosticDetail = diagnostics
+            ? `读取到 ${diagnostics.cookieCount} 个 QQ Cookie 字段（页面 ${diagnostics.pageCookieCount} 个）：${diagnostics.cookieNames.join(", ") || "无"}`
+            : message;
+          setError(message);
+          appendLog("info", "QQ 音乐登录状态未更新", diagnosticDetail);
+        }
+        return;
+      }
+
+      if (options.silent && response.cookie === lastSyncedBridgeCookieRef.current) {
+        await loadQqLoginStatus();
+        return;
+      }
+
+      await persistQqCookie(response.cookie, "bridge");
+      lastSyncedBridgeCookieRef.current = response.cookie;
+
+      if (!options.silent) {
+        appendLog(
+          response.status.playbackKeyReady ? "success" : "info",
+          "QQ 音乐登录状态已刷新",
+          response.status.playbackKeyReady ? "播放票据已同步" : "账号已登录，播放票据尚未生成"
+        );
+      }
+    } catch (requestError) {
+      const errorMessage =
+        requestError instanceof Error ? requestError.message : "Redio Bridge 同步失败。";
+
+      if (!options.silent) {
+        setError(errorMessage);
+        appendLog("error", "Redio Bridge 同步失败", errorMessage);
+      }
+    } finally {
+      if (!options.silent) {
+        setIsQqSaving(false);
+      }
+    }
   }
 
   async function openQqDesktopLogin() {
@@ -1109,15 +1394,16 @@ export function App() {
       });
 
       setQqLoginStatus(status);
+      lastSyncedBridgeCookieRef.current = "";
       resolvingTrackKeysRef.current.clear();
       setResolvedTrackOverrides({});
-      appendLog("info", "QQ 音乐 Cookie 已清除");
+      appendLog("info", "QQ 音乐已退出登录");
     } catch (requestError) {
       const errorMessage =
-        requestError instanceof Error ? requestError.message : "QQ Cookie 清除失败。";
+        requestError instanceof Error ? requestError.message : "QQ 音乐退出登录失败。";
 
       setError(errorMessage);
-      appendLog("error", "QQ Cookie 清除失败", errorMessage);
+      appendLog("error", "QQ 音乐退出登录失败", errorMessage);
     } finally {
       setIsQqSaving(false);
     }
@@ -1441,7 +1727,7 @@ export function App() {
       });
 
       if (response.mode === "chat") {
-        appendLog("success", "Z 已回复", "普通聊天，不触发播放");
+        appendLog("success", "Redio 已回复", "普通聊天，不触发播放");
         setMessages((currentMessages) => [
           ...currentMessages,
           {
@@ -1549,6 +1835,52 @@ export function App() {
   }
 
   useEffect(() => {
+    const shouldRefreshBridgeLogin =
+      isLoginModalOpen || (appView === "settings" && isQqSourceOpen);
+
+    if (
+      !shouldRefreshBridgeLogin ||
+      !redioBridgeStatus.connected ||
+      isRedioBridgeOutdated(redioBridgeStatus.version)
+    ) {
+      return;
+    }
+
+    let disposed = false;
+
+    const refreshLoginStatus = () => {
+      if (
+        disposed ||
+        document.visibilityState !== "visible" ||
+        bridgeAutoRefreshInFlightRef.current
+      ) {
+        return;
+      }
+
+      bridgeAutoRefreshInFlightRef.current = true;
+      void syncQqCookieFromBridge({ silent: true }).finally(() => {
+        bridgeAutoRefreshInFlightRef.current = false;
+      });
+    };
+
+    window.addEventListener("focus", refreshLoginStatus);
+    document.addEventListener("visibilitychange", refreshLoginStatus);
+    refreshLoginStatus();
+
+    return () => {
+      disposed = true;
+      window.removeEventListener("focus", refreshLoginStatus);
+      document.removeEventListener("visibilitychange", refreshLoginStatus);
+    };
+  }, [
+    appView,
+    isLoginModalOpen,
+    isQqSourceOpen,
+    redioBridgeStatus.connected,
+    redioBridgeStatus.version
+  ]);
+
+  useEffect(() => {
     Promise.all([loadNowPlaying(), loadHistory(), loadQueue()])
       .then(async () => {
         appendLog("success", "核心数据读取完成", "/api/now + /api/history + /api/queue");
@@ -1571,6 +1903,12 @@ export function App() {
               requestError instanceof Error ? requestError.message : "QQ 音源状态读取失败。";
 
             appendLog("error", "QQ 音源状态读取失败", errorMessage);
+          }),
+          detectRedioBridge().catch((requestError) => {
+            const errorMessage =
+              requestError instanceof Error ? requestError.message : "Redio Bridge 检测失败。";
+
+            appendLog("error", "Redio Bridge 检测失败", errorMessage);
           })
         ]);
       })
@@ -2213,10 +2551,7 @@ export function App() {
       onClose={() => setIsChatOpen(false)}
       onLoadMoreHistory={loadMoreChatHistory}
       onOpenAgentProfile={() => {
-        if (!hasEnteredRadio) {
-          return;
-        }
-
+        setHasEnteredRadio(true);
         setIsChatOpen(false);
         setAppView("agent");
       }}
@@ -2226,6 +2561,23 @@ export function App() {
       planningInputText={planningCopy.input}
       planningText={planningCopy.bubble}
       visibleHistoryEntryCount={visibleHistoryEntryCount}
+    />
+  ) : null;
+  const loginModal = isLoginModalOpen ? (
+    <LoginModal
+      bridgeStatus={redioBridgeStatus}
+      cookieDraft={qqCookieDraft}
+      error={error}
+      isLoginBusy={isQqWebLoginBusy}
+      isManualCookieOpen={isManualCookieOpen}
+      isSaving={isQqSaving}
+      onClose={closeLoginModal}
+      onCookieChange={setQqCookieDraft}
+      onDetectBridge={() => void detectRedioBridge()}
+      onOpenQqLogin={() => void openQqLoginFromModal()}
+      onRefresh={() => void syncQqCookieFromBridge()}
+      onSaveCookie={() => void saveQqCookie()}
+      onToggleManualCookie={() => setIsManualCookieOpen((isOpen) => !isOpen)}
     />
   ) : null;
   const enterRadioView = (view: AppView) => {
@@ -2245,22 +2597,13 @@ export function App() {
         ) : null}
         {isSpeaking && activeDjText ? <DjSpeechBubble text={activeDjText} /> : null}
         <LandingPage
-          draftMessage={draftMessage}
+          chatWindow={chatWindow}
           error={error}
           isLoginBusy={isQqWebLoginBusy}
-          isPlanning={isPlanning}
-          onDraftMessageChange={setDraftMessage}
           onEnter={enterRadioView}
-          onLogin={() => void openQqDesktopLogin()}
-          onBuyTokens={() => setError("Token 购买功能尚未接入。")}
+          onLogin={openLoginModal}
+          onLogout={() => void clearQqCookie()}
           onOpenChat={() => setIsChatOpen(true)}
-          onSend={() => {
-            if (!draftMessage.trim() || isPlanning) {
-              return;
-            }
-
-            void generateSegment();
-          }}
           player={{
             currentCaption,
             currentTime,
@@ -2282,14 +2625,15 @@ export function App() {
           }}
           status={qqLoginStatus}
         />
-        {chatWindow}
+        {loginModal}
       </>
     );
   }
 
   return (
-    <main className="pageShell">
-      <section className="radioFrame">
+    <>
+      <main className="pageShell">
+        <section className="radioFrame">
         {sharedAudioPlayers}
 
         <header className={`radioTop ${appView === "agent" ? "agentTop" : ""}`}>
@@ -2323,7 +2667,7 @@ export function App() {
             isLoginBusy={isQqWebLoginBusy}
             listenerCount={listenerCount}
             listenerName={listenerName}
-            onLogin={() => void openQqDesktopLogin()}
+            onLogin={openLoginModal}
             status={qqLoginStatus}
           />
         ) : appView === "settings" ? (
@@ -2341,13 +2685,17 @@ export function App() {
               />
 
               <QqSourceSection
+                bridgeStatus={redioBridgeStatus}
                 cookieDraft={qqCookieDraft}
                 isOpen={isQqSourceOpen}
                 isSaving={isQqSaving}
                 onClear={() => void clearQqCookie()}
                 onCookieChange={setQqCookieDraft}
+                onDetectBridge={() => void detectRedioBridge()}
                 onDesktopLogin={() => void openQqDesktopLogin()}
+                onBridgeLogin={() => void openQqBridgeLogin()}
                 onSave={() => void saveQqCookie()}
+                onSyncBridge={() => void syncQqCookieFromBridge()}
                 onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
                 isDesktop={Boolean(window.redioDesktop?.isDesktop)}
                 isWebLoginBusy={isQqWebLoginBusy}
@@ -2408,7 +2756,7 @@ export function App() {
                     disabled={duration <= 0}
                     max={duration || 0}
                     min="0"
-                    onChange={(event) => seekPlayback(Number(event.target.value))}
+                    onInput={(event) => seekPlayback(Number(event.currentTarget.value))}
                     step="0.1"
                     style={
                       {
@@ -2489,8 +2837,166 @@ export function App() {
             {chatWindow}
           </>
         )}
-      </section>
-    </main>
+        </section>
+      </main>
+      {loginModal}
+    </>
+  );
+}
+
+function LoginModal({
+  bridgeStatus,
+  cookieDraft,
+  error,
+  isLoginBusy,
+  isManualCookieOpen,
+  isSaving,
+  onClose,
+  onCookieChange,
+  onDetectBridge,
+  onOpenQqLogin,
+  onRefresh,
+  onSaveCookie,
+  onToggleManualCookie
+}: {
+  bridgeStatus: RedioBridgeStatus;
+  cookieDraft: string;
+  error: string | null;
+  isLoginBusy: boolean;
+  isManualCookieOpen: boolean;
+  isSaving: boolean;
+  onClose: () => void;
+  onCookieChange: (value: string) => void;
+  onDetectBridge: () => void;
+  onOpenQqLogin: () => void;
+  onRefresh: () => void;
+  onSaveCookie: () => void;
+  onToggleManualCookie: () => void;
+}) {
+  const bridgeReady =
+    bridgeStatus.connected && !isRedioBridgeOutdated(bridgeStatus.version);
+
+  return (
+    <section
+      aria-labelledby="login-modal-title"
+      aria-modal="true"
+      className="loginModalOverlay"
+      data-node-id="164:2573"
+      role="dialog"
+    >
+      <div className="loginModal" data-node-id="233:760">
+        <button
+          aria-label="关闭登录弹窗"
+          className="loginModalClose"
+          data-node-id="233:781"
+          onClick={onClose}
+          type="button"
+        >
+          <img alt="" aria-hidden="true" src="/images/login-close.svg" />
+        </button>
+
+        <div className="loginModalPrimary" data-node-id="233:761">
+          <h2 data-node-id="233:762" id="login-modal-title">
+            欢迎登录
+          </h2>
+
+          <div
+            aria-label="登录平台"
+            className="loginPlatformTabs"
+            data-node-id="234:788"
+            role="tablist"
+          >
+            <span aria-hidden="true" className="loginPlatformIndicator" />
+            <button aria-selected="true" role="tab" type="button">
+              QQ音乐
+            </button>
+            <button aria-selected="false" disabled role="tab" type="button">
+              网易云
+            </button>
+            <button aria-selected="false" disabled role="tab" type="button">
+              酷狗
+            </button>
+          </div>
+
+          <div className="loginQqBlock" data-node-id="233:763">
+            <button
+              aria-busy={isLoginBusy}
+              aria-label="打开 QQ 音乐登录页"
+              className="loginQrPlaceholder"
+              data-node-id="233:764"
+              disabled={isLoginBusy}
+              onClick={onOpenQqLogin}
+              type="button"
+            />
+            <p className="loginQrCaption" data-node-id="233:773">
+              <span>点击</span>
+              <strong>
+                <img alt="" aria-hidden="true" src="/images/qq-music-icon.png" />
+                QQ音乐
+              </strong>
+              <span>{isLoginBusy ? "等待登录" : "扫码登录"}</span>
+            </p>
+          </div>
+        </div>
+
+        <div aria-hidden="true" className="loginModalDivider" data-node-id="239:822" />
+
+        <div className="loginModalActions" data-node-id="239:798">
+          <button
+            className="loginBridgeCheck"
+            disabled={bridgeStatus.checking}
+            onClick={onDetectBridge}
+            type="button"
+          >
+            <i className={bridgeReady ? "isReady" : ""} />
+            <span>{bridgeStatus.checking ? "检测中" : "Bridge检测"}</span>
+          </button>
+          <button disabled={isSaving || !bridgeReady} onClick={onRefresh} type="button">
+            {isSaving ? "刷新中" : "刷新登录状态"}
+          </button>
+          <button
+            aria-expanded={isManualCookieOpen}
+            onClick={onToggleManualCookie}
+            type="button"
+          >
+            手动导入Cookie
+          </button>
+        </div>
+
+        {isManualCookieOpen ? (
+          <div className="loginManualCookiePanel">
+            <label htmlFor="login-cookie-input">QQ 音乐 Cookie</label>
+            <textarea
+              id="login-cookie-input"
+              onChange={(event) => onCookieChange(event.target.value)}
+              placeholder="uin=...; qm_keyst=...; qqmusic_key=..."
+              spellCheck={false}
+              value={cookieDraft}
+            />
+            <div>
+              <button disabled={isSaving || !cookieDraft.trim()} onClick={onSaveCookie} type="button">
+                {isSaving ? "导入中" : "确认导入"}
+              </button>
+              <button onClick={onToggleManualCookie} type="button">
+                取消
+              </button>
+            </div>
+            {error ? (
+              <p aria-live="polite" className="loginManualCookieError">
+                {error}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
+        <p className="loginBridgeNotice" data-node-id="239:813">
+          网页版搜索、播放和账号同步都依赖本机 Bridge扩展代理音乐API；请先安装扩展，再继续登录。
+          <a download href="/downloads/redio-bridge.zip">
+            点击安装
+          </a>
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -2521,91 +3027,203 @@ function DjSpeechBubble({ text }: { text: string }) {
 }
 
 function LandingPage({
-  draftMessage,
+  chatWindow,
   error,
   isLoginBusy,
-  isPlanning,
-  onBuyTokens,
-  onDraftMessageChange,
   onEnter,
   onLogin,
+  onLogout,
   onOpenChat,
-  onSend,
   player,
   status
 }: {
-  draftMessage: string;
+  chatWindow: ReactNode;
   error: string | null;
   isLoginBusy: boolean;
-  isPlanning: boolean;
-  onBuyTokens: () => void;
-  onDraftMessageChange: (message: string) => void;
   onEnter: (view: AppView) => void;
   onLogin: () => void;
+  onLogout: () => void;
   onOpenChat: () => void;
-  onSend: () => void;
   player: CircularQueuePlayerProps;
   status: QqLoginStatus | null;
 }) {
   const accountLabel = status?.nickname ?? status?.userId ?? "账号昵称";
   const isLoggedIn = status?.loggedIn === true;
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setIsAccountMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setIsAccountMenuOpen(false);
+    }
+  }, [isLoggedIn]);
 
   return (
     <main className={`landingPage ${isLoggedIn ? "isLoggedIn" : ""}`} data-node-id="164:1145">
-      <header className="landingNav" data-node-id="164:1146">
-        <button
-          aria-label="Redio 首页"
-          className="landingBrand"
-          onClick={onOpenChat}
-          type="button"
-        >
-          Redio
-        </button>
+      <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
+        <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
+          <button
+            className="landingBrand"
+            data-node-id={isLoggedIn ? "239:869" : "232:736"}
+            onClick={onOpenChat}
+            type="button"
+          >
+            Redio
+          </button>
+        </div>
 
-        <nav aria-label="主要导航" className="landingLinks" data-node-id="164:1629">
-          <button aria-current="page" onClick={() => onEnter("radio")} type="button">
+        <nav
+          aria-label="主要导航"
+          className="landingLinks"
+          data-node-id={isLoggedIn ? "239:870" : "232:737"}
+        >
+          <button
+            aria-current="page"
+            data-node-id={isLoggedIn ? "239:871" : "232:738"}
+            onClick={() => onEnter("radio")}
+            type="button"
+          >
             Home
           </button>
-          <button onClick={() => onEnter("radio")} type="button">
-            Playlist
+          <button
+            data-node-id={isLoggedIn ? "239:872" : "232:739"}
+            onClick={onOpenChat}
+            type="button"
+          >
+            Chat
           </button>
-          <button onClick={() => onEnter("settings")} type="button">
+          <button
+            data-node-id={isLoggedIn ? "239:873" : "232:740"}
+            onClick={() => onEnter("settings")}
+            type="button"
+          >
             Setting
           </button>
-          <button onClick={() => onEnter("agent")} type="button">
+          <button
+            data-node-id={isLoggedIn ? "239:874" : "232:741"}
+            onClick={() => onEnter("agent")}
+            type="button"
+          >
             About
           </button>
         </nav>
 
-        {isLoggedIn ? (
-          <button
-            aria-label={`当前登录账号：${accountLabel}`}
-            className="landingAccount"
-            data-node-id="164:2604"
-            onClick={() => onEnter("agent")}
-            type="button"
-          >
-            <img
-              alt=""
-              onError={(event) => {
-                event.currentTarget.src = "/images/redio-account-placeholder.png";
-              }}
-              referrerPolicy="no-referrer"
-              src={status.avatarUrl ?? "/images/redio-account-placeholder.png"}
-            />
-            <span>{accountLabel}</span>
-          </button>
-        ) : (
-          <button
-            className="landingJoin"
-            data-node-id="164:1634"
-            disabled={isLoginBusy}
-            onClick={onLogin}
-            type="button"
-          >
-            {isLoginBusy ? "Waiting for Login" : "Join the Radio"}
-          </button>
-        )}
+        <div className="landingNavRight" data-node-id={isLoggedIn ? "239:875" : "232:742"}>
+          {isLoggedIn ? (
+            <>
+              <div className="landingChatAnchor">
+                <AskAnythingButton onClick={onOpenChat} />
+                {chatWindow}
+              </div>
+              <div className="landingAccountMenuAnchor" ref={accountMenuRef}>
+                <button
+                  aria-expanded={isAccountMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label={`当前登录账号：${accountLabel}`}
+                  className="landingAccount"
+                  data-node-id="262:698"
+                  onClick={() => setIsAccountMenuOpen((isOpen) => !isOpen)}
+                  title={accountLabel}
+                  type="button"
+                >
+                  <img
+                    alt=""
+                    onError={(event) => {
+                      event.currentTarget.src = "/images/redio-account-placeholder.png";
+                    }}
+                    referrerPolicy="no-referrer"
+                    src={status.avatarUrl ?? "/images/redio-account-placeholder.png"}
+                  />
+                </button>
+
+                {isAccountMenuOpen ? (
+                  <div
+                    aria-label="账号菜单"
+                    className="landingAccountMenu"
+                    data-node-id="262:700"
+                    role="menu"
+                  >
+                    <div className="landingAccountPlatform" data-node-id="262:753">
+                      <img
+                        alt="QQ Music"
+                        className="landingAccountPlatformIcon"
+                        data-node-id="262:767"
+                        src="/images/account-menu-qq-music.png"
+                      />
+                      <span data-node-id="262:759" title={accountLabel}>
+                        {accountLabel}
+                      </span>
+                    </div>
+
+                    <div className="landingAccountMenuDivider" data-node-id="262:763" />
+                    <div className="landingAccountMenuDividerGap" data-node-id="262:764" />
+
+                    <button
+                      aria-label="Settings（暂未开放）"
+                      className="landingAccountMenuItem"
+                      data-node-id="262:729"
+                      role="menuitem"
+                      type="button"
+                    >
+                      <img alt="" data-node-id="262:731" src="/images/account-menu-settings.svg" />
+                      <span data-node-id="262:734">Settings</span>
+                    </button>
+
+                    <button
+                      className="landingAccountMenuItem"
+                      data-node-id="262:747"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        onLogout();
+                      }}
+                      role="menuitem"
+                      type="button"
+                    >
+                      <img alt="" data-node-id="262:749" src="/images/account-menu-logout.svg" />
+                      <span data-node-id="262:752">Logout</span>
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <button
+              className="landingJoin"
+              data-node-id="239:840"
+              disabled={isLoginBusy}
+              onClick={onLogin}
+              type="button"
+            >
+              {isLoginBusy ? "Signing in…" : "sign in"}
+            </button>
+          )}
+        </div>
       </header>
 
       {error ? (
@@ -2614,9 +3232,10 @@ function LandingPage({
         </p>
       ) : null}
 
-      <section className="landingHero" data-node-id="164:1156">
-        {isLoggedIn ? <BuyTokensButton onClick={onBuyTokens} /> : null}
-
+      <section
+        className="landingHero"
+        data-node-id={isLoggedIn ? "271:1283" : "164:1156"}
+      >
         {isLoggedIn ? (
           <CircularQueuePlayer {...player} />
         ) : (
@@ -2626,31 +3245,6 @@ function LandingPage({
           </div>
         )}
 
-        {isLoggedIn ? (
-          <form
-            className="landingAsk"
-            data-node-id="164:1161"
-            onSubmit={(event) => {
-              event.preventDefault();
-              onSend();
-            }}
-          >
-            <input
-              aria-label="对 Redio 说点什么"
-              disabled={isPlanning}
-              onChange={(event) => onDraftMessageChange(event.target.value)}
-              placeholder="Ask Anything"
-              value={draftMessage}
-            />
-            <button
-              aria-label="发送"
-              disabled={isPlanning}
-              type="submit"
-            >
-              <img alt="" aria-hidden="true" src="/images/redio-landing-send.svg" />
-            </button>
-          </form>
-        ) : null}
       </section>
 
       <img
@@ -2672,7 +3266,7 @@ function LandingPage({
   );
 }
 
-function BuyTokensButton({ onClick }: { onClick: () => void }) {
+function useFlowingGradientMotion(autoStart = true) {
   const gradientRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<number | null>(null);
 
@@ -2701,14 +3295,22 @@ function BuyTokensButton({ onClick }: { onClick: () => void }) {
   };
 
   useEffect(() => {
-    startAnimation();
+    if (autoStart) {
+      startAnimation();
+    }
     return stopAnimation;
   }, []);
 
+  return { gradientRef, startAnimation };
+}
+
+function AskAnythingButton({ onClick }: { onClick: () => void }) {
+  const { gradientRef, startAnimation } = useFlowingGradientMotion();
+
   return (
-    <div className="landingBuyTokensSlot">
+    <div className="landingAskAnythingSlot">
       <button
-        aria-label="Buy tokens"
+        aria-label="Ask Anything"
         className="button-gradient visible"
         onClick={onClick}
         onMouseEnter={startAnimation}
@@ -2718,35 +3320,30 @@ function BuyTokensButton({ onClick }: { onClick: () => void }) {
           <span className="gen-btn__icon">
             <svg
               aria-hidden="true"
-              fill="none"
-              height="22"
-              viewBox="0 0 21 21"
-              width="22"
+              fill="#ffffff"
+              height="24"
+              viewBox="0 0 24 24"
+              width="24"
               xmlns="http://www.w3.org/2000/svg"
             >
-              <mask
-                height="21"
-                id="mask0_buy_tokens"
-                maskUnits="userSpaceOnUse"
-                width="21"
-                x="0"
-                y="0"
-              >
-                <path d="M21 0H0V21H21V0Z" fill="white" />
-              </mask>
-              <g mask="url(#mask0_buy_tokens)">
+              <g clipPath="url(#clip0_3261_12990)">
                 <path
-                  d="M14.2191 12.4788L12.6428 12.8979C11.2852 13.2714 10.2283 14.3284 9.84564 15.6951L9.42652 17.2713C9.28074 17.7907 8.55182 17.7907 8.42426 17.2713L8.00514 15.6951C7.63157 14.3375 6.57466 13.2805 5.20796 12.8979L3.6317 12.4788C3.11235 12.333 3.11235 11.6041 3.6317 11.4765L5.20796 11.0574C6.56555 10.6838 7.62246 9.6269 8.00514 8.2602L8.42426 6.68394C8.57004 6.1646 9.29896 6.1646 9.42652 6.68394L9.84564 8.2602C10.2192 9.61779 11.2761 10.6747 12.6428 11.0574L14.2191 11.4765C14.7384 11.6223 14.7384 12.3512 14.2191 12.4788Z"
+                  d="M9.90999 6.62001C9.90999 6.62001 9.90999 6.59001 9.91999 6.57001C10.13 5.26001 11.04 4.12001 12.31 3.62001L15.91 2.23001C16.93 1.83001 18.09 1.97001 18.99 2.59001C19.9 3.20001 20.44 4.24001 20.44 5.33001C20.44 6.61001 19.5 7.97001 18.31 8.43001L11.63 11.02C11.46 11.09 11.32 11.29 11.32 11.47V17.56C11.32 20.31 8.78999 22.49 5.92999 21.89C4.25999 21.54 2.89999 20.19 2.54999 18.51C1.94999 15.65 4.12999 13.12 6.87999 13.12C8.02999 13.12 9.06999 13.55 9.85999 14.27V7.20001L9.90999 6.62001Z"
                   fill="white"
                 />
                 <path
-                  d="M17.9621 5.55421L17.2697 5.73643C16.6775 5.90044 16.2128 6.36512 16.0397 6.96646L15.8574 7.65893C15.7937 7.88671 15.4748 7.88671 15.4201 7.65893L15.2379 6.96646C15.0739 6.37423 14.6092 5.90955 14.0078 5.73643L13.3154 5.55421C13.0876 5.49043 13.0876 5.17153 13.3154 5.11686L14.0078 4.93464C14.6001 4.77063 15.0647 4.30596 15.2379 3.70461L15.4201 3.01215C15.4839 2.78436 15.8028 2.78436 15.8574 3.01215L16.0397 3.70461C16.2037 4.29684 16.6683 4.76152 17.2697 4.93464L17.9621 5.11686C18.1899 5.18064 18.1899 5.49954 17.9621 5.55421Z"
+                  d="M21.17 16.98C21.17 17.05 21.13 17.21 20.94 17.27L19.96 17.54C19.11 17.77 18.47 18.41 18.24 19.26L17.98 20.22C17.92 20.44 17.75 20.46 17.67 20.46C17.59 20.46 17.42 20.44 17.36 20.22L17.1 19.25C16.87 18.41 16.22 17.77 15.38 17.54L14.41 17.28C14.2 17.22 14.18 17.04 14.18 16.97C14.18 16.89 14.2 16.71 14.41 16.65L15.39 16.39C16.23 16.15 16.87 15.51 17.1 14.67L17.36 13.72L17.38 13.65C17.45 13.48 17.61 13.45 17.67 13.45C17.73 13.45 17.9 13.47 17.96 13.63L18.24 14.66C18.47 15.5 19.12 16.14 19.96 16.38L20.93 16.64L20.96 16.66C21.16 16.74 21.17 16.92 21.17 16.98Z"
                   fill="white"
                 />
               </g>
+              <defs>
+                <clipPath id="clip0_3261_12990">
+                  <rect fill="white" height="24" width="24" />
+                </clipPath>
+              </defs>
             </svg>
           </span>
-          <span>Buy tokens</span>
+          <span>Ask Anything</span>
         </div>
         <div className="border" />
         <div className="gradient-0" />
@@ -2785,10 +3382,12 @@ function CircularQueuePlayer({
   volume
 }: CircularQueuePlayerProps) {
   const dragStartXRef = useRef<number | null>(null);
+  const orbitRef = useRef<HTMLDivElement>(null);
   const suppressClickUntilRef = useRef(0);
   const volumeControlRef = useRef<HTMLDivElement>(null);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [orbitSize, setOrbitSize] = useState({ height: 0, width: 0 });
   const [isVolumePopoverOpen, setIsVolumePopoverOpen] = useState(false);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const volumePercent = Math.round(volume * 100);
@@ -2796,6 +3395,28 @@ function CircularQueuePlayer({
   const visibleTracks = tracks
     .map((track, index) => ({ index, offset: index - selectedTrackIndex, track }))
     .filter(({ offset }) => Math.abs(offset) <= 4);
+
+  useEffect(() => {
+    const orbit = orbitRef.current;
+    if (!orbit) {
+      return;
+    }
+
+    const updateOrbitSize = () => {
+      const { height, width } = orbit.getBoundingClientRect();
+      setOrbitSize((currentSize) =>
+        currentSize.height === height && currentSize.width === width
+          ? currentSize
+          : { height, width }
+      );
+    };
+
+    updateOrbitSize();
+    const observer = new ResizeObserver(updateOrbitSize);
+    observer.observe(orbit);
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!isVolumePopoverOpen) {
@@ -2856,6 +3477,7 @@ function CircularQueuePlayer({
       <div
         aria-label="即将播放队列，可左右滑动切歌"
         className={`queueOrbit ${isDragging ? "isDragging" : ""}`}
+        ref={orbitRef}
         onPointerCancel={(event) => finishDrag(event, false)}
         onPointerDown={(event) => {
           if (event.button !== 0) {
@@ -2883,8 +3505,10 @@ function CircularQueuePlayer({
         <div className="queueOrbitTrack">
           {visibleTracks.map(({ index, offset, track }) => {
             const absoluteOffset = Math.abs(offset);
-            const xOffsets = [0, 330, 585, 755, 900];
-            const yOffsets = [0, 100, 250, 470, 690];
+            const orbitWidth = orbitSize.width || 1200;
+            const orbitHeight = orbitSize.height || 600;
+            const xRatios = [0, 0.23, 0.41, 0.55, 0.67];
+            const yRatios = [0, 0.1, 0.25, 0.46, 0.7];
             const direction = offset < 0 ? -1 : 1;
             const coverUrl =
               track.coverUrl ?? queueFallbackCovers[index % queueFallbackCovers.length];
@@ -2911,8 +3535,8 @@ function CircularQueuePlayer({
                 style={
                   {
                     "--queue-cover-rotation": `${offset * 20}deg`,
-                    "--queue-cover-x": `${direction * xOffsets[absoluteOffset]}px`,
-                    "--queue-cover-y": `${yOffsets[absoluteOffset]}px`,
+                    "--queue-cover-x": `${direction * orbitWidth * xRatios[absoluteOffset]}px`,
+                    "--queue-cover-y": `${orbitHeight * yRatios[absoluteOffset]}px`,
                     zIndex: 10 - absoluteOffset
                   } as CSSProperties
                 }
@@ -3052,7 +3676,7 @@ function CircularQueuePlayer({
               disabled={duration <= 0}
               max={duration || 0}
               min="0"
-              onChange={(event) => onSeek(Number(event.target.value))}
+              onInput={(event) => onSeek(Number(event.currentTarget.value))}
               step="0.1"
               style={
                 {
@@ -3207,27 +3831,35 @@ function HistorySection({
 }
 
 function QqSourceSection({
+  bridgeStatus,
   cookieDraft,
   isDesktop,
   isOpen,
   isSaving,
   isWebLoginBusy,
+  onBridgeLogin,
   onClear,
   onCookieChange,
+  onDetectBridge,
   onDesktopLogin,
   onSave,
+  onSyncBridge,
   onToggle,
   status
 }: {
+  bridgeStatus: RedioBridgeStatus;
   cookieDraft: string;
   isDesktop: boolean;
   isOpen: boolean;
   isSaving: boolean;
   isWebLoginBusy: boolean;
+  onBridgeLogin: () => void;
   onClear: () => void;
   onCookieChange: (value: string) => void;
+  onDetectBridge: () => void;
   onDesktopLogin: () => void;
   onSave: () => void;
+  onSyncBridge: () => void;
   onToggle: () => void;
   status: QqLoginStatus | null;
 }) {
@@ -3238,6 +3870,19 @@ function QqSourceSection({
       : status?.hasCookie
         ? "Cookie 不完整"
         : "未连接";
+  const hasSavedLogin = Boolean(status?.loggedIn || status?.hasCookie);
+  const clearButtonLabel = status?.loggedIn ? "退出登录" : "清除 Cookie";
+  const bridgeNeedsReload =
+    bridgeStatus.connected && isRedioBridgeOutdated(bridgeStatus.version);
+  const primaryLoginLabel = isWebLoginBusy
+    ? "等待扫码"
+    : bridgeNeedsReload
+      ? "请重新加载 Bridge"
+    : bridgeStatus.connected
+      ? "扫码登录 QQ 音乐"
+      : isDesktop
+        ? "桌面端扫码登录"
+        : "安装 Bridge 后登录";
 
   return (
     <section className="sourceSection" aria-label="QQ 音源">
@@ -3248,10 +3893,24 @@ function QqSourceSection({
       {isOpen ? (
         <div className="sourcePanel">
           <p>
-            {isDesktop
-              ? "桌面客户端可以打开 QQ 音乐官方窗口扫码登录。Cookie 只保存在本机 data 目录，不会展示回页面。"
-              : "当前浏览器版需要手动导入 QQ 音乐 Cookie。Cookie 只保存在本机 data 目录，不会展示回页面。"}
+            Redio Bridge 可以读取你在 QQ 音乐官方网页的登录态，并只把必要 Cookie
+            保存到本机 data 目录。未安装 Bridge 时仍可使用桌面端登录或手动导入。
           </p>
+          <div className="bridgeStatusCard">
+            <span>Redio Bridge</span>
+            <strong className={bridgeStatus.connected && !bridgeNeedsReload ? "isReady" : ""}>
+              {bridgeStatus.checking
+                ? "检测中"
+                : bridgeNeedsReload
+                  ? `需重新加载 · v${bridgeStatus.version}`
+                : bridgeStatus.connected
+                  ? bridgeStatus.version
+                    ? `已连接 · v${bridgeStatus.version}`
+                    : "已连接"
+                  : "未安装"}
+            </strong>
+            <small>{bridgeStatus.message}</small>
+          </div>
           <div className="sourceStatusGrid">
             <span>账号</span>
             <strong>{status?.nickname ?? status?.userId ?? "未登录"}</strong>
@@ -3261,20 +3920,25 @@ function QqSourceSection({
           <div className="sourceLoginBlock">
             <button
               className="sourceLoginButton"
-              disabled={isSaving || isWebLoginBusy}
-              onClick={onDesktopLogin}
+              disabled={
+                isSaving ||
+                isWebLoginBusy ||
+                bridgeNeedsReload ||
+                (!bridgeStatus.connected && !isDesktop)
+              }
+              onClick={bridgeStatus.connected ? onBridgeLogin : onDesktopLogin}
               type="button"
             >
-              {isWebLoginBusy
-                ? "等待扫码"
-                : isDesktop
-                  ? "扫码登录 QQ 音乐"
-                  : "桌面端扫码登录"}
+              {primaryLoginLabel}
             </button>
             <small>
-              {isDesktop
-                ? "退出账号后可以从这里重新打开 QQ 音乐登录窗口。"
-                : "当前是浏览器预览，扫码登录需要在桌面客户端中使用；也可以继续手动粘贴 Cookie。"}
+              {bridgeStatus.connected
+                ? bridgeNeedsReload
+                  ? "请在 Chrome 扩展管理页重新加载 Redio Bridge，然后刷新当前页面。"
+                  : "点击后会打开 QQ 音乐官方网页，扫码完成后自动同步播放票据。"
+                : isDesktop
+                  ? "未检测到 Bridge，当前会使用桌面客户端登录窗口。"
+                  : "浏览器版需要先加载 bridge-extension 目录，或继续手动粘贴 Cookie。"}
             </small>
           </div>
           <textarea
@@ -3285,11 +3949,21 @@ function QqSourceSection({
             value={cookieDraft}
           />
           <div className="sourceActions">
+            <button disabled={bridgeStatus.checking} onClick={onDetectBridge} type="button">
+              {bridgeStatus.checking ? "检测中" : "重新检测"}
+            </button>
+            <button
+              disabled={isSaving || !bridgeStatus.connected || bridgeNeedsReload}
+              onClick={onSyncBridge}
+              type="button"
+            >
+              刷新登录状态
+            </button>
             <button disabled={isSaving} onClick={onSave} type="button">
               {isSaving ? "保存中" : "保存 Cookie"}
             </button>
-            <button disabled={isSaving || !status?.hasCookie} onClick={onClear} type="button">
-              清除
+            <button disabled={isSaving || !hasSavedLogin} onClick={onClear} type="button">
+              {isSaving && hasSavedLogin ? "处理中" : clearButtonLabel}
             </button>
           </div>
         </div>
@@ -3334,6 +4008,7 @@ function LogSection({
 
 function AskDock({
   disabled,
+  isLandingChat = false,
   isPlanning,
   message,
   onFocus,
@@ -3343,6 +4018,7 @@ function AskDock({
   showMicButton = false
 }: {
   disabled: boolean;
+  isLandingChat?: boolean;
   isPlanning: boolean;
   message: string;
   onFocus: () => void;
@@ -3351,15 +4027,25 @@ function AskDock({
   planningInputText: string;
   showMicButton?: boolean;
 }) {
+  const inputValue = isPlanning ? planningInputText : message;
+  const isLandingInputActive = isLandingChat && inputValue.trim().length > 0;
+  const isSendDisabled = disabled || (isLandingChat && inputValue.trim().length === 0);
+  const { gradientRef: sendGradientRef, startAnimation: startSendGradientAnimation } =
+    useFlowingGradientMotion(false);
+
   function handleSubmit() {
-    if (!disabled) {
+    if (!isSendDisabled) {
       onSend();
     }
   }
 
   return (
-    <div className="askDock">
+    <div
+      className={`askDock${isLandingChat ? " landingChatDefaultInput" : ""}${isLandingInputActive ? " isTyping" : ""}`}
+      data-node-id={isLandingChat ? (isLandingInputActive ? "277:1700" : "277:1661") : undefined}
+    >
       <input
+        data-node-id={isLandingChat ? (isLandingInputActive ? "277:1701" : "277:1662") : undefined}
         disabled={isPlanning}
         onChange={(event) => onMessageChange(event.target.value)}
         onClick={onFocus}
@@ -3370,8 +4056,8 @@ function AskDock({
             handleSubmit();
           }
         }}
-        placeholder="Ask Anything"
-        value={isPlanning ? planningInputText : message}
+        placeholder={isLandingChat ? "Tell me your mood" : "Ask Anything"}
+        value={inputValue}
       />
       {showMicButton ? (
         <button
@@ -3386,12 +4072,40 @@ function AskDock({
       ) : null}
       <button
         aria-label="发送"
-        className="sendButton"
-        disabled={disabled}
+        className={`sendButton${isLandingChat ? " sendGradientButton" : ""}`}
+        data-node-id={isLandingChat ? (isSendDisabled ? "281:419" : "281:426") : undefined}
+        disabled={isSendDisabled}
         onClick={handleSubmit}
+        onMouseEnter={isLandingChat && !isSendDisabled ? startSendGradientAnimation : undefined}
         type="button"
       >
-        <MessageSendIcon />
+        {isLandingChat ? (
+          <>
+            <img
+              alt=""
+              aria-hidden="true"
+              className="messageSendIcon"
+              data-node-id={isSendDisabled ? "281:420" : "281:427"}
+              src="/images/figma-chat-send.svg"
+            />
+            <div aria-hidden="true" className="button-gradient visible sendGradientEffect">
+              <div className="border" />
+              <div className="gradient-0" />
+              <div className="gradient-1" />
+              <div className="glass" />
+              <div className="gradient-2" ref={sendGradientRef}>
+                <div className="color-1 color" />
+                <div className="color-2 color" />
+                <div className="color-3 color" />
+                <div className="color-4 color" />
+                <div className="color-5 color" />
+                <div className="color-6 color" />
+              </div>
+            </div>
+          </>
+        ) : (
+          <MessageSendIcon />
+        )}
       </button>
     </div>
   );
@@ -3548,28 +4262,39 @@ function ChatWindow({
   }, [latestMessageId, isPlanning, visibleHistoryEntryCount]);
 
   return (
-    <section className={`chatWindow ${isLandingChat ? "isLandingChat" : ""}`}>
-      <header className="chatHeader">
-        <div>
-          <RedioMarkIcon />
-          <h2>Redio</h2>
+    <section
+      className={`chatWindow ${isLandingChat ? "isLandingChat" : ""}`}
+      data-node-id={isLandingChat ? "276:884" : undefined}
+    >
+      <header className="chatHeader" data-node-id={isLandingChat ? "276:885" : undefined}>
+        <div data-node-id={isLandingChat ? "276:886" : undefined}>
+          <img
+            alt=""
+            aria-hidden="true"
+            className="redioMarkIcon"
+            data-node-id={isLandingChat ? "276:887" : undefined}
+            src="/images/figma-chat-redio-mark.svg"
+          />
+          <h2 data-node-id={isLandingChat ? "276:888" : undefined}>Redio</h2>
         </div>
         <button
           aria-label="关闭对话"
+          data-node-id={isLandingChat ? "276:889" : undefined}
           onClick={onClose}
           type="button"
         >
           <img
             alt=""
             aria-hidden="true"
-            className="chatCollapseIcon"
-            src="/images/redio-chat-collapse.svg"
+            className="chatCloseIcon"
+            src="/images/figma-chat-close.svg"
           />
         </button>
       </header>
 
       <div
         className="chatMessages"
+        data-node-id={isLandingChat ? "276:891" : undefined}
         ref={chatMessagesRef}
         onScroll={(event) => {
           if (event.currentTarget.scrollTop <= 12 && hasMoreHistory) {
@@ -3634,18 +4359,17 @@ function ChatWindow({
 
       {error ? <p className="chatReason">{error}</p> : null}
 
-      {!isLandingChat ? (
-        <AskDock
-          disabled={isPlanning}
-          isPlanning={isPlanning}
-          message={message}
-          onFocus={() => undefined}
-          onMessageChange={onMessageChange}
-          onSend={onSend}
-          planningInputText={planningInputText}
-          showMicButton
-        />
-      ) : null}
+      <AskDock
+        disabled={isPlanning}
+        isLandingChat={isLandingChat}
+        isPlanning={isPlanning}
+        message={message}
+        onFocus={() => undefined}
+        onMessageChange={onMessageChange}
+        onSend={onSend}
+        planningInputText={planningInputText}
+        showMicButton={!isLandingChat}
+      />
     </section>
   );
 }

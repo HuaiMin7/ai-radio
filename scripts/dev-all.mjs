@@ -95,7 +95,7 @@ try {
   console.log("");
   console.log("Press Ctrl+C to stop services started by this command.");
 
-  await new Promise(() => {});
+  setInterval(() => {}, 60 * 60 * 1000);
 } catch (error) {
   shutdown();
   console.error(error instanceof Error ? error.message : error);

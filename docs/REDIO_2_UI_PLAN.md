@@ -135,7 +135,8 @@ Exit criteria:
 
 ## 7. Git Workflow
 
-- Development branch: `codex/redio-2.0-ui`.
+- Development branches follow `docs/AGENT_COLLABORATION.md`; UI work uses the
+  `Seal/<frontend-interaction>` lane.
 - Keep baseline fixes, structural changes, visual changes, and verification
   fixes in separate commits when practical.
 - Do not change the package version during exploration.
