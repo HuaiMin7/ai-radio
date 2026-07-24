@@ -7,6 +7,7 @@ import {
   type ReactNode,
   type SyntheticEvent
 } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { StarfieldCanvas } from "./StarfieldCanvas";
 
 declare global {
@@ -115,7 +116,9 @@ type ChatMessage = {
   id: string;
   role: "assistant" | "user";
   text: string;
+  createdAt: string;
   plan?: DjPlan;
+  shouldAnimate?: boolean;
 };
 
 type RecommendedTrack = DjPlan["play"][number];
@@ -471,6 +474,22 @@ function formatHistoryTime(createdAt: string) {
   }).format(new Date(createdAt));
 }
 
+function getMessageTimestamp(createdAt: string) {
+  const date = new Date(createdAt);
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      date: "--/--",
+      time: "--:--"
+    };
+  }
+
+  return {
+    date: `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}`,
+    time: `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`
+  };
+}
+
 function formatLogTime(createdAt: string) {
   return new Intl.DateTimeFormat("zh-CN", {
     hour: "2-digit",
@@ -610,20 +629,23 @@ function getPlanningCopy(message: string) {
   if (!message.trim()) {
     return {
       input: "正在生成...",
-      bubble: "正在准备下一段电台节目..."
+      bubble: "正在准备下一段电台节目",
+      mode: "program" as const
     };
   }
 
   if (!noMusicIntentPattern.test(message) && musicIntentPattern.test(message)) {
     return {
-      input: "正在挑歌...",
-      bubble: "正在挑一首适合你的歌..."
+      input: "正在理解...",
+      bubble: "正在理解你的意思",
+      mode: "music" as const
     };
   }
 
   return {
     input: "正在思考...",
-    bubble: "让我想想怎么回你..."
+    bubble: "让我想想怎么回你",
+    mode: "chat" as const
   };
 }
 
@@ -1697,10 +1719,32 @@ export function App() {
 
     const trimmedMessage = message.trim();
     const userMessage = trimmedMessage || "生成下一段节目";
+    const initialPlanningCopy = getPlanningCopy(userMessage);
+    const planningStageTimers: number[] = [];
 
     unlockBrowserAudioPlayback();
     planningRequestInFlightRef.current = true;
-    setPlanningCopy(getPlanningCopy(userMessage));
+    setPlanningCopy(initialPlanningCopy);
+
+    if (initialPlanningCopy.mode === "music") {
+      planningStageTimers.push(
+        window.setTimeout(() => {
+          setPlanningCopy({
+            input: "正在挑歌...",
+            bubble: "正在挑选适合你的歌",
+            mode: "music"
+          });
+        }, 900),
+        window.setTimeout(() => {
+          setPlanningCopy({
+            input: "正在确认音源...",
+            bubble: "正在确认可播放音源",
+            mode: "music"
+          });
+        }, 3200)
+      );
+    }
+
     setIsPlanning(true);
     setIsChatOpen(true);
     setError(null);
@@ -1711,7 +1755,8 @@ export function App() {
       {
         id: createMessageId(),
         role: "user",
-        text: userMessage
+        text: userMessage,
+        createdAt: new Date().toISOString()
       }
     ]);
 
@@ -1733,7 +1778,9 @@ export function App() {
           {
             id: createMessageId(),
             role: "assistant",
-            text: response.message
+            text: response.message,
+            createdAt: new Date().toISOString(),
+            shouldAnimate: true
           }
         ]);
         return;
@@ -1809,7 +1856,9 @@ export function App() {
           id: createMessageId(),
           role: "assistant",
           text: state.currentPlan?.say ?? "已生成新的电台段落。",
-          plan: state.currentPlan ?? undefined
+          createdAt: new Date().toISOString(),
+          plan: state.currentPlan ?? undefined,
+          shouldAnimate: true
         }
       ]);
     } catch (requestError) {
@@ -1825,10 +1874,12 @@ export function App() {
         {
           id: createMessageId(),
           role: "assistant",
-          text: errorMessage
+          text: errorMessage,
+          createdAt: new Date().toISOString()
         }
       ]);
     } finally {
+      planningStageTimers.forEach((timer) => window.clearTimeout(timer));
       planningRequestInFlightRef.current = false;
       setIsPlanning(false);
     }
@@ -2556,6 +2607,18 @@ export function App() {
         setAppView("agent");
       }}
       onMessageChange={setDraftMessage}
+      onMessageAnimationComplete={(messageId) => {
+        setMessages((currentMessages) =>
+          currentMessages.map((chatMessage) =>
+            chatMessage.id === messageId
+              ? {
+                  ...chatMessage,
+                  shouldAnimate: false
+                }
+              : chatMessage
+          )
+        );
+      }}
       onSend={generateSegment}
       plan={plan}
       planningInputText={planningCopy.input}
@@ -2580,6 +2643,39 @@ export function App() {
       onToggleManualCookie={() => setIsManualCookieOpen((isOpen) => !isOpen)}
     />
   ) : null;
+  const settingsSections = (
+    <>
+      <HistorySection
+        entries={historyEntries}
+        isOpen={isHistoryOpen}
+        onToggle={() => setIsHistoryOpen((isOpen) => !isOpen)}
+      />
+
+      <QqSourceSection
+        bridgeStatus={redioBridgeStatus}
+        cookieDraft={qqCookieDraft}
+        isOpen={isQqSourceOpen}
+        isSaving={isQqSaving}
+        onClear={() => void clearQqCookie()}
+        onCookieChange={setQqCookieDraft}
+        onDetectBridge={() => void detectRedioBridge()}
+        onDesktopLogin={() => void openQqDesktopLogin()}
+        onBridgeLogin={() => void openQqBridgeLogin()}
+        onSave={() => void saveQqCookie()}
+        onSyncBridge={() => void syncQqCookieFromBridge()}
+        onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
+        isDesktop={Boolean(window.redioDesktop?.isDesktop)}
+        isWebLoginBusy={isQqWebLoginBusy}
+        status={qqLoginStatus}
+      />
+
+      <LogSection
+        entries={logs}
+        isOpen={isLogOpen}
+        onToggle={() => setIsLogOpen((isOpen) => !isOpen)}
+      />
+    </>
+  );
   const enterRadioView = (view: AppView) => {
     setAppView(view);
     setHasEnteredRadio(true);
@@ -2598,7 +2694,8 @@ export function App() {
         {isSpeaking && activeDjText ? <DjSpeechBubble text={activeDjText} /> : null}
         <LandingPage
           chatWindow={chatWindow}
-          error={error}
+          error={playbackToast ? null : error}
+          hasPlaybackToast={Boolean(playbackToast)}
           isLoginBusy={isQqWebLoginBusy}
           onEnter={enterRadioView}
           onLogin={openLoginModal}
@@ -2623,6 +2720,7 @@ export function App() {
             tracks,
             volume
           }}
+          settingsContent={settingsSections}
           status={qqLoginStatus}
         />
         {loginModal}
@@ -2678,35 +2776,7 @@ export function App() {
             </div>
 
             <div className="settingsScrollArea">
-              <HistorySection
-                entries={historyEntries}
-                isOpen={isHistoryOpen}
-                onToggle={() => setIsHistoryOpen((isOpen) => !isOpen)}
-              />
-
-              <QqSourceSection
-                bridgeStatus={redioBridgeStatus}
-                cookieDraft={qqCookieDraft}
-                isOpen={isQqSourceOpen}
-                isSaving={isQqSaving}
-                onClear={() => void clearQqCookie()}
-                onCookieChange={setQqCookieDraft}
-                onDetectBridge={() => void detectRedioBridge()}
-                onDesktopLogin={() => void openQqDesktopLogin()}
-                onBridgeLogin={() => void openQqBridgeLogin()}
-                onSave={() => void saveQqCookie()}
-                onSyncBridge={() => void syncQqCookieFromBridge()}
-                onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
-                isDesktop={Boolean(window.redioDesktop?.isDesktop)}
-                isWebLoginBusy={isQqWebLoginBusy}
-                status={qqLoginStatus}
-              />
-
-              <LogSection
-                entries={logs}
-                isOpen={isLogOpen}
-                onToggle={() => setIsLogOpen((isOpen) => !isOpen)}
-              />
+              {settingsSections}
             </div>
           </section>
         ) : (
@@ -3000,28 +3070,86 @@ function LoginModal({
   );
 }
 
+const DJ_WAVE_EASE = [0.4, 0, 0.6, 1] as [number, number, number, number];
+const DJ_WAVE_BARS = [
+  {
+    nodeId: "325:415",
+    initialHeight: 8,
+    heights: [8, 18, 6, 16, 4, 14, 8],
+    times: [0, 0.15, 0.3, 0.5, 0.7, 0.85, 1]
+  },
+  {
+    nodeId: "325:416",
+    initialHeight: 14,
+    heights: [14, 6, 20, 8, 18, 5, 16, 14],
+    times: [0, 0.125, 0.275, 0.425, 0.6, 0.775, 0.9, 1]
+  },
+  {
+    nodeId: "325:417",
+    initialHeight: 10,
+    heights: [10, 20, 4, 18, 6, 16, 10],
+    times: [0, 0.175, 0.325, 0.475, 0.65, 0.8, 1]
+  },
+  {
+    nodeId: "325:418",
+    initialHeight: 6,
+    heights: [6, 16, 4, 20, 6, 14, 4, 18, 6],
+    times: [0, 0.1, 0.225, 0.35, 0.5, 0.65, 0.8, 0.925, 1]
+  }
+] satisfies Array<{
+  nodeId: string;
+  initialHeight: number;
+  heights: number[];
+  times: number[];
+}>;
+
 function DjSpeechBubble({ text }: { text: string }) {
+  const shouldReduceMotion = useReducedMotion();
+
   return (
     <aside
       aria-live="polite"
       className="djSpeechBubble"
-      data-node-id="193:665"
+      data-node-id="320:422"
       role="status"
     >
       <img
         alt="Redio DJ"
         className="djSpeechBubbleAvatar"
-        data-node-id="193:666"
+        data-node-id="320:406"
         src="/images/agent-dj.png"
       />
-      <p data-node-id="193:668">{text}</p>
-      <img
-        alt=""
+      <p data-node-id="320:408">{text}</p>
+      <div
         aria-hidden="true"
         className="djSpeechBubbleWaveform"
-        data-node-id="193:669"
-        src="/images/redio-dj-waveform.png"
-      />
+        data-node-id="325:414"
+      >
+        {DJ_WAVE_BARS.map((bar) => (
+          <motion.span
+            animate={
+              shouldReduceMotion
+                ? { height: bar.initialHeight }
+                : { height: bar.heights }
+            }
+            data-node-id={bar.nodeId}
+            initial={{ height: bar.initialHeight }}
+            key={bar.nodeId}
+            transition={
+              shouldReduceMotion
+                ? { duration: 0 }
+                : {
+                    height: {
+                      duration: 2,
+                      times: bar.times,
+                      ease: DJ_WAVE_EASE,
+                      repeat: Infinity
+                    }
+                  }
+            }
+          />
+        ))}
+      </div>
     </aside>
   );
 }
@@ -3029,28 +3157,33 @@ function DjSpeechBubble({ text }: { text: string }) {
 function LandingPage({
   chatWindow,
   error,
+  hasPlaybackToast,
   isLoginBusy,
   onEnter,
   onLogin,
   onLogout,
   onOpenChat,
   player,
+  settingsContent,
   status
 }: {
   chatWindow: ReactNode;
   error: string | null;
+  hasPlaybackToast: boolean;
   isLoginBusy: boolean;
   onEnter: (view: AppView) => void;
   onLogin: () => void;
   onLogout: () => void;
   onOpenChat: () => void;
   player: CircularQueuePlayerProps;
+  settingsContent: ReactNode;
   status: QqLoginStatus | null;
 }) {
   const accountLabel = status?.nickname ?? status?.userId ?? "账号昵称";
   const isLoggedIn = status?.loggedIn === true;
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState<"home" | "settings">("home");
 
   useEffect(() => {
     if (!isAccountMenuOpen) {
@@ -3085,7 +3218,10 @@ function LandingPage({
   }, [isLoggedIn]);
 
   return (
-    <main className={`landingPage ${isLoggedIn ? "isLoggedIn" : ""}`} data-node-id="164:1145">
+    <main
+      className={`landingPage ${isLoggedIn ? "isLoggedIn" : ""}${hasPlaybackToast ? " hasPlaybackToast" : ""}`}
+      data-node-id="164:1145"
+    >
       <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
         <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
           <button
@@ -3104,9 +3240,9 @@ function LandingPage({
           data-node-id={isLoggedIn ? "239:870" : "232:737"}
         >
           <button
-            aria-current="page"
+            aria-current={activeSection === "home" ? "page" : undefined}
             data-node-id={isLoggedIn ? "239:871" : "232:738"}
-            onClick={() => onEnter("radio")}
+            onClick={() => setActiveSection("home")}
             type="button"
           >
             Home
@@ -3119,8 +3255,9 @@ function LandingPage({
             Chat
           </button>
           <button
+            aria-current={activeSection === "settings" ? "page" : undefined}
             data-node-id={isLoggedIn ? "239:873" : "232:740"}
-            onClick={() => onEnter("settings")}
+            onClick={() => setActiveSection("settings")}
             type="button"
           >
             Setting
@@ -3185,9 +3322,12 @@ function LandingPage({
                     <div className="landingAccountMenuDividerGap" data-node-id="262:764" />
 
                     <button
-                      aria-label="Settings（暂未开放）"
                       className="landingAccountMenuItem"
                       data-node-id="262:729"
+                      onClick={() => {
+                        setIsAccountMenuOpen(false);
+                        setActiveSection("settings");
+                      }}
                       role="menuitem"
                       type="button"
                     >
@@ -3232,20 +3372,25 @@ function LandingPage({
         </p>
       ) : null}
 
-      <section
-        className="landingHero"
-        data-node-id={isLoggedIn ? "271:1283" : "164:1156"}
-      >
-        {isLoggedIn ? (
-          <CircularQueuePlayer {...player} />
-        ) : (
-          <div className="landingHeroCopy" data-node-id="164:1638">
-            <h1 data-node-id="164:1639">Music&apos;s</h1>
-            <p data-node-id="164:1640">你的心情，自有频率</p>
-          </div>
-        )}
-
-      </section>
+      {activeSection === "settings" ? (
+        <section className="landingSettingsPage" aria-label="设置">
+          <div className="landingSettingsScroll">{settingsContent}</div>
+        </section>
+      ) : (
+        <section
+          className="landingHero"
+          data-node-id={isLoggedIn ? "271:1283" : "164:1156"}
+        >
+          {isLoggedIn ? (
+            <CircularQueuePlayer {...player} />
+          ) : (
+            <div className="landingHeroCopy" data-node-id="164:1638">
+              <h1 data-node-id="164:1639">Music&apos;s</h1>
+              <p data-node-id="164:1640">你的心情，自有频率</p>
+            </div>
+          )}
+        </section>
+      )}
 
       <img
         alt=""
@@ -3253,13 +3398,6 @@ function LandingPage({
         className="landingGlow"
         data-node-id="164:1648"
         src="/images/redio-landing-ellipse.svg"
-      />
-      <img
-        alt=""
-        aria-hidden="true"
-        className="landingStars"
-        data-node-id="164:1649"
-        src="/images/redio-landing-starfield.svg"
       />
       <StarfieldCanvas />
     </main>
@@ -3507,8 +3645,8 @@ function CircularQueuePlayer({
             const absoluteOffset = Math.abs(offset);
             const orbitWidth = orbitSize.width || 1200;
             const orbitHeight = orbitSize.height || 600;
-            const xRatios = [0, 0.23, 0.41, 0.55, 0.67];
-            const yRatios = [0, 0.1, 0.25, 0.46, 0.7];
+            const xRatios = [0, 0.216, 0.4, 0.516, 0.67];
+            const yRatios = [0, 0.149, 0.344, 0.626, 0.76];
             const direction = offset < 0 ? -1 : 1;
             const coverUrl =
               track.coverUrl ?? queueFallbackCovers[index % queueFallbackCovers.length];
@@ -3991,15 +4129,21 @@ function LogSection({
       </button>
       {isOpen ? (
         <div className="logList">
-          {visibleEntries.map((entry) => (
-            <article className={`logItem is-${entry.level}`} key={entry.id}>
-              <div>
-                <span>{formatLogTime(entry.createdAt)}</span>
+          {visibleEntries.map((entry) => {
+            const levelLabel =
+              entry.level === "success" ? "成功" : entry.level === "error" ? "异常" : "信息";
+
+            return (
+              <article className={`logItem is-${entry.level}`} key={entry.id}>
+                <div className="logMeta">
+                  <span>{formatLogTime(entry.createdAt)}</span>
+                  <em>{levelLabel}</em>
+                </div>
                 <strong>{entry.message}</strong>
-              </div>
-              {entry.detail ? <p>{entry.detail}</p> : null}
-            </article>
-          ))}
+                {entry.detail ? <p>{entry.detail}</p> : null}
+              </article>
+            );
+          })}
         </div>
       ) : null}
     </section>
@@ -4111,6 +4255,17 @@ function AskDock({
   );
 }
 
+function MessageTimestamp({ createdAt }: { createdAt: string }) {
+  const timestamp = getMessageTimestamp(createdAt);
+
+  return (
+    <time className="messageMeta" dateTime={createdAt}>
+      <span>{timestamp.date}</span>
+      <span>{timestamp.time}</span>
+    </time>
+  );
+}
+
 function ChatWindow({
   error,
   historyEntries,
@@ -4122,6 +4277,7 @@ function ChatWindow({
   onClose,
   onLoadMoreHistory,
   onOpenAgentProfile,
+  onMessageAnimationComplete,
   onMessageChange,
   onSend,
   plan,
@@ -4139,6 +4295,7 @@ function ChatWindow({
   onClose: () => void;
   onLoadMoreHistory: () => void;
   onOpenAgentProfile: () => void;
+  onMessageAnimationComplete: (messageId: string) => void;
   onMessageChange: (message: string) => void;
   onSend: () => void;
   plan: DjPlan | null | undefined;
@@ -4148,6 +4305,7 @@ function ChatWindow({
 }) {
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
   const previousVisibleHistoryCountRef = useRef(visibleHistoryEntryCount);
+  const introCreatedAtRef = useRef(new Date().toISOString());
   const [expandedTrackMessageIds, setExpandedTrackMessageIds] = useState<Set<string>>(
     () => new Set()
   );
@@ -4188,7 +4346,8 @@ function ChatWindow({
         restoredMessages.push({
           id: `${entry.id}-user`,
           role: "user",
-          text: entry.userMessage
+          text: entry.userMessage,
+          createdAt: entry.createdAt
         });
       }
 
@@ -4196,6 +4355,7 @@ function ChatWindow({
         id: `${entry.id}-assistant`,
         role: "assistant",
         text: entry.say,
+        createdAt: entry.createdAt,
         plan: entryPlan
       });
 
@@ -4211,11 +4371,22 @@ function ChatWindow({
             text: isLoading
               ? "正在读取本地电台状态..."
               : plan?.say ?? "我已经准备好根据你的资料生成下一段节目。",
+            createdAt: introCreatedAtRef.current,
             plan: plan ?? undefined
           }
       ];
   const hasMoreHistory = visibleHistoryEntryCount < historyEntries.length;
   const latestMessageId = visibleMessages[visibleMessages.length - 1]?.id ?? "";
+  const planningCreatedAt =
+    messages[messages.length - 1]?.createdAt ?? introCreatedAtRef.current;
+
+  function keepLatestMessageVisible() {
+    const chatMessages = chatMessagesRef.current;
+
+    if (chatMessages) {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  }
 
   function toggleAllTracks(messageId: string) {
     setExpandedTrackMessageIds((currentIds) => {
@@ -4320,11 +4491,16 @@ function ChatWindow({
                 type="button"
               />
             ) : null}
-            <div>
-              <small>{chatMessage.role === "user" ? "Me" : "Redio"}</small>
+            <div className="messageContent">
+              <MessageTimestamp createdAt={chatMessage.createdAt} />
               <p>
                 {chatMessage.role === "assistant" ? (
-                  <TypewriterText text={getAssistantBubbleText(chatMessage)} />
+                  <TypewriterText
+                    animate={Boolean(chatMessage.shouldAnimate)}
+                    onComplete={() => onMessageAnimationComplete(chatMessage.id)}
+                    onProgress={keepLatestMessageVisible}
+                    text={getAssistantBubbleText(chatMessage)}
+                  />
                 ) : (
                   chatMessage.text
                 )}
@@ -4349,9 +4525,13 @@ function ChatWindow({
               onClick={onOpenAgentProfile}
               type="button"
             />
-            <div>
-              <small>Redio</small>
-              <p>{planningText}</p>
+            <div className="messageContent">
+              <MessageTimestamp createdAt={planningCreatedAt} />
+              <p className="planningBubble">
+                <span className="thinkingShimmer" data-text={planningText}>
+                  {planningText}
+                </span>
+              </p>
             </div>
           </div>
         ) : null}
@@ -4384,43 +4564,91 @@ function getAssistantBubbleText(message: ChatMessage) {
   return message.text;
 }
 
-function TypewriterText({ text }: { text: string }) {
-  const [visibleLength, setVisibleLength] = useState(text.length);
-  const hasMountedRef = useRef(false);
+function getTypewriterDelay(character: string) {
+  if (/[。！？!?]/.test(character)) {
+    return 120;
+  }
+
+  if (/[，、；：,.]/.test(character)) {
+    return 72;
+  }
+
+  return 30;
+}
+
+function TypewriterText({
+  animate,
+  onComplete,
+  onProgress,
+  text
+}: {
+  animate: boolean;
+  onComplete: () => void;
+  onProgress: () => void;
+  text: string;
+}) {
+  const [visibleLength, setVisibleLength] = useState(() => (animate ? 0 : text.length));
+  const onCompleteRef = useRef(onComplete);
+  const onProgressRef = useRef(onProgress);
 
   useEffect(() => {
-    if (hasMountedRef.current) {
+    onCompleteRef.current = onComplete;
+    onProgressRef.current = onProgress;
+  }, [onComplete, onProgress]);
+
+  useEffect(() => {
+    if (!animate) {
       setVisibleLength(text.length);
       return;
     }
 
-    hasMountedRef.current = true;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setVisibleLength(text.length);
+      onCompleteRef.current();
+      return;
+    }
+
     setVisibleLength(0);
 
     if (!text) {
+      onCompleteRef.current();
       return;
     }
 
     let nextLength = 0;
-    const interval = window.setInterval(() => {
+    let timeout = 0;
+
+    const typeNextCharacter = () => {
       nextLength += 1;
       setVisibleLength(nextLength);
 
       if (nextLength >= text.length) {
-        window.clearInterval(interval);
+        onCompleteRef.current();
+        return;
       }
-    }, 18);
 
-    return () => window.clearInterval(interval);
-  }, [text]);
+      timeout = window.setTimeout(
+        typeNextCharacter,
+        getTypewriterDelay(text[nextLength - 1] ?? "")
+      );
+    };
+
+    timeout = window.setTimeout(typeNextCharacter, 80);
+
+    return () => window.clearTimeout(timeout);
+  }, [animate, text]);
 
   const isTyping = visibleLength < text.length;
 
+  useEffect(() => {
+    onProgressRef.current();
+  }, [visibleLength]);
+
   return (
-    <>
-      <span>{text.slice(0, visibleLength)}</span>
+    <span aria-label={text}>
+      <span aria-hidden="true">{text.slice(0, visibleLength)}</span>
       {isTyping ? <span aria-hidden="true" className="typewriterCursor" /> : null}
-    </>
+    </span>
   );
 }
 
