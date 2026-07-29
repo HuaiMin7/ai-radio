@@ -30,11 +30,24 @@ export async function synthesizeSpeech(
   if (getTtsProvider() === "aliyun-qwen-tts") {
     try {
       return await synthesizeAliyunQwenSpeech(rootDir, normalizedText);
-    } catch {
-      return {
-        ...(await synthesizeMacosSpeech(rootDir, normalizedText)),
-        fallback: true
-      };
+    } catch (error) {
+      if (process.platform !== "darwin") {
+        throw new Error(`Aliyun Qwen-TTS failed: ${readErrorMessage(error)}`);
+      }
+
+      try {
+        return {
+          ...(await synthesizeMacosSpeech(rootDir, normalizedText)),
+          fallback: true
+        };
+      } catch (fallbackError) {
+        throw new Error(
+          [
+            `Aliyun Qwen-TTS failed: ${readErrorMessage(error)}`,
+            `macOS say fallback failed: ${readErrorMessage(fallbackError)}`
+          ].join("; ")
+        );
+      }
     }
   }
 
@@ -103,6 +116,12 @@ async function synthesizeMacosSpeech(
   rootDir: string,
   normalizedText: string
 ): Promise<TtsResult> {
+  if (process.platform !== "darwin") {
+    throw new Error(
+      "macOS say fallback is unavailable on this server; configure Aliyun Qwen-TTS"
+    );
+  }
+
   const voice = process.env.AI_RADIO_TTS_MACOS_VOICE;
   const rate = process.env.AI_RADIO_TTS_MACOS_RATE;
   const id = createTtsId(["macos-say", voice ?? "", rate ?? "", normalizedText]);
@@ -168,11 +187,15 @@ function getTtsProvider() {
     return "aliyun-qwen-tts";
   }
 
-  return "macos-say";
+  return process.platform === "darwin" ? "macos-say" : "aliyun-qwen-tts";
 }
 
 function createTtsId(parts: string[]) {
   return createHash("sha256").update(parts.join("\n")).digest("hex").slice(0, 24);
+}
+
+function readErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "unknown error";
 }
 
 async function getPythonExecutable(rootDir: string) {

@@ -115,7 +115,11 @@ seed profile in `user/` is still common to all accounts.
 - Each generated intro targets 60-100 Chinese characters and is capped at 100.
 - The song starts with its DJ intro; while the DJ speaks, music ramps to 50% of
   the selected volume and returns afterward.
-- Qwen TTS converts the text to speech. macOS `say` remains the local fallback.
+- Qwen TTS converts the text to speech. Install its Python dependency with
+  `.venv/bin/pip install -r server/requirements-tts.txt`.
+- macOS `say` remains a local fallback on macOS only. Linux deployments require
+  `AI_RADIO_TTS_PROVIDER=aliyun-qwen-tts` and `DASHSCOPE_API_KEY` (or
+  `AI_RADIO_MODEL_API_KEY`).
 
 The old NetEase adapter is retained in code only. It is no longer part of the
 default product path. For isolated legacy testing, explicitly set:
