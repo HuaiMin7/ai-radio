@@ -71,6 +71,21 @@ try {
     "utf8"
   );
   assert.equal(encryptedFile.includes("secret-playback-key"), false);
+  const bridgeManifest = JSON.parse(
+    await readFile(
+      new URL("../bridge-extension/manifest.json", import.meta.url),
+      "utf8"
+    )
+  ) as {
+    version?: string;
+    content_scripts?: Array<{ matches?: string[] }>;
+  };
+  const bridgeMatches = bridgeManifest.content_scripts?.flatMap(
+    (entry) => entry.matches ?? []
+  ) ?? [];
+
+  assert.equal(bridgeManifest.version, "0.1.5");
+  assert.equal(bridgeMatches.includes("https://www.halou.net.cn/*"), true);
 
   await appendChatTurn(
     rootDir,
@@ -119,11 +134,16 @@ try {
       }
     });
     const health = await fetch(`${baseUrl}/api/health`);
+    process.env.AI_RADIO_PUBLIC_DEMO = "1";
+    const publicBridgeLogin = await fetch(`${baseUrl}/api/qq/login/cookie`, {
+      method: "POST"
+    });
 
     assert.equal(unauthenticated.status, 401);
     assert.equal(authenticated.status, 200);
     assert.equal((await authenticated.json() as unknown[]).length, 2);
     assert.equal(health.status, 200);
+    assert.equal(publicBridgeLogin.status, 400);
 
     const sessionToken = createSessionToken(firstUser, Date.now() - 10);
     await revokeUserSessions(rootDir, firstUser);

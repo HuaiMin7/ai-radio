@@ -527,18 +527,6 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "POST" && url.pathname === "/api/qq/login/cookie") {
-        if (isPublicDemo() && !authenticatedUser) {
-          sendJsonWithCors(
-            response,
-            403,
-            {
-              error: "请先通过服务端 QQ 扫码登录"
-            },
-            origin
-          );
-          return;
-        }
-
         const body = await readJsonBody(request);
         const cookie = readCookieRequest(body);
 

@@ -1,13 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Redio Bridge",
-  "description": "Bridge QQ Music web login cookies to local Redio.",
-  "version": "0.1.4",
+  "description": "Bridge QQ Music web login state to Redio.",
+  "version": "0.1.5",
   "permissions": ["cookies", "tabs"],
   "host_permissions": [
     "https://qq.com/*",
     "https://*.qq.com/*",
     "https://y.qq.com/*",
+    "https://halou.net.cn/*",
+    "https://www.halou.net.cn/*",
     "http://127.0.0.1:5173/*",
     "http://localhost:5173/*"
   ],
@@ -16,7 +18,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["http://127.0.0.1:5173/*", "http://localhost:5173/*"],
+      "matches": [
+        "https://halou.net.cn/*",
+        "https://www.halou.net.cn/*",
+        "http://127.0.0.1:5173/*",
+        "http://localhost:5173/*"
+      ],
       "js": ["content-script.js"],
       "run_at": "document_start"
     },

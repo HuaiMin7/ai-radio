@@ -83,11 +83,10 @@ Set this value in `.env`:
 AI_RADIO_MUSIC_PROVIDER=qq
 ```
 
-The public site uses a server-generated QQ QR code and verifies the completed
-QQ authorization before issuing Redio's signed, HttpOnly session. QQ
-credentials are encrypted per music account under `data/users/`; they are
-never returned to the browser. The desktop client and Redio Bridge remain
-available for local provider testing.
+The web app uses Redio Bridge to open QQ Music's official login page and sync
+the resulting QQ login state. The server verifies the account before issuing
+Redio's signed, HttpOnly session. QQ credentials are encrypted per music
+account under `data/users/`; they are never returned by the Redio API.
 
 If QQ Music does not return a playable URL, the result remains explicitly
 `failed`; Redio may try another playable taste-sample track, but it does not
