@@ -583,16 +583,6 @@ p {
   display: block;
 }
 
-.landingWordmark {
-  width: auto;
-  height: auto;
-  font-family: "Outfit", "Helvetica Neue", Arial, sans-serif;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: normal;
-  white-space: nowrap;
-}
-
 .landingLinks {
   display: flex;
   align-items: center;
