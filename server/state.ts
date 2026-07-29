@@ -127,12 +127,28 @@ async function buildPlayablePlan(
   }
 
   const finalTracks = selectedTracks.length > 0 ? selectedTracks : resolvedTracks;
+  const limitedTracks = finalTracks.slice(0, targetCount);
+  const recommendationChanged = limitedTracks.some(
+    (track, index) =>
+      !plan.play[index] ||
+      getTrackIdentity(track) !== getTrackIdentity(plan.play[index])
+  );
+  const firstTrackChanged =
+    limitedTracks[0] &&
+    plan.play[0] &&
+    getTrackIdentity(limitedTracks[0]) !== getTrackIdentity(plan.play[0]);
 
   return {
     ...plan,
-    play: finalTracks.slice(0, targetCount),
+    say:
+      firstTrackChanged && limitedTracks[0]?.intro
+        ? limitedTracks[0].intro
+        : plan.say,
+    play: limitedTracks,
     reason:
-      selectedTracks.length >= targetCount
+      recommendationChanged
+        ? "根据当前时间、天气、对话和个人听歌偏好推荐；原推荐中有歌曲暂时没有 QQ 可播地址，已替换为可验证的 QQ 音源。"
+        : selectedTracks.length >= targetCount
         ? plan.reason
         : `${plan.reason}；部分歌曲暂时没有 QQ 可播地址，已保留可验证结果。`
   };

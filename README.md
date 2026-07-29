@@ -26,6 +26,7 @@ generates per-track DJ speech, and plays verified music sources continuously.
 - `data/` local persistent state, generated at runtime.
 - `cache/` generated or downloaded media cache, generated at runtime.
 - `docs/PROJECT_STRUCTURE.md` source/runtime directory guide.
+- `docs/RELEASE_NOTES_2026-07-24.md` latest UI and interaction release notes.
 
 ## Local Development
 

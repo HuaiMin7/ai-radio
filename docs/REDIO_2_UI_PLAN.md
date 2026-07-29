@@ -1,5 +1,11 @@
 # Redio 2.0 UI Plan
 
+> Status: implemented and retained as a historical delivery plan. Redio 2.0
+> landed on `main` through the July 2026 release work and UI polish commit
+> `130885f`. Unchecked items below describe the original acceptance process;
+> they are not the current project backlog. See `README.md`,
+> `docs/BASELINE.md`, and the dated release notes for the active baseline.
+
 ## 1. Objective
 
 Redio 2.0 should make the existing AI radio experience clearer and easier to
