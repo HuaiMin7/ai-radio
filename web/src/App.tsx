@@ -260,6 +260,13 @@ const musicIntentPattern =
   /(?:推|推荐|想听|要听|听点|放点|播点|来点|来些|给我(?:来|放|播|推|推荐)).{0,16}(?:歌|音乐|歌单|曲)|来(?:一|两|几|三|四|五|六|七|八|九|十)?首|(?:适合|配).{0,16}(?:歌|音乐|歌单|曲)|配乐/i;
 const noMusicIntentPattern =
   /(?:先|暂时|现在)?(?:不想|不要|不用|不需要|别)(?:听歌|听音乐|放歌|播放音乐|播歌|推歌|推荐歌曲|推荐音乐)|别(?:给我)?(?:放歌|播歌|推歌|推荐(?:歌|歌曲|音乐))/i;
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
+const appBaseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+const isPublicDemo = import.meta.env.VITE_PUBLIC_DEMO === "1";
+
+function getPublicAssetUrl(url: string) {
+  return `${appBaseUrl}${url}`;
+}
 
 const fallbackTracks: PlayableTrack[] = [
   {
@@ -315,16 +322,15 @@ const fallbackTracks: PlayableTrack[] = [
 ];
 
 const queueFallbackCovers = [
-  "/images/redio-queue-cover-0.png",
-  "/images/redio-queue-cover-1.png",
-  "/images/redio-queue-cover-2.jpg",
-  "/images/redio-queue-cover-3.jpg",
-  "/images/redio-queue-cover-4.jpg",
-  "/images/redio-queue-cover-5.png",
-  "/images/redio-queue-cover-6.png"
+  getPublicAssetUrl("/images/redio-queue-cover-0.png"),
+  getPublicAssetUrl("/images/redio-queue-cover-1.png"),
+  getPublicAssetUrl("/images/redio-queue-cover-2.jpg"),
+  getPublicAssetUrl("/images/redio-queue-cover-3.jpg"),
+  getPublicAssetUrl("/images/redio-queue-cover-4.jpg"),
+  getPublicAssetUrl("/images/redio-queue-cover-5.png"),
+  getPublicAssetUrl("/images/redio-queue-cover-6.png")
 ];
 
-const apiBaseUrl = "http://127.0.0.1:8788";
 const redioBridgeRequestTimeoutMs = 4500;
 const redioBridgeMinimumVersion = [0, 1, 4];
 
@@ -354,7 +360,9 @@ function getPlaybackAudioUrl(track: PlayableTrack) {
     return getApiUrl(`/api/audio/proxy?url=${encodeURIComponent(track.audioUrl)}`);
   }
 
-  return track.audioUrl;
+  return track.audioUrl.startsWith("/")
+    ? getPublicAssetUrl(track.audioUrl)
+    : track.audioUrl;
 }
 
 function requestRedioBridge(
@@ -1485,7 +1493,7 @@ export function App() {
     }
 
     const unlockAudio =
-      audioUnlockElementRef.current ?? new Audio("/audio/local-focus.wav");
+      audioUnlockElementRef.current ?? new Audio(getPublicAssetUrl("/audio/local-focus.wav"));
 
     audioUnlockElementRef.current = unlockAudio;
     unlockAudio.muted = true;
@@ -1936,7 +1944,7 @@ export function App() {
       .then(async () => {
         appendLog("success", "核心数据读取完成", "/api/now + /api/history + /api/queue");
 
-        await Promise.allSettled([
+        const optionalDataLoads = [
           loadFeedback().catch((requestError) => {
             const errorMessage =
               requestError instanceof Error ? requestError.message : "偏好记录读取失败。";
@@ -1948,20 +1956,27 @@ export function App() {
               requestError instanceof Error ? requestError.message : "天气读取失败。";
 
             appendLog("error", "天气读取失败", errorMessage);
-          }),
-          loadQqLoginStatus().catch((requestError) => {
-            const errorMessage =
-              requestError instanceof Error ? requestError.message : "QQ 音源状态读取失败。";
-
-            appendLog("error", "QQ 音源状态读取失败", errorMessage);
-          }),
-          detectRedioBridge().catch((requestError) => {
-            const errorMessage =
-              requestError instanceof Error ? requestError.message : "Redio Bridge 检测失败。";
-
-            appendLog("error", "Redio Bridge 检测失败", errorMessage);
           })
-        ]);
+        ];
+
+        if (!isPublicDemo) {
+          optionalDataLoads.push(
+            loadQqLoginStatus().catch((requestError) => {
+              const errorMessage =
+                requestError instanceof Error ? requestError.message : "QQ 音源状态读取失败。";
+
+              appendLog("error", "QQ 音源状态读取失败", errorMessage);
+            }),
+            detectRedioBridge().catch((requestError) => {
+              const errorMessage =
+                requestError instanceof Error ? requestError.message : "Redio Bridge 检测失败。";
+
+              appendLog("error", "Redio Bridge 检测失败", errorMessage);
+            })
+          );
+        }
+
+        await Promise.allSettled(optionalDataLoads);
       })
       .catch((requestError) => {
         const errorMessage =
@@ -2626,7 +2641,7 @@ export function App() {
       visibleHistoryEntryCount={visibleHistoryEntryCount}
     />
   ) : null;
-  const loginModal = isLoginModalOpen ? (
+  const loginModal = !isPublicDemo && isLoginModalOpen ? (
     <LoginModal
       bridgeStatus={redioBridgeStatus}
       cookieDraft={qqCookieDraft}
@@ -2651,23 +2666,25 @@ export function App() {
         onToggle={() => setIsHistoryOpen((isOpen) => !isOpen)}
       />
 
-      <QqSourceSection
-        bridgeStatus={redioBridgeStatus}
-        cookieDraft={qqCookieDraft}
-        isOpen={isQqSourceOpen}
-        isSaving={isQqSaving}
-        onClear={() => void clearQqCookie()}
-        onCookieChange={setQqCookieDraft}
-        onDetectBridge={() => void detectRedioBridge()}
-        onDesktopLogin={() => void openQqDesktopLogin()}
-        onBridgeLogin={() => void openQqBridgeLogin()}
-        onSave={() => void saveQqCookie()}
-        onSyncBridge={() => void syncQqCookieFromBridge()}
-        onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
-        isDesktop={Boolean(window.redioDesktop?.isDesktop)}
-        isWebLoginBusy={isQqWebLoginBusy}
-        status={qqLoginStatus}
-      />
+      {!isPublicDemo ? (
+        <QqSourceSection
+          bridgeStatus={redioBridgeStatus}
+          cookieDraft={qqCookieDraft}
+          isOpen={isQqSourceOpen}
+          isSaving={isQqSaving}
+          onClear={() => void clearQqCookie()}
+          onCookieChange={setQqCookieDraft}
+          onDetectBridge={() => void detectRedioBridge()}
+          onDesktopLogin={() => void openQqDesktopLogin()}
+          onBridgeLogin={() => void openQqBridgeLogin()}
+          onSave={() => void saveQqCookie()}
+          onSyncBridge={() => void syncQqCookieFromBridge()}
+          onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
+          isDesktop={Boolean(window.redioDesktop?.isDesktop)}
+          isWebLoginBusy={isQqWebLoginBusy}
+          status={qqLoginStatus}
+        />
+      ) : null}
 
       <LogSection
         entries={logs}
@@ -2697,6 +2714,7 @@ export function App() {
           error={playbackToast ? null : error}
           hasPlaybackToast={Boolean(playbackToast)}
           isLoginBusy={isQqWebLoginBusy}
+          isPublicDemo={isPublicDemo}
           onEnter={enterRadioView}
           onLogin={openLoginModal}
           onLogout={() => void clearQqCookie()}
@@ -2763,6 +2781,7 @@ export function App() {
           <AgentProfilePage
             genreTags={agentGenreTags}
             isLoginBusy={isQqWebLoginBusy}
+            isPublicDemo={isPublicDemo}
             listenerCount={listenerCount}
             listenerName={listenerName}
             onLogin={openLoginModal}
@@ -2772,7 +2791,11 @@ export function App() {
           <section className="settingsPage" aria-label="设置">
             <div className="settingsIntro">
               <p>SETTING</p>
-              <span>播放记录、QQ 授权和运行状态都放在这里。</span>
+              <span>
+                {isPublicDemo
+                  ? "播放记录和运行状态都放在这里。"
+                  : "播放记录、QQ 授权和运行状态都放在这里。"}
+              </span>
             </div>
 
             <div className="settingsScrollArea">
@@ -2962,7 +2985,7 @@ function LoginModal({
           onClick={onClose}
           type="button"
         >
-          <img alt="" aria-hidden="true" src="/images/login-close.svg" />
+          <img alt="" aria-hidden="true" src={getPublicAssetUrl("/images/login-close.svg")} />
         </button>
 
         <div className="loginModalPrimary" data-node-id="233:761">
@@ -3001,7 +3024,7 @@ function LoginModal({
             <p className="loginQrCaption" data-node-id="233:773">
               <span>点击</span>
               <strong>
-                <img alt="" aria-hidden="true" src="/images/qq-music-icon.png" />
+                <img alt="" aria-hidden="true" src={getPublicAssetUrl("/images/qq-music-icon.png")} />
                 QQ音乐
               </strong>
               <span>{isLoginBusy ? "等待登录" : "扫码登录"}</span>
@@ -3061,7 +3084,7 @@ function LoginModal({
 
         <p className="loginBridgeNotice" data-node-id="239:813">
           网页版搜索、播放和账号同步都依赖本机 Bridge扩展代理音乐API；请先安装扩展，再继续登录。
-          <a download href="/downloads/redio-bridge.zip">
+          <a download href={getPublicAssetUrl("/downloads/redio-bridge.zip")}>
             点击安装
           </a>
         </p>
@@ -3117,7 +3140,7 @@ function DjSpeechBubble({ text }: { text: string }) {
         alt="Redio DJ"
         className="djSpeechBubbleAvatar"
         data-node-id="320:406"
-        src="/images/agent-dj.png"
+        src={getPublicAssetUrl("/images/agent-dj.png")}
       />
       <p data-node-id="320:408">{text}</p>
       <div
@@ -3159,6 +3182,7 @@ function LandingPage({
   error,
   hasPlaybackToast,
   isLoginBusy,
+  isPublicDemo,
   onEnter,
   onLogin,
   onLogout,
@@ -3171,6 +3195,7 @@ function LandingPage({
   error: string | null;
   hasPlaybackToast: boolean;
   isLoginBusy: boolean;
+  isPublicDemo: boolean;
   onEnter: (view: AppView) => void;
   onLogin: () => void;
   onLogout: () => void;
@@ -3180,7 +3205,7 @@ function LandingPage({
   status: QqLoginStatus | null;
 }) {
   const accountLabel = status?.nickname ?? status?.userId ?? "账号昵称";
-  const isLoggedIn = status?.loggedIn === true;
+  const isLoggedIn = isPublicDemo || status?.loggedIn === true;
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"home" | "settings">("home");
@@ -3278,7 +3303,8 @@ function LandingPage({
                 <AskAnythingButton onClick={onOpenChat} />
                 {chatWindow}
               </div>
-              <div className="landingAccountMenuAnchor" ref={accountMenuRef}>
+              {!isPublicDemo ? (
+                <div className="landingAccountMenuAnchor" ref={accountMenuRef}>
                 <button
                   aria-expanded={isAccountMenuOpen}
                   aria-haspopup="menu"
@@ -3292,10 +3318,10 @@ function LandingPage({
                   <img
                     alt=""
                     onError={(event) => {
-                      event.currentTarget.src = "/images/redio-account-placeholder.png";
+                      event.currentTarget.src = getPublicAssetUrl("/images/redio-account-placeholder.png");
                     }}
                     referrerPolicy="no-referrer"
-                    src={status.avatarUrl ?? "/images/redio-account-placeholder.png"}
+                    src={status?.avatarUrl ?? getPublicAssetUrl("/images/redio-account-placeholder.png")}
                   />
                 </button>
 
@@ -3311,7 +3337,7 @@ function LandingPage({
                         alt="QQ Music"
                         className="landingAccountPlatformIcon"
                         data-node-id="262:767"
-                        src="/images/account-menu-qq-music.png"
+                        src={getPublicAssetUrl("/images/account-menu-qq-music.png")}
                       />
                       <span data-node-id="262:759" title={accountLabel}>
                         {accountLabel}
@@ -3331,7 +3357,7 @@ function LandingPage({
                       role="menuitem"
                       type="button"
                     >
-                      <img alt="" data-node-id="262:731" src="/images/account-menu-settings.svg" />
+                      <img alt="" data-node-id="262:731" src={getPublicAssetUrl("/images/account-menu-settings.svg")} />
                       <span data-node-id="262:734">Settings</span>
                     </button>
 
@@ -3345,12 +3371,13 @@ function LandingPage({
                       role="menuitem"
                       type="button"
                     >
-                      <img alt="" data-node-id="262:749" src="/images/account-menu-logout.svg" />
+                      <img alt="" data-node-id="262:749" src={getPublicAssetUrl("/images/account-menu-logout.svg")} />
                       <span data-node-id="262:752">Logout</span>
                     </button>
                   </div>
                 ) : null}
-              </div>
+                </div>
+              ) : null}
             </>
           ) : (
             <button
@@ -3397,7 +3424,7 @@ function LandingPage({
         aria-hidden="true"
         className="landingGlow"
         data-node-id="164:1648"
-        src="/images/redio-landing-ellipse.svg"
+        src={getPublicAssetUrl("/images/redio-landing-ellipse.svg")}
       />
       <StarfieldCanvas />
     </main>
@@ -3718,7 +3745,7 @@ function CircularQueuePlayer({
               onClick={onLike}
               type="button"
             >
-              <img alt="" aria-hidden="true" src="/images/redio-player-like.svg" />
+              <img alt="" aria-hidden="true" src={getPublicAssetUrl("/images/redio-player-like.svg")} />
             </button>
             <div className="queueTransportButtons" data-node-id="165:4963">
               <button aria-label="上一首" onClick={onPrevious} type="button">
@@ -3757,7 +3784,7 @@ function CircularQueuePlayer({
                     alt=""
                     aria-hidden="true"
                     className="queueVolumePopoverBackground"
-                    src="/images/redio-volume-control-bg.svg"
+                    src={getPublicAssetUrl("/images/redio-volume-control-bg.svg")}
                   />
                   <div className="queueVolumePopoverContent">
                     <div className="queueVolumeSliderSlot">
@@ -3795,8 +3822,8 @@ function CircularQueuePlayer({
                         aria-hidden="true"
                         src={
                           isMuted
-                            ? "/images/redio-volume-muted.svg"
-                            : "/images/redio-volume-sound.svg"
+                            ? getPublicAssetUrl("/images/redio-volume-muted.svg")
+                            : getPublicAssetUrl("/images/redio-volume-sound.svg")
                         }
                       />
                     </button>
@@ -3835,6 +3862,7 @@ function CircularQueuePlayer({
 function AgentProfilePage({
   genreTags,
   isLoginBusy,
+  isPublicDemo,
   listenerCount,
   listenerName,
   onLogin,
@@ -3842,6 +3870,7 @@ function AgentProfilePage({
 }: {
   genreTags: string[];
   isLoginBusy: boolean;
+  isPublicDemo: boolean;
   listenerCount: number;
   listenerName: string;
   onLogin: () => void;
@@ -3891,18 +3920,20 @@ function AgentProfilePage({
         ))}
       </section>
 
-      <section className="agentLogin" aria-label="登录">
-        <h3>登录</h3>
-        <button
-          className={status?.loggedIn ? "isLoggedIn" : ""}
-          disabled={isLoginBusy}
-          onClick={status?.loggedIn ? undefined : onLogin}
-          type="button"
-        >
-          <i />
-          <span>{isLoginBusy ? "等待扫码" : accountLabel}</span>
-        </button>
-      </section>
+      {!isPublicDemo ? (
+        <section className="agentLogin" aria-label="登录">
+          <h3>登录</h3>
+          <button
+            className={status?.loggedIn ? "isLoggedIn" : ""}
+            disabled={isLoginBusy}
+            onClick={status?.loggedIn ? undefined : onLogin}
+            type="button"
+          >
+            <i />
+            <span>{isLoginBusy ? "等待扫码" : accountLabel}</span>
+          </button>
+        </section>
+      ) : null}
     </section>
   );
 }
@@ -4230,7 +4261,7 @@ function AskDock({
               aria-hidden="true"
               className="messageSendIcon"
               data-node-id={isSendDisabled ? "281:420" : "281:427"}
-              src="/images/figma-chat-send.svg"
+              src={getPublicAssetUrl("/images/figma-chat-send.svg")}
             />
             <div aria-hidden="true" className="button-gradient visible sendGradientEffect">
               <div className="border" />
@@ -4444,7 +4475,7 @@ function ChatWindow({
             aria-hidden="true"
             className="redioMarkIcon"
             data-node-id={isLandingChat ? "276:887" : undefined}
-            src="/images/figma-chat-redio-mark.svg"
+            src={getPublicAssetUrl("/images/figma-chat-redio-mark.svg")}
           />
           <h2 data-node-id={isLandingChat ? "276:888" : undefined}>Redio</h2>
         </div>
@@ -4458,7 +4489,7 @@ function ChatWindow({
             alt=""
             aria-hidden="true"
             className="chatCloseIcon"
-            src="/images/figma-chat-close.svg"
+            src={getPublicAssetUrl("/images/figma-chat-close.svg")}
           />
         </button>
       </header>

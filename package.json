@@ -12,6 +12,8 @@
     "dev:check": "node scripts/healthcheck.mjs",
     "desktop": "electron desktop/main.cjs",
     "build": "tsc -b && vite build",
+    "build:public": "tsc -b && VITE_BASE_PATH=/app/ VITE_PUBLIC_DEMO=1 vite build",
+    "start:api": "tsx server/index.ts",
     "preview": "vite preview"
   },
   "dependencies": {

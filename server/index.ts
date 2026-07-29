@@ -3,10 +3,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createRouter } from "./router.js";
 
-const host = "127.0.0.1";
-const port = 8788;
-
 loadEnvFile(process.cwd());
+
+const host = process.env.AI_RADIO_API_HOST ?? "127.0.0.1";
+const configuredPort = Number(process.env.AI_RADIO_API_PORT ?? "8788");
+const port = Number.isInteger(configuredPort) && configuredPort > 0
+  ? configuredPort
+  : 8788;
 
 const router = createRouter(process.cwd());
 

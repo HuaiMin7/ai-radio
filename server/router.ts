@@ -30,6 +30,20 @@ type Handler = (
   response: ServerResponse
 ) => Promise<void>;
 
+const defaultAllowedCorsOrigins = [
+  "http://127.0.0.1:5173",
+  "http://localhost:5173"
+];
+const publicRateLimitPaths = new Set(["/api/plan", "/api/tts"]);
+const rateLimitBuckets = new Map<
+  string,
+  {
+    count: number;
+    windowStartedAt: number;
+  }
+>();
+const maxJsonBodyBytes = 32 * 1024;
+
 function sendJson(response: ServerResponse, statusCode: number, body: unknown) {
   response.writeHead(statusCode, {
     "Content-Type": "application/json; charset=utf-8"
@@ -163,9 +177,17 @@ function notFound(response: ServerResponse) {
 
 async function readJsonBody(request: IncomingMessage) {
   const chunks: Buffer[] = [];
+  let receivedBytes = 0;
 
   for await (const chunk of request) {
-    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+    receivedBytes += buffer.length;
+
+    if (receivedBytes > maxJsonBodyBytes) {
+      throw new RequestError(413, "Request body is too large");
+    }
+
+    chunks.push(buffer);
   }
 
   if (chunks.length === 0) {
@@ -201,13 +223,17 @@ class RequestError extends Error {
   }
 }
 
-const allowedCorsOrigins = new Set([
-  "http://127.0.0.1:5173",
-  "http://localhost:5173"
-]);
-
 function isAllowedCorsOrigin(origin: string | undefined): origin is string {
-  return typeof origin === "string" && allowedCorsOrigins.has(origin);
+  if (typeof origin !== "string") {
+    return false;
+  }
+
+  const configuredOrigins = (process.env.AI_RADIO_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return new Set([...defaultAllowedCorsOrigins, ...configuredOrigins]).has(origin);
 }
 
 function isCorsRejected(origin: string | undefined) {
@@ -221,6 +247,55 @@ function isAllowedAudioProxyUrl(url: URL) {
     (url.protocol === "http:" || url.protocol === "https:") &&
     (hostname === "qq.com" || hostname.endsWith(".qq.com"))
   );
+}
+
+function isPublicDemo() {
+  return process.env.AI_RADIO_PUBLIC_DEMO === "1";
+}
+
+function isPublicAdminRoute(method: string | undefined, pathname: string) {
+  return (
+    (method === "GET" &&
+      ["/api/profile", "/api/context", "/api/qq/login/status"].includes(pathname)) ||
+    (method === "POST" &&
+      ["/api/qq/login/cookie", "/api/qq/logout"].includes(pathname))
+  );
+}
+
+function getClientAddress(request: IncomingMessage) {
+  const forwardedFor = request.headers["x-forwarded-for"];
+  const forwardedAddress = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
+
+  return forwardedAddress?.split(",")[0]?.trim() || request.socket.remoteAddress || "unknown";
+}
+
+function isPublicRateLimited(request: IncomingMessage, pathname: string) {
+  if (
+    !isPublicDemo() ||
+    request.method !== "POST" ||
+    !publicRateLimitPaths.has(pathname)
+  ) {
+    return false;
+  }
+
+  const configuredLimit = Number(process.env.AI_RADIO_PUBLIC_RATE_LIMIT_PER_MINUTE ?? "12");
+  const limit = Number.isFinite(configuredLimit) && configuredLimit > 0
+    ? Math.floor(configuredLimit)
+    : 12;
+  const now = Date.now();
+  const key = `${getClientAddress(request)}:${pathname}`;
+  const bucket = rateLimitBuckets.get(key);
+
+  if (!bucket || now - bucket.windowStartedAt >= 60_000) {
+    rateLimitBuckets.set(key, {
+      count: 1,
+      windowStartedAt: now
+    });
+    return false;
+  }
+
+  bucket.count += 1;
+  return bucket.count > limit;
 }
 
 function readTtsText(body: unknown) {
@@ -361,6 +436,21 @@ export function createRouter(rootDir: string): Handler {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
     try {
+      if (isPublicDemo() && isPublicAdminRoute(request.method, url.pathname)) {
+        sendJsonWithCors(response, 403, {
+          error: "This management endpoint is disabled in the public demo"
+        }, origin);
+        return;
+      }
+
+      if (isPublicRateLimited(request, url.pathname)) {
+        response.setHeader("Retry-After", "60");
+        sendJsonWithCors(response, 429, {
+          error: "请求过于频繁，请稍后再试"
+        }, origin);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/api/profile") {
         sendJsonWithCors(response, 200, await loadUserProfile(rootDir), origin);
         return;
