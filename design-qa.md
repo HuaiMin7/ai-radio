@@ -1,5 +1,11 @@
 # Redio 2.0 Landing Page Design QA
 
+> Historical QA log. It records intermediate Redio 2.0 implementation states
+> and is not the current product contract. The static starfield asset and some
+> entry interactions described below were superseded by `main` commit
+> `130885f`. Use `README.md`, `docs/BASELINE.md`, and the current source as the
+> active baseline.
+
 - Source visual truth: `/private/tmp/redio-figma-164-1625.png`
 - Implementation screenshot: `/private/tmp/redio-local-164-1625-v2.png`
 - Full-view comparison: `/private/tmp/redio-comparison-164-1625-v2.png`

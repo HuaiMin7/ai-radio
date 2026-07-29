@@ -3227,7 +3227,7 @@ function LandingPage({
           <button
             className="landingBrand"
             data-node-id={isLoggedIn ? "239:869" : "232:736"}
-            onClick={onOpenChat}
+            onClick={() => setActiveSection("home")}
             type="button"
           >
             Redio
