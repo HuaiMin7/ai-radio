@@ -1,9 +1,11 @@
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { assertAuthConfiguration } from "./auth.js";
 import { createRouter } from "./router.js";
 
 loadEnvFile(process.cwd());
+assertAuthConfiguration();
 
 const host = process.env.AI_RADIO_API_HOST ?? "127.0.0.1";
 const configuredPort = Number(process.env.AI_RADIO_API_PORT ?? "8788");

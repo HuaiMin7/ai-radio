@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+import type { AuthenticatedUser } from "./auth.js";
+import { getUserDataDir } from "./auth.js";
 import type { DjPlan } from "./brain.js";
 
 export type PlaybackHistoryEntry = {
@@ -15,8 +17,11 @@ export type PlaybackHistoryEntry = {
 
 const maxHistoryEntries = 50;
 
-export async function readPlaybackHistory(rootDir: string) {
-  const path = getHistoryPath(rootDir);
+export async function readPlaybackHistory(
+  rootDir: string,
+  user: AuthenticatedUser
+) {
+  const path = getHistoryPath(rootDir, user);
 
   try {
     const raw = await readFile(path, "utf8");
@@ -38,10 +43,11 @@ export async function readPlaybackHistory(rootDir: string) {
 
 export async function appendPlaybackHistory(
   rootDir: string,
+  user: AuthenticatedUser,
   entry: Omit<PlaybackHistoryEntry, "id" | "createdAt">
 ) {
-  const path = getHistoryPath(rootDir);
-  const history = await readPlaybackHistory(rootDir);
+  const path = getHistoryPath(rootDir, user);
+  const history = await readPlaybackHistory(rootDir, user);
   const nextHistory = [
     {
       ...entry,
@@ -52,8 +58,14 @@ export async function appendPlaybackHistory(
     ...history
   ].slice(0, maxHistoryEntries);
 
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(nextHistory, null, 2)}\n`, "utf8");
+  await mkdir(getUserDataDir(rootDir, user), {
+    recursive: true,
+    mode: 0o700
+  });
+  await writeFile(path, `${JSON.stringify(nextHistory, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600
+  });
 
   return nextHistory;
 }
@@ -76,8 +88,8 @@ function toPersistentTrack(track: DjPlan["play"][number]): DjPlan["play"][number
   };
 }
 
-function getHistoryPath(rootDir: string) {
-  return join(rootDir, "data", "history.json");
+function getHistoryPath(rootDir: string, user: AuthenticatedUser) {
+  return join(getUserDataDir(rootDir, user), "history.json");
 }
 
 function isPlaybackHistoryEntry(value: unknown): value is PlaybackHistoryEntry {

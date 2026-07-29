@@ -16,7 +16,7 @@ const coreServices = [
     command: ["npm", "run", "dev:api"],
     port: 8788,
     url: "http://127.0.0.1:8788/api/now",
-    healthUrl: "http://127.0.0.1:8788/api/now"
+    healthUrl: "http://127.0.0.1:8788/api/health"
   }
 ];
 

@@ -1,5 +1,10 @@
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import type { AuthenticatedUser } from "./auth.js";
+import {
+  createAuthenticatedUser,
+  deleteEncryptedUserSecret,
+  readEncryptedUserSecret,
+  writeEncryptedUserSecret
+} from "./auth.js";
 
 export type QqLoginStatus = {
   provider: "qq";
@@ -122,43 +127,104 @@ const qqQualityCandidates = [
   { prefix: "M500", ext: ".mp3", label: "128k MP3" },
   { prefix: "C400", ext: ".m4a", label: "AAC/M4A" }
 ];
+const persistedQqCookieNames = new Set([
+  "uin",
+  "qqmusic_uin",
+  "wxuin",
+  "login_type",
+  "qm_keyst",
+  "qqmusic_key",
+  "music_key",
+  "p_skey",
+  "skey",
+  "psrf_qqopenid",
+  "psrf_qqunionid",
+  "psrf_qqaccess_token",
+  "psrf_qqrefresh_token",
+  "wxopenid",
+  "wxunionid",
+  "wxrefresh_token",
+  "wxskey",
+  "p_uin",
+  "ptcz",
+  "RK"
+]);
 
-export async function saveQqCookie(rootDir: string, cookieText: string) {
+export async function authenticateAndSaveQqCookie(
+  rootDir: string,
+  cookieText: string
+) {
   const normalizedCookie = normalizeQqCookieInput(cookieText);
-  const status = readQqLoginStatusFromCookie(normalizedCookie);
+  const fallback = readQqLoginStatusFromCookie(normalizedCookie);
 
-  if (!status.loggedIn) {
+  if (!fallback.loggedIn || !fallback.userId) {
     return {
-      ...status,
-      message: "QQ Cookie 缺少 uin 或登录票据"
+      status: {
+        ...fallback,
+        loggedIn: false,
+        message: "QQ Cookie 缺少 uin 或登录票据"
+      }
     };
   }
 
-  const path = getQqCookiePath(rootDir);
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${normalizedCookie}\n`, "utf8");
+  const profile = await fetchQqProfile(normalizedCookie, fallback.userId);
 
-  return getQqLoginStatus(rootDir);
-}
-
-export async function clearQqCookie(rootDir: string) {
-  try {
-    await unlink(getQqCookiePath(rootDir));
-  } catch (error) {
-    if (!isMissingFileError(error)) {
-      throw error;
-    }
+  if (!profile) {
+    return {
+      status: {
+        ...fallback,
+        loggedIn: false,
+        message: "QQ 音乐账号验证失败，请重新登录后再试"
+      }
+    };
   }
 
-  return getQqLoginStatus(rootDir);
+  const user = createAuthenticatedUser("qq", fallback.userId);
+
+  await writeEncryptedUserSecret(
+    rootDir,
+    user,
+    "qq-cookie",
+    normalizedCookie
+  );
+
+  return {
+    user,
+    status: {
+      ...fallback,
+      nickname: profile.nickname,
+      avatarUrl: profile.avatarUrl || fallback.avatarUrl,
+      profileSource: "qq-profile" as const
+    }
+  };
 }
 
-export async function getQqLoginStatus(rootDir: string): Promise<QqLoginStatus> {
-  const cookie = await readQqCookie(rootDir);
+export async function clearQqCookie(
+  rootDir: string,
+  user: AuthenticatedUser
+) {
+  await deleteEncryptedUserSecret(rootDir, user, "qq-cookie");
+
+  return getLoggedOutQqStatus();
+}
+
+export async function getQqLoginStatus(
+  rootDir: string,
+  user?: AuthenticatedUser | null
+): Promise<QqLoginStatus> {
+  if (!user) {
+    return getLoggedOutQqStatus();
+  }
+
+  const cookie = await readQqCookie(rootDir, user);
   const fallback = readQqLoginStatusFromCookie(cookie);
 
-  if (!fallback.loggedIn || !fallback.userId) {
-    return fallback;
+  if (
+    !fallback.loggedIn ||
+    !fallback.userId ||
+    fallback.userId !== user.accountId
+  ) {
+    return getLoggedOutQqStatus();
   }
 
   const profile = await fetchQqProfile(cookie, fallback.userId);
@@ -247,6 +313,7 @@ function firstQqProfileString(...values: unknown[]) {
 
 export async function resolveQqPlayableUrl(
   rootDir: string,
+  user: AuthenticatedUser,
   title: string,
   artist: string
 ): Promise<QqPlayableUrlResult> {
@@ -260,7 +327,7 @@ export async function resolveQqPlayableUrl(
       playable: false,
       reason: "not_found",
       message: "QQ 音乐未找到这首歌",
-      playbackKeyReady: (await getQqLoginStatus(rootDir)).playbackKeyReady
+      playbackKeyReady: (await getQqLoginStatus(rootDir, user)).playbackKeyReady
     };
   }
 
@@ -273,7 +340,7 @@ export async function resolveQqPlayableUrl(
     }
 
     checkedCandidateCount += 1;
-    const result = await resolveQqSongUrl(rootDir, candidate);
+    const result = await resolveQqSongUrl(rootDir, user, candidate);
 
     if (result.playable) {
       return result;
@@ -296,11 +363,11 @@ export async function resolveQqPlayableUrl(
       coverUrl: song.coverUrl,
       reason: "not_found",
       message: "QQ 音乐未找到歌名和歌手都匹配的版本",
-      playbackKeyReady: (await getQqLoginStatus(rootDir)).playbackKeyReady
+      playbackKeyReady: (await getQqLoginStatus(rootDir, user)).playbackKeyReady
     };
   }
 
-  return resolveQqSongUrl(rootDir, song);
+  return resolveQqSongUrl(rootDir, user, song);
 }
 
 async function searchQqSongsWithFallback(
@@ -607,9 +674,10 @@ async function resolveLrcLibLyrics(title: string, artist: string, duration: numb
 
 async function resolveQqSongUrl(
   rootDir: string,
+  user: AuthenticatedUser,
   song: QqSongSearchResult
 ): Promise<QqPlayableUrlResult> {
-  const cookie = await readQqCookie(rootDir);
+  const cookie = await readQqCookie(rootDir, user);
   const cookieObj = parseCookieString(cookie);
   const uin = qqCookieUin(cookieObj) || "0";
   const musicKey = qqCookieMusicKey(cookieObj);
@@ -867,7 +935,11 @@ function normalizeQqCookieInput(cookieText: string) {
     obj.uin = normalizeQqUin(obj.uin);
   }
 
-  return serializeCookieObject(obj);
+  return serializeCookieObject(
+    Object.fromEntries(
+      Object.entries(obj).filter(([name]) => persistedQqCookieNames.has(name))
+    )
+  );
 }
 
 function parseCookieString(cookieText: string) {
@@ -943,20 +1015,17 @@ function parseJsonText(text: string) {
   return JSON.parse(json) as unknown;
 }
 
-async function readQqCookie(rootDir: string) {
-  try {
-    return (await readFile(getQqCookiePath(rootDir), "utf8")).trim();
-  } catch (error) {
-    if (isMissingFileError(error)) {
-      return "";
-    }
-
-    throw error;
-  }
+async function readQqCookie(rootDir: string, user: AuthenticatedUser) {
+  return (await readEncryptedUserSecret(rootDir, user, "qq-cookie")).trim();
 }
 
-function getQqCookiePath(rootDir: string) {
-  return join(rootDir, "data", "qq-cookie.txt");
+function getLoggedOutQqStatus(): QqLoginStatus {
+  return {
+    provider: "qq",
+    loggedIn: false,
+    hasCookie: false,
+    playbackKeyReady: false
+  };
 }
 
 function normalize(value: string) {
@@ -971,13 +1040,4 @@ function normalizeSearchValue(value: string) {
 
 function stripDiacritics(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-}
-
-function isMissingFileError(error: unknown) {
-  return (
-    typeof error === "object" &&
-    error !== null &&
-    "code" in error &&
-    error.code === "ENOENT"
-  );
 }

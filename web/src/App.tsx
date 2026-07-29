@@ -171,6 +171,23 @@ type QqLoginStatus = {
   message?: string;
 };
 
+type QqQrLoginStart = {
+  sessionId: string;
+  imageDataUrl: string;
+  expiresAt: string;
+};
+
+type QqQrLoginPoll =
+  | {
+      state: "pending" | "scanned" | "expired";
+      message: string;
+    }
+  | {
+      state: "complete";
+      message: string;
+      status: QqLoginStatus;
+    };
+
 type LyricLine = {
   time: number;
   text: string;
@@ -262,7 +279,6 @@ const noMusicIntentPattern =
   /(?:先|暂时|现在)?(?:不想|不要|不用|不需要|别)(?:听歌|听音乐|放歌|播放音乐|播歌|推歌|推荐歌曲|推荐音乐)|别(?:给我)?(?:放歌|播歌|推歌|推荐(?:歌|歌曲|音乐))/i;
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
 const appBaseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
-const isPublicDemo = import.meta.env.VITE_PUBLIC_DEMO === "1";
 
 function getPublicAssetUrl(url: string) {
   return `${appBaseUrl}${url}`;
@@ -408,7 +424,10 @@ function waitForBridgePoll(ms: number) {
 }
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(getApiUrl(url), init);
+  const response = await fetch(getApiUrl(url), {
+    ...init,
+    credentials: init?.credentials ?? "include"
+  });
 
   if (!response.ok) {
     let errorMessage = `请求失败：${response.status}`;
@@ -944,11 +963,11 @@ export function App() {
   const lyricsCacheRef = useRef(new Map<string, LyricLine[]>());
   const bridgeAutoRefreshInFlightRef = useRef(false);
   const lastSyncedBridgeCookieRef = useRef("");
+  const qqQrPollIdRef = useRef(0);
   const lastAudibleVolumeRef = useRef(0.5);
   const [nowPlaying, setNowPlaying] = useState<NowPlayingState | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [visibleHistoryEntryCount, setVisibleHistoryEntryCount] = useState(5);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [playbackRequestId, setPlaybackRequestId] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -984,6 +1003,8 @@ export function App() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [qqLoginStatus, setQqLoginStatus] = useState<QqLoginStatus | null>(null);
   const [qqCookieDraft, setQqCookieDraft] = useState("");
+  const [qqQrImageUrl, setQqQrImageUrl] = useState("");
+  const [qqQrMessage, setQqQrMessage] = useState("正在获取登录二维码");
   const [redioBridgeStatus, setRedioBridgeStatus] = useState<RedioBridgeStatus>({
     connected: false,
     checking: true,
@@ -1008,12 +1029,6 @@ export function App() {
       }
     };
   }, []);
-
-  function loadMoreChatHistory() {
-    setVisibleHistoryEntryCount((count) =>
-      Math.min(count + 5, historyEntries.length)
-    );
-  }
 
   function appendLog(
     level: AppLogEntry["level"],
@@ -1076,6 +1091,12 @@ export function App() {
     setHistoryEntries(entries);
   }
 
+  async function loadChatHistory() {
+    const entries = await fetchJson<ChatMessage[]>("/api/chat");
+    setMessages(entries);
+    return entries;
+  }
+
   async function loadQueue() {
     const entries = await fetchJson<QueueTrack[]>("/api/queue");
     setQueueTracks((currentTracks) => {
@@ -1110,18 +1131,125 @@ export function App() {
   async function loadQqLoginStatus() {
     const status = await fetchJson<QqLoginStatus>("/api/qq/login/status");
     setQqLoginStatus(status);
+    return status;
+  }
+
+  async function loadAuthenticatedData() {
+    await Promise.all([
+      loadNowPlaying(),
+      loadHistory(),
+      loadQueue(),
+      loadChatHistory()
+    ]);
+    await Promise.allSettled([
+      loadFeedback().catch((requestError) => {
+        const errorMessage =
+          requestError instanceof Error ? requestError.message : "偏好记录读取失败。";
+
+        appendLog("error", "偏好记录读取失败", errorMessage);
+      }),
+      loadWeather().catch((requestError) => {
+        const errorMessage =
+          requestError instanceof Error ? requestError.message : "天气读取失败。";
+
+        appendLog("error", "天气读取失败", errorMessage);
+      })
+    ]);
+  }
+
+  function resetAuthenticatedData() {
+    setNowPlaying(null);
+    setHistoryEntries([]);
+    setQueueTracks([]);
+    setFeedbackEntries([]);
+    setMessages([]);
+    setSelectedTrackId(null);
+    setIsPlaying(false);
+    audioRef.current?.pause();
   }
 
   function openLoginModal() {
     setError(null);
     setIsManualCookieOpen(false);
     setIsLoginModalOpen(true);
-    void detectRedioBridge();
+    void beginQqQrLogin();
   }
 
   function closeLoginModal() {
+    qqQrPollIdRef.current += 1;
     setIsLoginModalOpen(false);
     setIsManualCookieOpen(false);
+    setQqQrImageUrl("");
+    setQqQrMessage("正在获取登录二维码");
+    setIsQqWebLoginBusy(false);
+  }
+
+  async function beginQqQrLogin() {
+    const pollId = qqQrPollIdRef.current + 1;
+
+    qqQrPollIdRef.current = pollId;
+    setIsQqWebLoginBusy(true);
+    setError(null);
+    setQqQrImageUrl("");
+    setQqQrMessage("正在获取登录二维码");
+
+    try {
+      const login = await fetchJson<QqQrLoginStart>("/api/qq/login/qr", {
+        method: "POST"
+      });
+
+      if (qqQrPollIdRef.current !== pollId) {
+        return;
+      }
+
+      setQqQrImageUrl(login.imageDataUrl);
+      setQqQrMessage("请使用 QQ 音乐或 QQ 扫码");
+
+      while (qqQrPollIdRef.current === pollId) {
+        await waitForBridgePoll(1500);
+
+        if (qqQrPollIdRef.current !== pollId) {
+          return;
+        }
+
+        const result = await fetchJson<QqQrLoginPoll>(
+          `/api/qq/login/qr/${encodeURIComponent(login.sessionId)}`
+        );
+
+        setQqQrMessage(result.message);
+
+        if (result.state === "complete") {
+          setQqLoginStatus(result.status);
+          await loadAuthenticatedData();
+          appendLog(
+            "success",
+            "QQ 音乐登录成功",
+            `账号 ${result.status.nickname ?? result.status.userId ?? ""} 已建立独立记忆`
+          );
+          closeLoginModal();
+          return;
+        }
+
+        if (result.state === "expired") {
+          setIsQqWebLoginBusy(false);
+          return;
+        }
+      }
+    } catch (requestError) {
+      if (qqQrPollIdRef.current !== pollId) {
+        return;
+      }
+
+      const errorMessage =
+        requestError instanceof Error
+          ? requestError.message
+          : "QQ 音乐扫码登录失败。";
+
+      setError(errorMessage);
+      setQqQrMessage("登录未完成");
+      appendLog("error", "QQ 音乐扫码登录失败", errorMessage);
+      setIsQqWebLoginBusy(false);
+    }
   }
 
   async function detectRedioBridge() {
@@ -1192,6 +1320,7 @@ export function App() {
 
       setQqLoginStatus(status);
       if (status.loggedIn) {
+        await loadAuthenticatedData();
         closeLoginModal();
       }
       resolvingTrackKeysRef.current.clear();
@@ -1307,16 +1436,7 @@ export function App() {
   }
 
   async function openQqLoginFromModal() {
-    if (
-      !redioBridgeStatus.connected ||
-      isRedioBridgeOutdated(redioBridgeStatus.version)
-    ) {
-      window.open("https://y.qq.com/", "_blank", "noopener,noreferrer");
-      setError("请先安装并启用 Redio Bridge，登录后再刷新登录状态。");
-      return;
-    }
-
-    await openQqBridgeLogin();
+    await beginQqQrLogin();
   }
 
   async function syncQqCookieFromBridge(options: { silent?: boolean } = {}) {
@@ -1424,6 +1544,10 @@ export function App() {
       });
 
       setQqLoginStatus(status);
+      resetAuthenticatedData();
+      setHasEnteredRadio(false);
+      setAppView("radio");
+      setIsChatOpen(false);
       lastSyncedBridgeCookieRef.current = "";
       resolvingTrackKeysRef.current.clear();
       setResolvedTrackOverrides({});
@@ -1940,43 +2064,28 @@ export function App() {
   ]);
 
   useEffect(() => {
-    Promise.all([loadNowPlaying(), loadHistory(), loadQueue()])
-      .then(async () => {
-        appendLog("success", "核心数据读取完成", "/api/now + /api/history + /api/queue");
+    Promise.all([
+      loadQqLoginStatus(),
+      loadWeather().catch((requestError) => {
+        const errorMessage =
+          requestError instanceof Error ? requestError.message : "天气读取失败。";
 
-        const optionalDataLoads = [
-          loadFeedback().catch((requestError) => {
-            const errorMessage =
-              requestError instanceof Error ? requestError.message : "偏好记录读取失败。";
-
-            appendLog("error", "偏好记录读取失败", errorMessage);
-          }),
-          loadWeather().catch((requestError) => {
-            const errorMessage =
-              requestError instanceof Error ? requestError.message : "天气读取失败。";
-
-            appendLog("error", "天气读取失败", errorMessage);
-          })
-        ];
-
-        if (!isPublicDemo) {
-          optionalDataLoads.push(
-            loadQqLoginStatus().catch((requestError) => {
-              const errorMessage =
-                requestError instanceof Error ? requestError.message : "QQ 音源状态读取失败。";
-
-              appendLog("error", "QQ 音源状态读取失败", errorMessage);
-            }),
-            detectRedioBridge().catch((requestError) => {
-              const errorMessage =
-                requestError instanceof Error ? requestError.message : "Redio Bridge 检测失败。";
-
-              appendLog("error", "Redio Bridge 检测失败", errorMessage);
-            })
-          );
+        appendLog("error", "天气读取失败", errorMessage);
+        return null;
+      })
+    ])
+      .then(async ([status]) => {
+        if (!status.loggedIn) {
+          resetAuthenticatedData();
+          return;
         }
 
-        await Promise.allSettled(optionalDataLoads);
+        await loadAuthenticatedData();
+        appendLog(
+          "success",
+          "账号数据读取完成",
+          "/api/now + /api/history + /api/queue + /api/chat"
+        );
       })
       .catch((requestError) => {
         const errorMessage =
@@ -2608,14 +2717,12 @@ export function App() {
   const chatWindow = isChatOpen ? (
     <ChatWindow
       error={error}
-      historyEntries={historyEntries}
       isLoading={isLoading}
       isLandingChat={!hasEnteredRadio}
       isPlanning={isPlanning}
       message={draftMessage}
       messages={messages}
       onClose={() => setIsChatOpen(false)}
-      onLoadMoreHistory={loadMoreChatHistory}
       onOpenAgentProfile={() => {
         setHasEnteredRadio(true);
         setIsChatOpen(false);
@@ -2638,24 +2745,16 @@ export function App() {
       plan={plan}
       planningInputText={planningCopy.input}
       planningText={planningCopy.bubble}
-      visibleHistoryEntryCount={visibleHistoryEntryCount}
     />
   ) : null;
-  const loginModal = !isPublicDemo && isLoginModalOpen ? (
+  const loginModal = isLoginModalOpen ? (
     <LoginModal
-      bridgeStatus={redioBridgeStatus}
-      cookieDraft={qqCookieDraft}
       error={error}
       isLoginBusy={isQqWebLoginBusy}
-      isManualCookieOpen={isManualCookieOpen}
-      isSaving={isQqSaving}
       onClose={closeLoginModal}
-      onCookieChange={setQqCookieDraft}
-      onDetectBridge={() => void detectRedioBridge()}
       onOpenQqLogin={() => void openQqLoginFromModal()}
-      onRefresh={() => void syncQqCookieFromBridge()}
-      onSaveCookie={() => void saveQqCookie()}
-      onToggleManualCookie={() => setIsManualCookieOpen((isOpen) => !isOpen)}
+      qrImageUrl={qqQrImageUrl}
+      qrMessage={qqQrMessage}
     />
   ) : null;
   const settingsSections = (
@@ -2666,25 +2765,23 @@ export function App() {
         onToggle={() => setIsHistoryOpen((isOpen) => !isOpen)}
       />
 
-      {!isPublicDemo ? (
-        <QqSourceSection
-          bridgeStatus={redioBridgeStatus}
-          cookieDraft={qqCookieDraft}
-          isOpen={isQqSourceOpen}
-          isSaving={isQqSaving}
-          onClear={() => void clearQqCookie()}
-          onCookieChange={setQqCookieDraft}
-          onDetectBridge={() => void detectRedioBridge()}
-          onDesktopLogin={() => void openQqDesktopLogin()}
-          onBridgeLogin={() => void openQqBridgeLogin()}
-          onSave={() => void saveQqCookie()}
-          onSyncBridge={() => void syncQqCookieFromBridge()}
-          onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
-          isDesktop={Boolean(window.redioDesktop?.isDesktop)}
-          isWebLoginBusy={isQqWebLoginBusy}
-          status={qqLoginStatus}
-        />
-      ) : null}
+      <QqSourceSection
+        bridgeStatus={redioBridgeStatus}
+        cookieDraft={qqCookieDraft}
+        isOpen={isQqSourceOpen}
+        isSaving={isQqSaving}
+        onClear={() => void clearQqCookie()}
+        onCookieChange={setQqCookieDraft}
+        onDetectBridge={() => void detectRedioBridge()}
+        onDesktopLogin={() => void openQqDesktopLogin()}
+        onBridgeLogin={() => void openQqBridgeLogin()}
+        onSave={() => void saveQqCookie()}
+        onSyncBridge={() => void syncQqCookieFromBridge()}
+        onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
+        isDesktop={Boolean(window.redioDesktop?.isDesktop)}
+        isWebLoginBusy={isQqWebLoginBusy}
+        status={qqLoginStatus}
+      />
 
       <LogSection
         entries={logs}
@@ -2702,7 +2799,7 @@ export function App() {
   if (!hasEnteredRadio) {
     return (
       <>
-        {sharedAudioPlayers}
+        {qqLoginStatus?.loggedIn ? sharedAudioPlayers : null}
         {playbackToast ? (
           <p aria-live="assertive" className="playbackToast" role="alert">
             {playbackToast}
@@ -2714,7 +2811,6 @@ export function App() {
           error={playbackToast ? null : error}
           hasPlaybackToast={Boolean(playbackToast)}
           isLoginBusy={isQqWebLoginBusy}
-          isPublicDemo={isPublicDemo}
           onEnter={enterRadioView}
           onLogin={openLoginModal}
           onLogout={() => void clearQqCookie()}
@@ -2750,7 +2846,7 @@ export function App() {
     <>
       <main className="pageShell">
         <section className="radioFrame">
-        {sharedAudioPlayers}
+        {qqLoginStatus?.loggedIn ? sharedAudioPlayers : null}
 
         <header className={`radioTop ${appView === "agent" ? "agentTop" : ""}`}>
           {appView === "agent" ? (
@@ -2781,7 +2877,6 @@ export function App() {
           <AgentProfilePage
             genreTags={agentGenreTags}
             isLoginBusy={isQqWebLoginBusy}
-            isPublicDemo={isPublicDemo}
             listenerCount={listenerCount}
             listenerName={listenerName}
             onLogin={openLoginModal}
@@ -2791,11 +2886,7 @@ export function App() {
           <section className="settingsPage" aria-label="设置">
             <div className="settingsIntro">
               <p>SETTING</p>
-              <span>
-                {isPublicDemo
-                  ? "播放记录和运行状态都放在这里。"
-                  : "播放记录、QQ 授权和运行状态都放在这里。"}
-              </span>
+              <span>播放记录、QQ 授权和运行状态都放在这里。</span>
             </div>
 
             <div className="settingsScrollArea">
@@ -2938,37 +3029,20 @@ export function App() {
 }
 
 function LoginModal({
-  bridgeStatus,
-  cookieDraft,
   error,
   isLoginBusy,
-  isManualCookieOpen,
-  isSaving,
   onClose,
-  onCookieChange,
-  onDetectBridge,
   onOpenQqLogin,
-  onRefresh,
-  onSaveCookie,
-  onToggleManualCookie
+  qrImageUrl,
+  qrMessage
 }: {
-  bridgeStatus: RedioBridgeStatus;
-  cookieDraft: string;
   error: string | null;
   isLoginBusy: boolean;
-  isManualCookieOpen: boolean;
-  isSaving: boolean;
   onClose: () => void;
-  onCookieChange: (value: string) => void;
-  onDetectBridge: () => void;
   onOpenQqLogin: () => void;
-  onRefresh: () => void;
-  onSaveCookie: () => void;
-  onToggleManualCookie: () => void;
+  qrImageUrl: string;
+  qrMessage: string;
 }) {
-  const bridgeReady =
-    bridgeStatus.connected && !isRedioBridgeOutdated(bridgeStatus.version);
-
   return (
     <section
       aria-labelledby="login-modal-title"
@@ -3014,20 +3088,23 @@ function LoginModal({
           <div className="loginQqBlock" data-node-id="233:763">
             <button
               aria-busy={isLoginBusy}
-              aria-label="打开 QQ 音乐登录页"
+              aria-label="重新获取 QQ 音乐登录二维码"
               className="loginQrPlaceholder"
-              data-node-id="233:764"
-              disabled={isLoginBusy}
               onClick={onOpenQqLogin}
               type="button"
-            />
+            >
+              {qrImageUrl ? (
+                <img alt="QQ 音乐登录二维码" src={qrImageUrl} />
+              ) : (
+                <span>{isLoginBusy ? "正在加载…" : "重新获取"}</span>
+              )}
+            </button>
             <p className="loginQrCaption" data-node-id="233:773">
-              <span>点击</span>
               <strong>
                 <img alt="" aria-hidden="true" src={getPublicAssetUrl("/images/qq-music-icon.png")} />
                 QQ音乐
               </strong>
-              <span>{isLoginBusy ? "等待登录" : "扫码登录"}</span>
+              <span>{qrMessage}</span>
             </p>
           </div>
         </div>
@@ -3036,57 +3113,23 @@ function LoginModal({
 
         <div className="loginModalActions" data-node-id="239:798">
           <button
-            className="loginBridgeCheck"
-            disabled={bridgeStatus.checking}
-            onClick={onDetectBridge}
+            disabled={isLoginBusy && Boolean(qrImageUrl)}
+            onClick={onOpenQqLogin}
             type="button"
           >
-            <i className={bridgeReady ? "isReady" : ""} />
-            <span>{bridgeStatus.checking ? "检测中" : "Bridge检测"}</span>
-          </button>
-          <button disabled={isSaving || !bridgeReady} onClick={onRefresh} type="button">
-            {isSaving ? "刷新中" : "刷新登录状态"}
-          </button>
-          <button
-            aria-expanded={isManualCookieOpen}
-            onClick={onToggleManualCookie}
-            type="button"
-          >
-            手动导入Cookie
+            重新获取二维码
           </button>
         </div>
 
-        {isManualCookieOpen ? (
-          <div className="loginManualCookiePanel">
-            <label htmlFor="login-cookie-input">QQ 音乐 Cookie</label>
-            <textarea
-              id="login-cookie-input"
-              onChange={(event) => onCookieChange(event.target.value)}
-              placeholder="uin=...; qm_keyst=...; qqmusic_key=..."
-              spellCheck={false}
-              value={cookieDraft}
-            />
-            <div>
-              <button disabled={isSaving || !cookieDraft.trim()} onClick={onSaveCookie} type="button">
-                {isSaving ? "导入中" : "确认导入"}
-              </button>
-              <button onClick={onToggleManualCookie} type="button">
-                取消
-              </button>
-            </div>
-            {error ? (
-              <p aria-live="polite" className="loginManualCookieError">
-                {error}
-              </p>
-            ) : null}
-          </div>
+        {error ? (
+          <p aria-live="polite" className="loginManualCookieError">
+            {error}
+          </p>
         ) : null}
 
         <p className="loginBridgeNotice" data-node-id="239:813">
-          网页版搜索、播放和账号同步都依赖本机 Bridge扩展代理音乐API；请先安装扩展，再继续登录。
-          <a download href={getPublicAssetUrl("/downloads/redio-bridge.zip")}>
-            点击安装
-          </a>
+          扫码结果由服务器向 QQ 验证。凭据按音乐账号加密保存，
+          普通聊天、推荐、播放记录和反馈仅归属于当前账号。
         </p>
       </div>
     </section>
@@ -3182,7 +3225,6 @@ function LandingPage({
   error,
   hasPlaybackToast,
   isLoginBusy,
-  isPublicDemo,
   onEnter,
   onLogin,
   onLogout,
@@ -3195,7 +3237,6 @@ function LandingPage({
   error: string | null;
   hasPlaybackToast: boolean;
   isLoginBusy: boolean;
-  isPublicDemo: boolean;
   onEnter: (view: AppView) => void;
   onLogin: () => void;
   onLogout: () => void;
@@ -3205,7 +3246,7 @@ function LandingPage({
   status: QqLoginStatus | null;
 }) {
   const accountLabel = status?.nickname ?? status?.userId ?? "账号昵称";
-  const isLoggedIn = isPublicDemo || status?.loggedIn === true;
+  const isLoggedIn = status?.loggedIn === true;
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"home" | "settings">("home");
@@ -3249,23 +3290,29 @@ function LandingPage({
     >
       <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
         <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
-          <a
-            aria-label="返回 halou.net.cn 首页"
-            className="landingBrand"
-            data-node-id={isLoggedIn ? "239:869" : "232:736"}
-            href="https://www.halou.net.cn/"
-          >
-            <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 24 24" width="24">
-              <path
-                d="M14.9998 19.9201L8.47984 13.4001C7.70984 12.6301 7.70984 11.3701 8.47984 10.6001L14.9998 4.08008"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeMiterlimit="10"
-                strokeWidth="1.5"
-              />
-            </svg>
-          </a>
+          {isLoggedIn ? (
+            <a
+              aria-label="返回 halou.net.cn 首页"
+              className="landingBrand"
+              data-node-id="239:869"
+              href="https://www.halou.net.cn/"
+            >
+              <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 24 24" width="24">
+                <path
+                  d="M14.9998 19.9201L8.47984 13.4001C7.70984 12.6301 7.70984 11.3701 8.47984 10.6001L14.9998 4.08008"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeMiterlimit="10"
+                  strokeWidth="1.5"
+                />
+              </svg>
+            </a>
+          ) : (
+            <span className="landingBrand landingWordmark" data-node-id="232:736">
+              TuneChat
+            </span>
+          )}
         </div>
 
         <nav
@@ -3283,7 +3330,7 @@ function LandingPage({
           </button>
           <button
             data-node-id={isLoggedIn ? "239:872" : "232:739"}
-            onClick={onOpenChat}
+            onClick={isLoggedIn ? onOpenChat : onLogin}
             type="button"
           >
             Chat
@@ -3291,7 +3338,13 @@ function LandingPage({
           <button
             aria-current={activeSection === "settings" ? "page" : undefined}
             data-node-id={isLoggedIn ? "239:873" : "232:740"}
-            onClick={() => setActiveSection("settings")}
+            onClick={() => {
+              if (isLoggedIn) {
+                setActiveSection("settings");
+              } else {
+                onLogin();
+              }
+            }}
             type="button"
           >
             Setting
@@ -3312,8 +3365,7 @@ function LandingPage({
                 <AskAnythingButton onClick={onOpenChat} />
                 {chatWindow}
               </div>
-              {!isPublicDemo ? (
-                <div className="landingAccountMenuAnchor" ref={accountMenuRef}>
+              <div className="landingAccountMenuAnchor" ref={accountMenuRef}>
                 <button
                   aria-expanded={isAccountMenuOpen}
                   aria-haspopup="menu"
@@ -3385,8 +3437,7 @@ function LandingPage({
                     </button>
                   </div>
                 ) : null}
-                </div>
-              ) : null}
+              </div>
             </>
           ) : (
             <button
@@ -3871,7 +3922,6 @@ function CircularQueuePlayer({
 function AgentProfilePage({
   genreTags,
   isLoginBusy,
-  isPublicDemo,
   listenerCount,
   listenerName,
   onLogin,
@@ -3879,7 +3929,6 @@ function AgentProfilePage({
 }: {
   genreTags: string[];
   isLoginBusy: boolean;
-  isPublicDemo: boolean;
   listenerCount: number;
   listenerName: string;
   onLogin: () => void;
@@ -3929,20 +3978,18 @@ function AgentProfilePage({
         ))}
       </section>
 
-      {!isPublicDemo ? (
-        <section className="agentLogin" aria-label="登录">
-          <h3>登录</h3>
-          <button
-            className={status?.loggedIn ? "isLoggedIn" : ""}
-            disabled={isLoginBusy}
-            onClick={status?.loggedIn ? undefined : onLogin}
-            type="button"
-          >
-            <i />
-            <span>{isLoginBusy ? "等待扫码" : accountLabel}</span>
-          </button>
-        </section>
-      ) : null}
+      <section className="agentLogin" aria-label="登录">
+        <h3>登录</h3>
+        <button
+          className={status?.loggedIn ? "isLoggedIn" : ""}
+          disabled={isLoginBusy}
+          onClick={status?.loggedIn ? undefined : onLogin}
+          type="button"
+        >
+          <i />
+          <span>{isLoginBusy ? "等待扫码" : accountLabel}</span>
+        </button>
+      </section>
     </section>
   );
 }
@@ -4072,7 +4119,7 @@ function QqSourceSection({
         <div className="sourcePanel">
           <p>
             Redio Bridge 可以读取你在 QQ 音乐官方网页的登录态，并只把必要 Cookie
-            保存到本机 data 目录。未安装 Bridge 时仍可使用桌面端登录或手动导入。
+            按音乐账号加密保存。未安装 Bridge 时仍可使用桌面端登录或手动导入。
           </p>
           <div className="bridgeStatusCard">
             <span>Redio Bridge</span>
@@ -4308,32 +4355,27 @@ function MessageTimestamp({ createdAt }: { createdAt: string }) {
 
 function ChatWindow({
   error,
-  historyEntries,
   isLoading,
   isLandingChat,
   isPlanning,
   message,
   messages,
   onClose,
-  onLoadMoreHistory,
   onOpenAgentProfile,
   onMessageAnimationComplete,
   onMessageChange,
   onSend,
   plan,
   planningInputText,
-  planningText,
-  visibleHistoryEntryCount
+  planningText
 }: {
   error: string | null;
-  historyEntries: PlaybackHistoryEntry[];
   isLoading: boolean;
   isLandingChat: boolean;
   isPlanning: boolean;
   message: string;
   messages: ChatMessage[];
   onClose: () => void;
-  onLoadMoreHistory: () => void;
   onOpenAgentProfile: () => void;
   onMessageAnimationComplete: (messageId: string) => void;
   onMessageChange: (message: string) => void;
@@ -4341,69 +4383,15 @@ function ChatWindow({
   plan: DjPlan | null | undefined;
   planningInputText: string;
   planningText: string;
-  visibleHistoryEntryCount: number;
 }) {
   const chatMessagesRef = useRef<HTMLDivElement | null>(null);
-  const previousVisibleHistoryCountRef = useRef(visibleHistoryEntryCount);
   const introCreatedAtRef = useRef(new Date().toISOString());
   const [expandedTrackMessageIds, setExpandedTrackMessageIds] = useState<Set<string>>(
     () => new Set()
   );
-  const liveUserMessageCounts = messages
-    .filter((chatMessage) => chatMessage.role === "user")
-    .reduce((counts, chatMessage) => {
-      counts.set(chatMessage.text, (counts.get(chatMessage.text) ?? 0) + 1);
-      return counts;
-    }, new Map<string, number>());
-  const historyMessages = historyEntries
-    .filter((entry) => {
-      if (!entry.userMessage) {
-        return true;
-      }
-
-      const remainingLiveCount = liveUserMessageCounts.get(entry.userMessage) ?? 0;
-
-      if (remainingLiveCount <= 0) {
-        return true;
-      }
-
-      liveUserMessageCounts.set(entry.userMessage, remainingLiveCount - 1);
-      return false;
-    })
-    .slice(0, visibleHistoryEntryCount)
-    .reverse()
-    .flatMap((entry) => {
-      const entryPlan: DjPlan = {
-        episode: entry.episode,
-        say: entry.say,
-        play: entry.play,
-        reason: entry.reason,
-        segue: entry.segue
-      };
-      const restoredMessages: ChatMessage[] = [];
-
-      if (entry.userMessage) {
-        restoredMessages.push({
-          id: `${entry.id}-user`,
-          role: "user",
-          text: entry.userMessage,
-          createdAt: entry.createdAt
-        });
-      }
-
-      restoredMessages.push({
-        id: `${entry.id}-assistant`,
-        role: "assistant",
-        text: entry.say,
-        createdAt: entry.createdAt,
-        plan: entryPlan
-      });
-
-      return restoredMessages;
-    });
   const visibleMessages =
-    historyMessages.length > 0 || messages.length > 0
-      ? [...historyMessages, ...messages]
+    messages.length > 0
+      ? messages
       : [
           {
             id: "intro",
@@ -4415,7 +4403,6 @@ function ChatWindow({
             plan: plan ?? undefined
           }
       ];
-  const hasMoreHistory = visibleHistoryEntryCount < historyEntries.length;
   const latestMessageId = visibleMessages[visibleMessages.length - 1]?.id ?? "";
   const planningCreatedAt =
     messages[messages.length - 1]?.createdAt ?? introCreatedAtRef.current;
@@ -4449,15 +4436,6 @@ function ChatWindow({
       return;
     }
 
-    const isLoadingMoreHistory =
-      visibleHistoryEntryCount > previousVisibleHistoryCountRef.current;
-
-    previousVisibleHistoryCountRef.current = visibleHistoryEntryCount;
-
-    if (isLoadingMoreHistory) {
-      return;
-    }
-
     const scrollToBottom = () => {
       chatMessages.scrollTop = chatMessages.scrollHeight;
     };
@@ -4470,7 +4448,7 @@ function ChatWindow({
       cancelAnimationFrame(animationFrame);
       window.clearTimeout(timeout);
     };
-  }, [latestMessageId, isPlanning, visibleHistoryEntryCount]);
+  }, [latestMessageId, isPlanning]);
 
   return (
     <section
@@ -4507,17 +4485,7 @@ function ChatWindow({
         className="chatMessages"
         data-node-id={isLandingChat ? "276:891" : undefined}
         ref={chatMessagesRef}
-        onScroll={(event) => {
-          if (event.currentTarget.scrollTop <= 12 && hasMoreHistory) {
-            onLoadMoreHistory();
-          }
-        }}
       >
-        {hasMoreHistory ? (
-          <button className="loadMoreHistory" onClick={onLoadMoreHistory} type="button">
-            上滑加载更早会话
-          </button>
-        ) : null}
         {visibleMessages.map((chatMessage) => (
           <div
             className={`message ${chatMessage.role === "user" ? "outbound" : "inbound"}`}

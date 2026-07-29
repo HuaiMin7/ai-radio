@@ -83,12 +83,32 @@ Set this value in `.env`:
 AI_RADIO_MUSIC_PROVIDER=qq
 ```
 
-Open Redio's sign-in flow and use either the desktop QQ Music window or the
-local Redio Bridge extension to complete the official web login. The app stores
-the required Cookie fields only in local `data/qq-cookie.txt`. If QQ Music does
-not return a playable URL, the result remains explicitly `failed`; Redio may
-try another playable taste-sample track, but it does not present local test
-audio as the requested song.
+The public site uses a server-generated QQ QR code and verifies the completed
+QQ authorization before issuing Redio's signed, HttpOnly session. QQ
+credentials are encrypted per music account under `data/users/`; they are
+never returned to the browser. The desktop client and Redio Bridge remain
+available for local provider testing.
+
+If QQ Music does not return a playable URL, the result remains explicitly
+`failed`; Redio may try another playable taste-sample track, but it does not
+present local test audio as the requested song.
+
+## Account Memory
+
+The verified QQ account ID owns a separate local data directory. Normal model
+chat, recommendation turns, playback history, queue, and feedback are read and
+written only through the signed account session. Signing out hides all account
+data; signing back into the same QQ account restores it.
+
+Production requires a stable secret of at least 32 characters:
+
+```env
+AI_RADIO_SESSION_SECRET=
+AI_RADIO_SECURE_COOKIES=1
+```
+
+Storage is file-based and intended for this single-server beta. The shared
+seed profile in `user/` is still common to all accounts.
 
 ## DJ Narration
 
@@ -129,4 +149,5 @@ Local runtime files are ignored and can be regenerated:
 - `data/queue.json`
 - `data/feedback.json`
 - `data/qq-cookie.txt`
+- `data/users/`
 - `.env` and other private env files

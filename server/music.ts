@@ -1,3 +1,4 @@
+import type { AuthenticatedUser } from "./auth.js";
 import { resolveQqPlayableUrl } from "./qq-music.js";
 
 export type TrackRequest = {
@@ -110,12 +111,27 @@ export function listLocalTracks() {
 export async function resolvePlayableTrack(
   track: TrackRequest,
   fallbackIndex = 0,
-  rootDir = process.cwd()
+  rootDir = process.cwd(),
+  user?: AuthenticatedUser
 ): Promise<PlayableTrack> {
   const provider = getMusicProvider();
 
   if (provider === "qq") {
-    return resolveQqTrack(track, fallbackIndex, rootDir);
+    if (!user) {
+      return {
+        title: track.title,
+        artist: track.artist,
+        audioUrl: "",
+        audioLabel: "QQ 音乐未登录",
+        source: "qq",
+        matchedTitle: track.title,
+        matchedArtist: track.artist,
+        playbackStatus: "failed",
+        failureReason: "请先登录 QQ 音乐账号"
+      };
+    }
+
+    return resolveQqTrack(track, fallbackIndex, rootDir, user);
   }
 
   if (provider === "netease") {
@@ -236,10 +252,16 @@ async function resolveNeteaseTrack(
 async function resolveQqTrack(
   track: TrackRequest,
   _fallbackIndex: number,
-  rootDir: string
+  rootDir: string,
+  user: AuthenticatedUser
 ): Promise<PlayableTrack> {
   try {
-    const result = await resolveQqPlayableUrl(rootDir, track.title, track.artist);
+    const result = await resolveQqPlayableUrl(
+      rootDir,
+      user,
+      track.title,
+      track.artist
+    );
 
     if (!result.playable) {
       return {

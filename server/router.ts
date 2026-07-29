@@ -1,6 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
+import {
+  clearAuthenticatedUser,
+  readAuthenticatedUser,
+  revokeUserSessions,
+  setAuthenticatedUser,
+  type AuthenticatedUser
+} from "./auth.js";
 import { generateAiTurn } from "./brain.js";
+import { appendChatTurn, readChatHistory } from "./chat.js";
 import { buildPromptContext, loadUserProfile } from "./context.js";
 import {
   appendTrackFeedback,
@@ -11,12 +19,13 @@ import { readPlaybackHistory } from "./history.js";
 import { resolvePlayableTrack } from "./music.js";
 import { readPlaybackQueue } from "./queue.js";
 import {
+  authenticateAndSaveQqCookie,
   clearQqCookie,
   getQqLoginStatus,
   resolveQqLyrics,
-  saveQqCookie,
   searchQqSongs
 } from "./qq-music.js";
+import { createQqQrLogin, pollQqQrLogin } from "./qq-login.js";
 import { getNowPlaying, getPublicNowPlaying, setCurrentPlan } from "./state.js";
 import {
   getSpeechAudioContentType,
@@ -34,7 +43,12 @@ const defaultAllowedCorsOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:5173"
 ];
-const publicRateLimitPaths = new Set(["/api/plan", "/api/tts"]);
+const publicRateLimitPaths = new Set([
+  "/api/plan",
+  "/api/tts",
+  "/api/qq/login/cookie",
+  "/api/qq/login/qr"
+]);
 const rateLimitBuckets = new Map<
   string,
   {
@@ -60,7 +74,12 @@ function sendJsonWithCors(
   response.writeHead(statusCode, {
     "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Range",
-    ...(isAllowedCorsOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    ...(isAllowedCorsOrigin(origin)
+      ? {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true"
+        }
+      : {}),
     "Vary": "Origin",
     "Content-Type": "application/json; charset=utf-8"
   });
@@ -74,7 +93,12 @@ function sendAudio(
   origin: string | undefined
 ) {
   response.writeHead(200, {
-    ...(isAllowedCorsOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    ...(isAllowedCorsOrigin(origin)
+      ? {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true"
+        }
+      : {}),
     "Vary": "Origin",
     "Content-Type": contentType,
     "Cache-Control": "public, max-age=31536000, immutable"
@@ -89,7 +113,12 @@ function sendAudioProxyError(
   origin: string | undefined
 ) {
   response.writeHead(statusCode, {
-    ...(isAllowedCorsOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    ...(isAllowedCorsOrigin(origin)
+      ? {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true"
+        }
+      : {}),
     "Vary": "Origin",
     "Content-Type": "application/json; charset=utf-8"
   });
@@ -139,7 +168,12 @@ async function proxyAudioUrl(
   }
 
   const headers: Record<string, string> = {
-    ...(isAllowedCorsOrigin(origin) ? { "Access-Control-Allow-Origin": origin } : {}),
+    ...(isAllowedCorsOrigin(origin)
+      ? {
+          "Access-Control-Allow-Origin": origin,
+          "Access-Control-Allow-Credentials": "true"
+        }
+      : {}),
     "Access-Control-Allow-Headers": "Range, Content-Type",
     "Access-Control-Expose-Headers": "Accept-Ranges, Content-Length, Content-Range, Content-Type",
     "Vary": "Origin",
@@ -255,10 +289,8 @@ function isPublicDemo() {
 
 function isPublicAdminRoute(method: string | undefined, pathname: string) {
   return (
-    (method === "GET" &&
-      ["/api/profile", "/api/context", "/api/qq/login/status"].includes(pathname)) ||
-    (method === "POST" &&
-      ["/api/qq/login/cookie", "/api/qq/logout"].includes(pathname))
+    method === "GET" &&
+    ["/api/profile", "/api/context"].includes(pathname)
   );
 }
 
@@ -436,10 +468,10 @@ export function createRouter(rootDir: string): Handler {
     const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
     try {
-      if (isPublicDemo() && isPublicAdminRoute(request.method, url.pathname)) {
-        sendJsonWithCors(response, 403, {
-          error: "This management endpoint is disabled in the public demo"
-        }, origin);
+      const authenticatedUser = await readAuthenticatedUser(rootDir, request);
+
+      if (request.method === "GET" && url.pathname === "/api/health") {
+        sendJsonWithCors(response, 200, { ok: true }, origin);
         return;
       }
 
@@ -451,23 +483,168 @@ export function createRouter(rootDir: string): Handler {
         return;
       }
 
+      if (request.method === "GET" && url.pathname === "/api/qq/login/status") {
+        sendJsonWithCors(
+          response,
+          200,
+          await getQqLoginStatus(rootDir, authenticatedUser),
+          origin
+        );
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/qq/login/qr") {
+        sendJsonWithCors(response, 200, await createQqQrLogin(), origin);
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        url.pathname.startsWith("/api/qq/login/qr/")
+      ) {
+        const sessionId = decodeURIComponent(
+          url.pathname.replace("/api/qq/login/qr/", "")
+        );
+        const result = await pollQqQrLogin(rootDir, sessionId);
+
+        if (result.state === "complete") {
+          setAuthenticatedUser(request, response, result.user);
+          sendJsonWithCors(
+            response,
+            200,
+            {
+              state: result.state,
+              message: result.message,
+              status: result.status
+            },
+            origin
+          );
+          return;
+        }
+
+        sendJsonWithCors(response, 200, result, origin);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/qq/login/cookie") {
+        if (isPublicDemo() && !authenticatedUser) {
+          sendJsonWithCors(
+            response,
+            403,
+            {
+              error: "请先通过服务端 QQ 扫码登录"
+            },
+            origin
+          );
+          return;
+        }
+
+        const body = await readJsonBody(request);
+        const cookie = readCookieRequest(body);
+
+        if (!cookie?.trim()) {
+          sendJsonWithCors(response, 400, {
+            error: "QQ Cookie is required"
+          }, origin);
+          return;
+        }
+
+        const authentication = await authenticateAndSaveQqCookie(rootDir, cookie);
+
+        if (!authentication.user) {
+          sendJsonWithCors(
+            response,
+            401,
+            {
+              error:
+                authentication.status.message ??
+                "QQ 音乐账号验证失败"
+            },
+            origin
+          );
+          return;
+        }
+
+        if (
+          authenticatedUser &&
+          authentication.user.storageKey !== authenticatedUser.storageKey
+        ) {
+          sendJsonWithCors(
+            response,
+            403,
+            {
+              error: "只能更新当前已登录音乐账号的播放凭据"
+            },
+            origin
+          );
+          return;
+        }
+
+        setAuthenticatedUser(request, response, authentication.user);
+        sendJsonWithCors(response, 200, authentication.status, origin);
+        return;
+      }
+
+      if (request.method === "POST" && url.pathname === "/api/qq/logout") {
+        if (authenticatedUser) {
+          await revokeUserSessions(rootDir, authenticatedUser);
+          await clearQqCookie(rootDir, authenticatedUser);
+        }
+
+        clearAuthenticatedUser(request, response);
+        sendJsonWithCors(
+          response,
+          200,
+          await getQqLoginStatus(rootDir),
+          origin
+        );
+        return;
+      }
+
+      if (isPublicDemo() && isPublicAdminRoute(request.method, url.pathname)) {
+        sendJsonWithCors(response, 403, {
+          error: "This management endpoint is disabled in the public demo"
+        }, origin);
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/api/profile") {
+        requireAuthenticatedUser(authenticatedUser);
         sendJsonWithCors(response, 200, await loadUserProfile(rootDir), origin);
         return;
       }
 
       if (request.method === "GET" && url.pathname === "/api/now") {
-        sendJsonWithCors(response, 200, getPublicNowPlaying(), origin);
+        const user = requireAuthenticatedUser(authenticatedUser);
+        sendJsonWithCors(response, 200, getPublicNowPlaying(user), origin);
         return;
       }
 
       if (request.method === "GET" && url.pathname === "/api/history") {
-        sendJsonWithCors(response, 200, await readPlaybackHistory(rootDir), origin);
+        const user = requireAuthenticatedUser(authenticatedUser);
+        sendJsonWithCors(
+          response,
+          200,
+          await readPlaybackHistory(rootDir, user),
+          origin
+        );
+        return;
+      }
+
+      if (request.method === "GET" && url.pathname === "/api/chat") {
+        const user = requireAuthenticatedUser(authenticatedUser);
+        sendJsonWithCors(
+          response,
+          200,
+          await readChatHistory(rootDir, user),
+          origin
+        );
         return;
       }
 
       if (request.method === "GET" && url.pathname === "/api/queue") {
-        const queue = await readPlaybackQueue(rootDir);
+        const user = requireAuthenticatedUser(authenticatedUser);
+        const queue = await readPlaybackQueue(rootDir, user);
         const orderedQueue = queue
           .map((track, index) => ({ track, index }))
           .sort((left, right) => {
@@ -482,7 +659,7 @@ export function createRouter(rootDir: string): Handler {
             const playableTrack =
               shouldTrustStoredPlayableTrack(track)
                 ? track
-                : await resolvePlayableTrack(track, index, rootDir);
+                : await resolvePlayableTrack(track, index, rootDir, user);
 
             return {
               id: track.id,
@@ -499,7 +676,13 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "GET" && url.pathname === "/api/feedback") {
-        sendJsonWithCors(response, 200, await readTrackFeedback(rootDir), origin);
+        const user = requireAuthenticatedUser(authenticatedUser);
+        sendJsonWithCors(
+          response,
+          200,
+          await readTrackFeedback(rootDir, user),
+          origin
+        );
         return;
       }
 
@@ -509,16 +692,13 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "GET" && url.pathname === "/api/audio/proxy") {
+        requireAuthenticatedUser(authenticatedUser);
         await proxyAudioUrl(request, response, url.searchParams.get("url") ?? "", origin);
         return;
       }
 
-      if (request.method === "GET" && url.pathname === "/api/qq/login/status") {
-        sendJsonWithCors(response, 200, await getQqLoginStatus(rootDir), origin);
-        return;
-      }
-
       if (request.method === "GET" && url.pathname === "/api/qq/search") {
+        requireAuthenticatedUser(authenticatedUser);
         const keywords = url.searchParams.get("keywords") ?? "";
         const limit = Number(url.searchParams.get("limit") ?? "6");
 
@@ -530,6 +710,7 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "GET" && url.pathname === "/api/lyrics") {
+        requireAuthenticatedUser(authenticatedUser);
         const title = url.searchParams.get("title")?.trim() ?? "";
         const artist = url.searchParams.get("artist")?.trim() ?? "";
         const songMid = url.searchParams.get("songMid")?.trim() ?? "";
@@ -557,6 +738,7 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "GET" && url.pathname.startsWith("/api/tts/")) {
+        requireAuthenticatedUser(authenticatedUser);
         const fileName = decodeURIComponent(url.pathname.replace("/api/tts/", ""));
         sendAudio(
           response,
@@ -568,16 +750,23 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "GET" && url.pathname === "/api/context") {
+        const user = requireAuthenticatedUser(authenticatedUser);
         sendJsonWithCors(
           response,
           200,
-          await buildPromptContext(rootDir, getNowPlaying()),
+          await buildPromptContext(
+            rootDir,
+            getNowPlaying(user),
+            undefined,
+            user
+          ),
           origin
         );
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/tts") {
+        requireAuthenticatedUser(authenticatedUser);
         const body = await readJsonBody(request);
         const text = readTtsText(body);
 
@@ -593,6 +782,7 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "POST" && url.pathname === "/api/resolve-track") {
+        const user = requireAuthenticatedUser(authenticatedUser);
         const body = await readJsonBody(request);
         const track = readTrackRequest(body);
 
@@ -603,31 +793,17 @@ export function createRouter(rootDir: string): Handler {
           return;
         }
 
-        sendJsonWithCors(response, 200, await resolvePlayableTrack(track, 0, rootDir), origin);
-        return;
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/qq/login/cookie") {
-        const body = await readJsonBody(request);
-        const cookie = readCookieRequest(body);
-
-        if (!cookie?.trim()) {
-          sendJsonWithCors(response, 400, {
-            error: "QQ Cookie is required"
-          }, origin);
-          return;
-        }
-
-        sendJsonWithCors(response, 200, await saveQqCookie(rootDir, cookie), origin);
-        return;
-      }
-
-      if (request.method === "POST" && url.pathname === "/api/qq/logout") {
-        sendJsonWithCors(response, 200, await clearQqCookie(rootDir), origin);
+        sendJsonWithCors(
+          response,
+          200,
+          await resolvePlayableTrack(track, 0, rootDir, user),
+          origin
+        );
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/feedback") {
+        const user = requireAuthenticatedUser(authenticatedUser);
         const body = await readJsonBody(request);
         const feedback = readFeedbackRequest(body);
 
@@ -641,13 +817,14 @@ export function createRouter(rootDir: string): Handler {
         sendJsonWithCors(
           response,
           200,
-          await appendTrackFeedback(rootDir, feedback),
+          await appendTrackFeedback(rootDir, user, feedback),
           origin
         );
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/plan") {
+        const user = requireAuthenticatedUser(authenticatedUser);
         const body = await readJsonBody(request);
         const userMessage = readUserMessage(body);
 
@@ -659,10 +836,21 @@ export function createRouter(rootDir: string): Handler {
         }
 
         const profile = await loadUserProfile(rootDir);
-        const context = await buildPromptContext(rootDir, getNowPlaying(), userMessage);
+        const context = await buildPromptContext(
+          rootDir,
+          getNowPlaying(user),
+          userMessage,
+          user
+        );
         const turn = await generateAiTurn({ context, profile });
 
         if (turn.mode === "chat") {
+          await appendChatTurn(
+            rootDir,
+            user,
+            userMessage,
+            turn.text
+          );
           sendJsonWithCors(response, 200, {
             mode: "chat",
             message: turn.text
@@ -670,10 +858,30 @@ export function createRouter(rootDir: string): Handler {
           return;
         }
 
-        sendJsonWithCors(response, 200, {
-          mode: "recommend",
-          state: await setCurrentPlan(rootDir, turn.plan, context, userMessage)
-        }, origin);
+        const state = await setCurrentPlan(
+          rootDir,
+          user,
+          turn.plan,
+          context,
+          userMessage
+        );
+
+        await appendChatTurn(
+          rootDir,
+          user,
+          userMessage,
+          state.currentPlan?.say ?? turn.plan.say,
+          state.currentPlan ?? turn.plan
+        );
+        sendJsonWithCors(
+          response,
+          200,
+          {
+            mode: "recommend",
+            state
+          },
+          origin
+        );
         return;
       }
 
@@ -691,4 +899,14 @@ export function createRouter(rootDir: string): Handler {
       }, origin);
     }
   };
+}
+
+function requireAuthenticatedUser(
+  user: AuthenticatedUser | null
+): AuthenticatedUser {
+  if (!user) {
+    throw new RequestError(401, "请先登录音乐账号");
+  }
+
+  return user;
 }

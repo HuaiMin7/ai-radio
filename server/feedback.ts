@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+import type { AuthenticatedUser } from "./auth.js";
+import { getUserDataDir } from "./auth.js";
 
 export type FeedbackAction = "like" | "skip" | "replay";
 
@@ -23,8 +25,11 @@ export type FeedbackSummary = {
 
 const maxFeedbackEntries = 200;
 
-export async function readTrackFeedback(rootDir: string) {
-  const path = getFeedbackPath(rootDir);
+export async function readTrackFeedback(
+  rootDir: string,
+  user: AuthenticatedUser
+) {
+  const path = getFeedbackPath(rootDir, user);
 
   try {
     const raw = await readFile(path, "utf8");
@@ -46,10 +51,11 @@ export async function readTrackFeedback(rootDir: string) {
 
 export async function appendTrackFeedback(
   rootDir: string,
+  user: AuthenticatedUser,
   entry: Omit<TrackFeedbackEntry, "id" | "createdAt">
 ) {
-  const path = getFeedbackPath(rootDir);
-  const feedback = await readTrackFeedback(rootDir);
+  const path = getFeedbackPath(rootDir, user);
+  const feedback = await readTrackFeedback(rootDir, user);
   const nextFeedback = [
     {
       ...entry,
@@ -59,8 +65,14 @@ export async function appendTrackFeedback(
     ...feedback
   ].slice(0, maxFeedbackEntries);
 
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(nextFeedback, null, 2)}\n`, "utf8");
+  await mkdir(getUserDataDir(rootDir, user), {
+    recursive: true,
+    mode: 0o700
+  });
+  await writeFile(path, `${JSON.stringify(nextFeedback, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600
+  });
 
   return nextFeedback;
 }
@@ -108,8 +120,8 @@ function countTracks(entries: TrackFeedbackEntry[]) {
     .slice(0, 16);
 }
 
-function getFeedbackPath(rootDir: string) {
-  return join(rootDir, "data", "feedback.json");
+function getFeedbackPath(rootDir: string, user: AuthenticatedUser) {
+  return join(getUserDataDir(rootDir, user), "feedback.json");
 }
 
 function isTrackFeedbackEntry(value: unknown): value is TrackFeedbackEntry {

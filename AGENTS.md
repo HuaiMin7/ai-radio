@@ -91,6 +91,8 @@ http://127.0.0.1:3000
 
 ```env
 AI_RADIO_BRAIN_PROVIDER=custom-http
+AI_RADIO_SESSION_SECRET=
+AI_RADIO_SECURE_COOKIES=0
 AI_RADIO_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 AI_RADIO_MODEL_NAME=deepseek-v4-flash
 AI_RADIO_MODEL_API_KEY=
@@ -120,6 +122,8 @@ DASHSCOPE_API_KEY=
 说明：
 
 - `AI_RADIO_BRAIN_PROVIDER=custom-http`：走 OpenAI-compatible 接口。
+- `AI_RADIO_SESSION_SECRET`：签名本站会话并派生账号凭据加密密钥；公开部署必须使用至少 32 字符的稳定随机值。
+- `AI_RADIO_SECURE_COOKIES=1`：公开 HTTPS 部署必须启用，确保本站会话 Cookie 只通过 HTTPS 发送。
 - `AI_RADIO_MODEL_BASE_URL`：模型服务 base URL。
 - `AI_RADIO_MODEL_NAME`：模型名，例如 `deepseek-v4-flash`。
 - `AI_RADIO_MODEL_API_KEY`：本地填写，不要提交。
@@ -140,11 +144,14 @@ DASHSCOPE_API_KEY=
 GET  /api/profile       # 读取 user/ 下的用户资料
 GET  /api/now           # 当前播放状态
 GET  /api/history       # 播放历史 / 推荐记录
+GET  /api/chat          # 当前音乐账号的普通聊天 / 推荐对话
 GET  /api/queue         # 播放队列
 GET  /api/feedback      # 歌曲反馈记录
 GET  /api/weather       # 天气上下文
 GET  /api/audio/proxy   # 代理远端音频并保留 Range 请求
 GET  /api/qq/login/status # QQ 音乐登录状态
+POST /api/qq/login/qr   # 生成服务端 QQ 登录二维码
+GET  /api/qq/login/qr/:id # 轮询并完成 QQ 登录
 GET  /api/qq/search     # QQ 音乐搜索
 GET  /api/lyrics        # 当前歌曲歌词
 GET  /api/context       # 当前组装后的 prompt 上下文
@@ -152,7 +159,7 @@ POST /api/plan          # 根据用户输入生成新节目段落
 POST /api/tts           # 生成 DJ 语音
 POST /api/resolve-track # 解析单曲可播放状态
 POST /api/feedback      # 记录喜欢 / 跳过 / 重播
-POST /api/qq/login/cookie # 保存本地 QQ Cookie
+POST /api/qq/login/cookie # 仅本地开发可手动保存 QQ Cookie，公开站禁用
 POST /api/qq/logout     # 清除本地 QQ Cookie
 ```
 
@@ -209,21 +216,22 @@ POST /api/qq/logout     # 清除本地 QQ Cookie
 - `local` 音乐 adapter。
 - `qq` 音乐 adapter，依赖本地 QQ 登录 Cookie 才能尽量拿到完整播放 URL。
 - Redio Bridge 浏览器扩展和桌面登录窗口可同步本地 QQ 音乐登录态。
+- 公开站通过服务端 QQ 扫码授权建立签名 HttpOnly 会话。
 - `netease` 音乐 adapter 仍在代码中，但默认禁用，只作为 legacy 测试路径。
 - `aliyun-qwen-tts` TTS adapter，保留 `macos-say` fallback。
 - 歌曲播放、暂停、上一首、下一首、进度条、音量浮层。
 - 每首歌有独立 DJ 文案，目标 60-100 个中文字符，后端硬上限 100。
 - 歌曲与 DJ 文案同时开始；DJ 播报期间歌曲音量缓降到 50%，结束后恢复。
-- 播放历史 / 推荐记录写入 `data/history.json`。
-- 播放队列写入 `data/queue.json`，歌曲反馈写入 `data/feedback.json`。
+- 普通聊天、推荐对话、播放历史、队列和反馈按 QQ 音乐账号写入 `data/users/<account-hash>/`。
+- QQ 音乐凭据按账号加密写入，不再以全局明文 Cookie 作为公开站身份。
 - 前端“播放记忆”面板展示最近记录。
 
 ## 当前限制
 
 - QQ 音乐完整播放通常依赖本地登录 Cookie；无可播放 URL 时必须明确显示失败，可尝试替换为已验证可播种子曲目，但不得把本地测试音频显示成原推荐歌曲。
 - NetEase 是 legacy 测试路径，默认不启动、不作为产品主路径。
-- 当前没有正式用户登录和云端账号系统。
-- 播放历史存在本地 JSON，不是云数据库。
+- 当前已有单服务器、多音乐账号隔离，但仍是文件型存储，不是云数据库。
+- `user/` 下的初始口味资料仍是共享种子配置，尚未同步每个 QQ 账号的完整音乐资料库。
 - TTS 默认使用阿里云百炼实时接口，本地环境或密钥不可用时才退回 macOS `say`。
 - 现在重点是验证 MVP，不要提前做复杂部署和权限系统。
 

@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { AuthenticatedUser } from "./auth.js";
+import { readChatHistory } from "./chat.js";
 import { readTrackFeedback, summarizeTrackFeedback } from "./feedback.js";
 import { readPlaybackHistory } from "./history.js";
 import type { NowPlayingState } from "./state.js";
@@ -161,16 +163,18 @@ function summarizeRecentTracks(history: Awaited<ReturnType<typeof readPlaybackHi
 export async function buildPromptContext(
   rootDir: string,
   nowPlaying: NowPlayingState,
-  userMessage?: string
+  userMessage: string | undefined,
+  user: AuthenticatedUser
 ): Promise<PromptContext> {
   const personaPath = join(rootDir, "prompts", "dj-persona.md");
   const userDir = join(rootDir, "user");
 
-  const [persona, profile, history, feedback, weather] = await Promise.all([
+  const [persona, profile, history, feedback, chatHistory, weather] = await Promise.all([
     readText(personaPath),
     loadUserProfile(rootDir),
-    readPlaybackHistory(rootDir),
-    readTrackFeedback(rootDir),
+    readPlaybackHistory(rootDir, user),
+    readTrackFeedback(rootDir, user),
+    readChatHistory(rootDir, user),
     getWeatherSnapshot().catch((error) => ({
       status: "not-configured" as const,
       provider: "qweather" as const,
@@ -197,6 +201,13 @@ export async function buildPromptContext(
   const historyText = formatJson(summarizeHistory(history));
   const feedbackText = formatJson(summarizeTrackFeedback(feedback));
   const recentTrackText = formatJson(summarizeRecentTracks(history));
+  const recentConversationText = formatJson(
+    chatHistory.slice(-20).map((message) => ({
+      role: message.role,
+      text: message.text,
+      createdAt: message.createdAt
+    }))
+  );
   const runtimeText = formatJson({
     ...runtimeContext,
     requestedTrackCount
@@ -239,6 +250,11 @@ export async function buildPromptContext(
       characterCount: feedbackText.length
     },
     {
+      label: "最近对话",
+      path: "data/chat.json",
+      characterCount: recentConversationText.length
+    },
+    {
       label: "运行状态",
       path: "memory:now-playing",
       characterCount: runtimeText.length
@@ -259,6 +275,7 @@ export async function buildPromptContext(
     buildSection("Recent Playback Memory", historyText),
     buildSection("Recent Track Repetition Guard", recentTrackText),
     buildSection("Personal Feedback Memory", feedbackText),
+    buildSection("Recent Conversation", recentConversationText),
     buildSection("Runtime State", runtimeText),
     buildSection("User Request", userMessage?.trim() || "Generate the next radio segment."),
     buildSection(

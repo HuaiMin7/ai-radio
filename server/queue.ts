@@ -1,5 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
+import type { AuthenticatedUser } from "./auth.js";
+import { getUserDataDir } from "./auth.js";
 import type { DjPlan } from "./brain.js";
 
 export type QueueTrack = DjPlan["play"][number] & {
@@ -10,8 +12,11 @@ export type QueueTrack = DjPlan["play"][number] & {
 
 const maxQueueTracks = 200;
 
-export async function readPlaybackQueue(rootDir: string) {
-  const path = getQueuePath(rootDir);
+export async function readPlaybackQueue(
+  rootDir: string,
+  user: AuthenticatedUser
+) {
+  const path = getQueuePath(rootDir, user);
 
   try {
     const raw = await readFile(path, "utf8");
@@ -31,9 +36,13 @@ export async function readPlaybackQueue(rootDir: string) {
   return [];
 }
 
-export async function appendPlaybackQueue(rootDir: string, plan: DjPlan) {
-  const path = getQueuePath(rootDir);
-  const queue = await readPlaybackQueue(rootDir);
+export async function appendPlaybackQueue(
+  rootDir: string,
+  user: AuthenticatedUser,
+  plan: DjPlan
+) {
+  const path = getQueuePath(rootDir, user);
+  const queue = await readPlaybackQueue(rootDir, user);
   const queuedAt = new Date().toISOString();
   const newTracks = plan.play.map((track, index) => ({
     ...toPersistentTrack(track),
@@ -43,8 +52,14 @@ export async function appendPlaybackQueue(rootDir: string, plan: DjPlan) {
   }));
   const nextQueue = [...queue, ...newTracks].slice(-maxQueueTracks);
 
-  await mkdir(dirname(path), { recursive: true });
-  await writeFile(path, `${JSON.stringify(nextQueue, null, 2)}\n`, "utf8");
+  await mkdir(getUserDataDir(rootDir, user), {
+    recursive: true,
+    mode: 0o700
+  });
+  await writeFile(path, `${JSON.stringify(nextQueue, null, 2)}\n`, {
+    encoding: "utf8",
+    mode: 0o600
+  });
 
   return nextQueue;
 }
@@ -67,8 +82,8 @@ function toPersistentTrack(track: DjPlan["play"][number]): DjPlan["play"][number
   };
 }
 
-function getQueuePath(rootDir: string) {
-  return join(rootDir, "data", "queue.json");
+function getQueuePath(rootDir: string, user: AuthenticatedUser) {
+  return join(getUserDataDir(rootDir, user), "queue.json");
 }
 
 function isQueueTrack(value: unknown): value is QueueTrack {

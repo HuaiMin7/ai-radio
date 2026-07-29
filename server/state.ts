@@ -1,3 +1,4 @@
+import type { AuthenticatedUser } from "./auth.js";
 import type { DjPlan } from "./brain.js";
 import type { PromptContext } from "./context.js";
 import { appendPlaybackHistory } from "./history.js";
@@ -21,23 +22,23 @@ export type PlaybackSummary = {
   hasAttemptableTrack: boolean;
 };
 
-let nowPlaying: NowPlayingState = {
-  status: "idle",
-  currentPlan: null,
-  currentContext: null,
-  playbackSummary: {
-    status: "idle",
-    hasFullPlayableTrack: false,
-    hasAttemptableTrack: false
-  },
-  updatedAt: new Date().toISOString()
-};
+const nowPlayingByUser = new Map<string, NowPlayingState>();
 
-export function getNowPlaying() {
-  return nowPlaying;
+export function getNowPlaying(user: AuthenticatedUser) {
+  const current = nowPlayingByUser.get(user.storageKey);
+
+  if (current) {
+    return current;
+  }
+
+  const initial = createIdleState();
+  nowPlayingByUser.set(user.storageKey, initial);
+  return initial;
 }
 
-export function getPublicNowPlaying(): PublicNowPlayingState {
+export function getPublicNowPlaying(user: AuthenticatedUser): PublicNowPlayingState {
+  const nowPlaying = getNowPlaying(user);
+
   return {
     status: nowPlaying.status,
     currentPlan: nowPlaying.currentPlan,
@@ -48,11 +49,18 @@ export function getPublicNowPlaying(): PublicNowPlayingState {
 
 export async function setCurrentPlan(
   rootDir: string,
+  user: AuthenticatedUser,
   plan: DjPlan,
   context: PromptContext,
   userMessage?: string
 ) {
-  const playablePlan = await buildPlayablePlan(rootDir, plan, context, userMessage);
+  const playablePlan = await buildPlayablePlan(
+    rootDir,
+    user,
+    plan,
+    context,
+    userMessage
+  );
 
   const nextNowPlaying: NowPlayingState = {
     status: "planned",
@@ -62,7 +70,7 @@ export async function setCurrentPlan(
     updatedAt: new Date().toISOString()
   };
 
-  await appendPlaybackHistory(rootDir, {
+  await appendPlaybackHistory(rootDir, user, {
     userMessage: userMessage?.trim() || null,
     say: playablePlan.say,
     play: playablePlan.play,
@@ -70,15 +78,16 @@ export async function setCurrentPlan(
     segue: playablePlan.segue,
     episode: playablePlan.episode
   });
-  await appendPlaybackQueue(rootDir, playablePlan);
+  await appendPlaybackQueue(rootDir, user, playablePlan);
 
-  nowPlaying = nextNowPlaying;
+  nowPlayingByUser.set(user.storageKey, nextNowPlaying);
 
-  return nowPlaying;
+  return nextNowPlaying;
 }
 
 async function buildPlayablePlan(
   rootDir: string,
+  user: AuthenticatedUser,
   plan: DjPlan,
   context: PromptContext,
   userMessage?: string
@@ -87,7 +96,7 @@ async function buildPlayablePlan(
   const resolvedTracks = await Promise.all(
     plan.play.map(async (track, index) => ({
       ...track,
-      ...(await resolvePlayableTrack(track, index, rootDir))
+      ...(await resolvePlayableTrack(track, index, rootDir, user))
     }))
   );
   const selectedTracks = resolvedTracks.filter(isFullPlayableTrack);
@@ -109,7 +118,12 @@ async function buildPlayablePlan(
 
       const resolvedSeedTrack = {
         ...seedTrack,
-        ...(await resolvePlayableTrack(seedTrack, selectedTracks.length, rootDir))
+        ...(await resolvePlayableTrack(
+          seedTrack,
+          selectedTracks.length,
+          rootDir,
+          user
+        ))
       };
 
       if (!isFullPlayableTrack(resolvedSeedTrack)) {
@@ -151,6 +165,20 @@ async function buildPlayablePlan(
         : selectedTracks.length >= targetCount
         ? plan.reason
         : `${plan.reason}；部分歌曲暂时没有 QQ 可播地址，已保留可验证结果。`
+  };
+}
+
+function createIdleState(): NowPlayingState {
+  return {
+    status: "idle",
+    currentPlan: null,
+    currentContext: null,
+    playbackSummary: {
+      status: "idle",
+      hasFullPlayableTrack: false,
+      hasAttemptableTrack: false
+    },
+    updatedAt: new Date().toISOString()
   };
 }
 
