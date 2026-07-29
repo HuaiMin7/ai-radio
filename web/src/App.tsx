@@ -3249,14 +3249,23 @@ function LandingPage({
     >
       <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
         <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
-          <button
+          <a
+            aria-label="返回 halou.net.cn 首页"
             className="landingBrand"
             data-node-id={isLoggedIn ? "239:869" : "232:736"}
-            onClick={() => setActiveSection("home")}
-            type="button"
+            href="https://www.halou.net.cn/"
           >
-            Redio
-          </button>
+            <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 24 24" width="24">
+              <path
+                d="M14.9998 19.9201L8.47984 13.4001C7.70984 12.6301 7.70984 11.3701 8.47984 10.6001L14.9998 4.08008"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeMiterlimit="10"
+                strokeWidth="1.5"
+              />
+            </svg>
+          </a>
         </div>
 
         <nav

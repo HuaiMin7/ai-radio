@@ -556,15 +556,19 @@ p {
 }
 
 .landingBrand {
-  display: block;
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: center;
   justify-self: start;
   border: 0;
   padding: 0;
-  font-family: "Outfit", "Helvetica Neue", Arial, sans-serif;
-  font-size: 24px;
-  font-weight: 600;
-  line-height: normal;
-  white-space: nowrap;
+  text-decoration: none;
+}
+
+.landingBrand svg {
+  display: block;
 }
 
 .landingLinks {
@@ -3455,10 +3459,6 @@ p {
     flex-basis: 72px;
     gap: 16px;
     padding: 12px 24px;
-  }
-
-  .landingBrand {
-    font-size: 24px;
   }
 
   .landingLinks {
