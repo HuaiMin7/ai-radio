@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ===== 参考 clouarchitects：根字号随视口线性缩放，全站用 rem 自动跟随分辨率 ===== */
+  html {
+    font-size: 16px; /* 移动端 / 小屏基准 */
+  }
+  @media (min-width: 1024px) {
+    /* 桂面：根字号 = 7.14px + 0.67vw，随窗口线性变化 */
+    html {
+      font-size: calc(7.14291px + 0.66964vw);
+    }
+  }
+  @media (min-width: 3840px) {
+    html {
+      font-size: 32.857px; /* 4K 封顶 */
+    }
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: #fffffc; /* 对齐 clouarchitects：微暖调米白（非纯白 #fffffc） */
+    color: #000;
+    /* SF Pro fallback stack — 系统苹方/系统字体优先 */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+      "Segoe UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* 保留系统鼠标（不隐藏），黑圆只是在旁边跟随 */
+}
+
+/* ---- 自定义跟随黑圆 + 颜色反相 ---- */
+.custom-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fffffc; /* 对齐他们 .cursor__inner 的 #fffffc；米白底上 difference 显黑，滑过黑字反相 */
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  will-change: transform;
+  transition: none;
+}
+
+/* 触摸设备由组件内 JS 判断是否渲染，这里不再用 @media 一刀切隐藏（避免误伤部分桌面环境） */
