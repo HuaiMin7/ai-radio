@@ -62,18 +62,22 @@ Nginx 配置文件：`/etc/nginx/sites-available/halou`
 
 ```bash
 cd site
+npm ci
 npm run build                 # 产物 dist/
 bash scripts/deploy.sh        # 打包 → 上传 → 替换 → 修正属主
 ```
+
+`deploy.sh` 可在 macOS 和 Linux 运行。部署失败会直接退出，不会继续用旧页面的
+HTTP 200 状态误报成功。
 
 手工等价操作：
 
 ```bash
 tar czf site.tgz -C dist .
 # 上传到服务器后
-rm -rf /var/www/halou/site/*
+find /var/www/halou/site -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
 tar xzf site.tgz -C /var/www/halou/site
-chown -R www-data:www-data /var/www/halou
+chown -R www-data:www-data /var/www/halou/site
 ```
 
 不需要 reload Nginx（静态文件直接生效）。

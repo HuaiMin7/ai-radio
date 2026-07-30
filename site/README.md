@@ -3,7 +3,7 @@
 TuneChat / 哈喽 的官方网站前端，与 Redio 电台应用同域部署。
 
 - 线上地址：https://www.halou.net.cn
-- 电台入口：点击首页 Hero 中间的动效 "TuneChat" → https://www.halou.net.cn/app/
+- 电台入口：点击首页 Hero 中间的动效 "TuneChat"，在新标签页打开 https://www.halou.net.cn/app/
 
 ## 技术栈
 
@@ -17,9 +17,11 @@ TuneChat / 哈喽 的官方网站前端，与 Redio 电台应用同域部署。
 
 ```bash
 cd site
-npm install
+npm ci
 npm run dev          # http://localhost:5173
 ```
+
+本地构建需要 Node.js 20.19 或更高版本。
 
 ## 构建与部署
 

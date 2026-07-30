@@ -42,11 +42,20 @@ trap 'rm -f "$ASKPASS" "$TGZ"' EXIT
 SSH_OPTS=(-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
           -o PreferredAuthentications=password -o PubkeyAuthentication=no)
 
+encode_base64() {
+  if base64 --version >/dev/null 2>&1; then
+    base64 -w 0 "$1"
+  else
+    base64 < "$1" | tr -d '\r\n'
+  fi
+}
+
 echo "==> 3/4 上传并部署（含备份）"
-base64 -w0 "$TGZ" | SSH_ASKPASS="$ASKPASS" SSH_ASKPASS_REQUIRE=force setsid -w \
+encode_base64 "$TGZ" | DISPLAY="${DISPLAY:-redio-deploy}" \
+  SSH_ASKPASS="$ASKPASS" SSH_ASKPASS_REQUIRE=force \
   ssh "${SSH_OPTS[@]}" "${DEPLOY_USER}@${DEPLOY_HOST}" "
     set -e
-    mkdir -p '$BACKUP_DIR'
+    mkdir -p '$BACKUP_DIR' '$DEPLOY_PATH'
     # 备份当前线上版本
     if [ -d '$DEPLOY_PATH' ] && [ -n \"\$(ls -A '$DEPLOY_PATH' 2>/dev/null)\" ]; then
       tar czf '$BACKUP_DIR/site-'\$(date +%Y%m%d-%H%M%S)'.tgz' -C '$DEPLOY_PATH' .
@@ -54,12 +63,12 @@ base64 -w0 "$TGZ" | SSH_ASKPASS="$ASKPASS" SSH_ASKPASS_REQUIRE=force setsid -w \
     fi
     cat > /tmp/_site.b64
     base64 -d /tmp/_site.b64 > /tmp/_site.tgz
-    rm -rf '$DEPLOY_PATH'/*
+    find '$DEPLOY_PATH' -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
     tar xzf /tmp/_site.tgz -C '$DEPLOY_PATH'
-    chown -R www-data:www-data /var/www/halou
+    chown -R www-data:www-data '$DEPLOY_PATH'
     rm -f /tmp/_site.b64 /tmp/_site.tgz
     echo '    部署完成'
-  " 2>&1 | grep -v "Permanently added" || true
+  " 2>&1 | sed '/Permanently added/d'
 
 echo "==> 4/4 验证"
 CODE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 https://www.halou.net.cn/)

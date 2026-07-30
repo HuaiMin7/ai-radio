@@ -10,20 +10,17 @@ type Page = "projects" | "info" | "radio";
  * ⭐ 电台入口（预留口子）
  * ------------------------------------------------------------------
  * 后期 Codex 把 TuneChat 电台（Redio/ai-radio 全栈应用）部署到同域名
- * 的 /app 子路径后，这里点击即可进入电台。
- *
- * 现在 /app 还没有内容，点击会跳到 /app（上线前 Nginx 可先给 /app
- * 返回一个「电台建设中」占位页，或临时指回首页）。
+ * 的 /app/ 子路径后，这里点击即可在新标签页进入电台。
  *
  * 约定（给 Codex / 部署时看）：
  *   - 官网：       https://<域名>/         → 本静态站
- *   - 电台前端：   https://<域名>/app       → ai-radio 构建产物
- *   - 电台后端 API：https://<域名>/app/api/* → Nginx 反代到 Node 服务
+ *   - 电台前端：   https://<域名>/app/      → ai-radio 构建产物
+ *   - 电台后端 API：https://<域名>/api/*      → Nginx 反代到 Node 服务
  * 若将来改成子域名（如 app.<域名>），只需改这里的 APP_URL 一处。
  */
-const APP_URL = "/app";
+const APP_URL = "/app/";
 function enterApp() {
-  window.location.href = APP_URL;
+  window.open(APP_URL, "_blank", "noopener,noreferrer");
 }
 
 // 统一的下划线链接样式：hover 时黑线从左滑出；active 时常驻
@@ -71,7 +68,7 @@ function Hero() {
         <span className="text-[#383838] block">Play the music you feel</span>
         <span className="block mt-2">
           <span className="text-[#383838]">at </span>
-          {/* ⭐ 点击这个动效 TuneChat 进入电台 /app（唯一入口） */}
+          {/* ⭐ 点击这个动效 TuneChat 在新标签页进入电台 /app/（唯一入口） */}
           <Cover onClick={enterApp}>TuneChat</Cover>
         </span>
       </h1>
