@@ -1559,23 +1559,7 @@ export function App() {
     handleDjPlaybackStopped();
   }
 
-  function stopDjPlayback() {
-    djSpeechRequestIdRef.current += 1;
-
-    const audio = djAudioRef.current;
-
-    if (audio) {
-      audio.pause();
-      audio.currentTime = 0;
-    }
-
-    setIsSpeaking(false);
-    setActiveDjText(null);
-    setSongDucking(false);
-  }
-
   function requestTrackPlayback(djIntro?: string) {
-    stopDjPlayback();
     pendingQueueAutoplayRef.current = true;
     pendingDjIntroRef.current = djIntro?.trim() || null;
     setPlaybackRequestId((requestId) => requestId + 1);
@@ -1592,10 +1576,21 @@ export function App() {
       audio.currentTime = 0;
     }
 
-    stopDjPlayback();
+    djSpeechRequestIdRef.current += 1;
+
+    const djAudio = djAudioRef.current;
+
+    if (djAudio) {
+      djAudio.pause();
+      djAudio.currentTime = 0;
+    }
+
     setIsPlaying(false);
+    setIsSpeaking(false);
+    setActiveDjText(null);
     setCurrentTime(0);
     setDuration(0);
+    setSongDucking(false);
   }
 
   function rampSongVolume(targetVolume: number, durationMs = 450) {
@@ -1738,19 +1733,10 @@ export function App() {
       audio.volume = volume;
       setActiveDjText(text.trim());
       await audio.play();
-
-      if (requestId !== djSpeechRequestIdRef.current) {
-        return false;
-      }
-
       setError(null);
       appendLog("success", "DJ 文案开始播报", tts.provider);
       return true;
     } catch (requestError) {
-      if (requestId !== djSpeechRequestIdRef.current) {
-        return false;
-      }
-
       setIsSpeaking(false);
       setActiveDjText(null);
       const errorMessage =
@@ -1763,8 +1749,13 @@ export function App() {
   }
 
   function toggleDjSpeech() {
-    if (isSpeaking) {
-      stopDjPlayback();
+    const audio = djAudioRef.current;
+
+    if (isSpeaking && audio) {
+      djSpeechRequestIdRef.current += 1;
+      audio.pause();
+      audio.currentTime = 0;
+      setIsSpeaking(false);
       return;
     }
 

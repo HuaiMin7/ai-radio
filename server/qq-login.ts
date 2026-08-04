@@ -83,6 +83,10 @@ export async function pollQqQrLogin(
   rootDir: string,
   sessionId: string
 ): Promise<QqQrLoginPollResult> {
+  // 原先只在新建二维码时清理，废弃会话可能长期滞留。
+  // 轮询时也顺带清一次，保证字典不积压。
+  removeExpiredSessions();
+
   const session = qrSessions.get(sessionId);
 
   if (!session || Date.now() - session.createdAt >= qrSessionLifetimeMs) {

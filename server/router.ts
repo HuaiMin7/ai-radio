@@ -56,6 +56,41 @@ const rateLimitBuckets = new Map<
     windowStartedAt: number;
   }
 >();
+// 限制桶字典规模：原先只增不删，不同源 IP 会让它无限长大。
+const rateLimitWindowMs = 60_000;
+const maxRateLimitBuckets = 10_000;
+let lastRateLimitSweepAt = 0;
+
+/** 清理过期桶。在每次限流判断时顺带调用，不引入定时器。 */
+function sweepRateLimitBuckets(now: number) {
+  // 最多每分钟扫一次，避免高频请求下重复遍历
+  if (now - lastRateLimitSweepAt < rateLimitWindowMs) {
+    return;
+  }
+
+  lastRateLimitSweepAt = now;
+
+  for (const [key, bucket] of rateLimitBuckets) {
+    if (now - bucket.windowStartedAt >= rateLimitWindowMs) {
+      rateLimitBuckets.delete(key);
+    }
+  }
+
+  // 兵形：极端情况下（大量窗口内新 IP）仍可能超限，直接截断
+  if (rateLimitBuckets.size > maxRateLimitBuckets) {
+    const excess = rateLimitBuckets.size - maxRateLimitBuckets;
+    let removed = 0;
+
+    for (const key of rateLimitBuckets.keys()) {
+      rateLimitBuckets.delete(key);
+      removed += 1;
+
+      if (removed >= excess) {
+        break;
+      }
+    }
+  }
+}
 const maxJsonBodyBytes = 32 * 1024;
 
 function sendJson(response: ServerResponse, statusCode: number, body: unknown) {
@@ -145,19 +180,55 @@ async function proxyAudioUrl(
     return;
   }
 
-  const upstreamResponse = await fetch(parsedUrl, {
-    headers: {
-      Accept: "*/*",
-      "Accept-Language": "zh-CN,zh;q=0.9",
-      Referer: "https://y.qq.com/",
-      Origin: "https://y.qq.com",
-      "User-Agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
-      ...(request.headers.range ? { Range: request.headers.range } : {})
+  const upstreamAbort = new AbortController();
+
+  // 客户端断开时中止上游 QQ 请求。
+  // 原先没有 abort，用户切歌/关页后上游连接仍在下载，
+  // 造成连接与内存积压。
+  const onClientGone = () => {
+    if (!upstreamAbort.signal.aborted) {
+      upstreamAbort.abort();
     }
-  });
+  };
+
+  request.on("aborted", onClientGone);
+  request.on("close", onClientGone);
+
+  let upstreamResponse: Response;
+
+  try {
+    upstreamResponse = await fetch(parsedUrl, {
+      signal: upstreamAbort.signal,
+      headers: {
+        Accept: "*/*",
+        "Accept-Language": "zh-CN,zh;q=0.9",
+        Referer: "https://y.qq.com/",
+        Origin: "https://y.qq.com",
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+        ...(request.headers.range ? { Range: request.headers.range } : {})
+      }
+    });
+  } catch (error) {
+    request.off("aborted", onClientGone);
+    request.off("close", onClientGone);
+
+    // 客户端主动断开导致的 abort 不算错误
+    if (upstreamAbort.signal.aborted) {
+      if (!response.writableEnded) {
+        response.destroy();
+      }
+      return;
+    }
+
+    sendAudioProxyError(response, 502, "Audio upstream request failed", origin);
+    return;
+  }
 
   if (!upstreamResponse.ok && upstreamResponse.status !== 206) {
+    request.off("aborted", onClientGone);
+    request.off("close", onClientGone);
+    void upstreamResponse.body?.cancel().catch(() => {});
     sendAudioProxyError(
       response,
       upstreamResponse.status,
@@ -196,11 +267,48 @@ async function proxyAudioUrl(
   response.writeHead(upstreamResponse.status, headers);
 
   if (!upstreamResponse.body) {
+    request.off("aborted", onClientGone);
+    request.off("close", onClientGone);
     response.end();
     return;
   }
 
-  Readable.fromWeb(upstreamResponse.body).pipe(response);
+  // 完整的 error / close 清理：
+  // 原先是裸 pipe，任一端出错都不会销毁对方，流和 socket 会泄露。
+  const upstreamStream = Readable.fromWeb(
+    upstreamResponse.body as Parameters<typeof Readable.fromWeb>[0]
+  );
+
+  const cleanup = () => {
+    request.off("aborted", onClientGone);
+    request.off("close", onClientGone);
+
+    if (!upstreamStream.destroyed) {
+      upstreamStream.destroy();
+    }
+
+    if (!upstreamAbort.signal.aborted) {
+      upstreamAbort.abort();
+    }
+  };
+
+  upstreamStream.on("error", (error) => {
+    // AbortError 是客户端断开导致的正常路径，不刷错误日志
+    if ((error as { name?: string }).name !== "AbortError") {
+      console.warn("[audio-proxy] 上游流出错:", (error as Error).message);
+    }
+
+    cleanup();
+
+    if (!response.writableEnded) {
+      response.destroy();
+    }
+  });
+
+  response.on("close", cleanup);
+  response.on("error", cleanup);
+
+  upstreamStream.pipe(response);
 }
 
 function notFound(response: ServerResponse) {
@@ -315,10 +423,11 @@ function isPublicRateLimited(request: IncomingMessage, pathname: string) {
     ? Math.floor(configuredLimit)
     : 12;
   const now = Date.now();
+  sweepRateLimitBuckets(now);
   const key = `${getClientAddress(request)}:${pathname}`;
   const bucket = rateLimitBuckets.get(key);
 
-  if (!bucket || now - bucket.windowStartedAt >= 60_000) {
+  if (!bucket || now - bucket.windowStartedAt >= rateLimitWindowMs) {
     rateLimitBuckets.set(key, {
       count: 1,
       windowStartedAt: now
