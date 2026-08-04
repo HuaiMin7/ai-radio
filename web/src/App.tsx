@@ -3564,6 +3564,17 @@ function AskAnythingButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// —— 环形画廊参数（算法参考 reactbits.dev CircularGallery，bend≈6 的观感）——
+// 卡片沿圆弧分布：R = (H² + B²) / (2B)，下沉量 arc = R - √(R² - x²)，倾角 = asin(x / R)
+const QUEUE_BEND_RATIO = 0.46; // B / H，越大弧越弯
+const QUEUE_CENTER_SCALE = 1.65; // 中心卡相对两侧卡的放大倍数
+const QUEUE_SCROLL_EASE = 0.09; // lerp 缓动系数，与 reactbits scrollEase 同义
+const QUEUE_CARD_SPACING_RATIO = 0.216; // 相邻卡片的水平间距（占容器宽度）
+
+function lerpValue(from: number, to: number, t: number) {
+  return from + (to - from) * t;
+}
+
 function CircularQueuePlayer({
   currentCaption,
   currentTime,
@@ -3583,20 +3594,22 @@ function CircularQueuePlayer({
   tracks,
   volume
 }: CircularQueuePlayerProps) {
-  const dragStartXRef = useRef<number | null>(null);
+  const dragStateRef = useRef<{ startX: number; startScroll: number; moved: boolean } | null>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
   const suppressClickUntilRef = useRef(0);
   const volumeControlRef = useRef<HTMLDivElement>(null);
-  const [dragOffset, setDragOffset] = useState(0);
+  const cardRefs = useRef(new Map<number, HTMLButtonElement>());
+  const scrollRef = useRef({ current: selectedTrackIndex, target: selectedTrackIndex });
+  const orbitSizeRef = useRef({ height: 600, width: 1200 });
+  const wheelLockUntilRef = useRef(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [orbitSize, setOrbitSize] = useState({ height: 0, width: 0 });
   const [isVolumePopoverOpen, setIsVolumePopoverOpen] = useState(false);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const volumePercent = Math.round(volume * 100);
   const isMuted = volume <= 0;
   const visibleTracks = tracks
     .map((track, index) => ({ index, offset: index - selectedTrackIndex, track }))
-    .filter(({ offset }) => Math.abs(offset) <= 4);
+    .filter(({ offset }) => Math.abs(offset) <= 5);
 
   useEffect(() => {
     const orbit = orbitRef.current;
@@ -3606,11 +3619,7 @@ function CircularQueuePlayer({
 
     const updateOrbitSize = () => {
       const { height, width } = orbit.getBoundingClientRect();
-      setOrbitSize((currentSize) =>
-        currentSize.height === height && currentSize.width === width
-          ? currentSize
-          : { height, width }
-      );
+      orbitSizeRef.current = { height, width };
     };
 
     updateOrbitSize();
@@ -3618,6 +3627,50 @@ function CircularQueuePlayer({
     observer.observe(orbit);
 
     return () => observer.disconnect();
+  }, []);
+
+  // 选中曲目变化时，把滚动目标对齐到该卡片（吸附）
+  useEffect(() => {
+    scrollRef.current.target = selectedTrackIndex;
+  }, [selectedTrackIndex]);
+
+  // —— 弧线布局渲染循环 ——
+  // 每帧将 scroll.current 向 target lerp（与 reactbits 的 update() 相同），
+  // 再按圆弧公式计算每张卡片的 x/y/rotation/scale，直接写 transform，不经过 React 渲染。
+  useEffect(() => {
+    let raf = 0;
+
+    const tick = () => {
+      const scroll = scrollRef.current;
+      scroll.current = lerpValue(scroll.current, scroll.target, QUEUE_SCROLL_EASE);
+
+      const { width: orbitWidth } = orbitSizeRef.current;
+      const spacing = orbitWidth * QUEUE_CARD_SPACING_RATIO;
+      const H = orbitWidth / 2;
+      const B = H * QUEUE_BEND_RATIO;
+      const R = (H * H + B * B) / (2 * B);
+
+      cardRefs.current.forEach((card, index) => {
+        const x = (index - scroll.current) * spacing;
+        const effectiveX = Math.min(Math.abs(x), H);
+        const arc = R - Math.sqrt(Math.max(R * R - effectiveX * effectiveX, 0));
+        const rotation = Math.sign(x) * Math.asin(effectiveX / R);
+
+        // 与中心的距离决定卡片大小：中心 1 → 两侧渐小
+        const proximity = Math.max(0, 1 - Math.abs(index - scroll.current));
+        const scale = 1 + (QUEUE_CENTER_SCALE - 1) * proximity;
+
+        card.style.transform =
+          `translate(calc(-50% + ${x}px), ${arc}px) ` +
+          `rotate(${rotation}rad) scale(${scale})`;
+        card.style.zIndex = String(100 - Math.round(Math.abs(x)));
+      });
+
+      raf = window.requestAnimationFrame(tick);
+    };
+
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
   }, []);
 
   useEffect(() => {
@@ -3641,32 +3694,38 @@ function CircularQueuePlayer({
   }, [isVolumePopoverOpen]);
 
   function finishDrag(event: ReactPointerEvent<HTMLDivElement>, shouldNavigate: boolean) {
-    const dragStartX = dragStartXRef.current;
+    const dragState = dragStateRef.current;
 
-    if (dragStartX === null) {
+    if (!dragState) {
       return;
     }
-
-    const deltaX = event.clientX - dragStartX;
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
 
-    dragStartXRef.current = null;
-    setDragOffset(0);
+    dragStateRef.current = null;
     setIsDragging(false);
 
-    if (!shouldNavigate || Math.abs(deltaX) < 48) {
+    if (dragState.moved) {
+      suppressClickUntilRef.current = Date.now() + 250;
+    }
+
+    if (!shouldNavigate || !dragState.moved) {
+      scrollRef.current.target = selectedTrackIndex;
       return;
     }
 
-    suppressClickUntilRef.current = Date.now() + 250;
+    // 松手时吸附到最近的卡片（等价 reactbits 的 onCheck），并同步业务选中态
+    const snapped = Math.max(
+      0,
+      Math.min(tracks.length - 1, Math.round(scrollRef.current.target))
+    );
 
-    if (deltaX > 0) {
-      onPrevious();
+    if (snapped !== selectedTrackIndex) {
+      onSelectTrack(snapped);
     } else {
-      onNext();
+      scrollRef.current.target = selectedTrackIndex;
     }
   }
 
@@ -3686,32 +3745,63 @@ function CircularQueuePlayer({
             return;
           }
 
-          dragStartXRef.current = event.clientX;
-          setDragOffset(0);
+          dragStateRef.current = {
+            startX: event.clientX,
+            startScroll: scrollRef.current.target,
+            moved: false
+          };
           setIsDragging(true);
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={(event) => {
-          if (dragStartXRef.current === null) {
+          const dragState = dragStateRef.current;
+
+          if (!dragState) {
             return;
           }
 
-          const nextOffset = event.clientX - dragStartXRef.current;
+          const deltaX = event.clientX - dragState.startX;
 
-          setDragOffset(Math.max(-140, Math.min(140, nextOffset)));
+          if (Math.abs(deltaX) > 6) {
+            dragState.moved = true;
+          }
+
+          // 拖动位移直接映射为滚动量（负相关：向左拖 → 队列前进）
+          const spacing = orbitSizeRef.current.width * QUEUE_CARD_SPACING_RATIO || 1;
+          const nextTarget = dragState.startScroll - deltaX / spacing;
+          scrollRef.current.target = Math.max(
+            -0.35,
+            Math.min(tracks.length - 1 + 0.35, nextTarget)
+          );
         }}
         onPointerUp={(event) => finishDrag(event, true)}
+        onWheel={(event) => {
+          const now = Date.now();
+
+          if (now < wheelLockUntilRef.current) {
+            return;
+          }
+
+          const delta =
+            Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+
+          if (Math.abs(delta) < 12) {
+            return;
+          }
+
+          wheelLockUntilRef.current = now + 320;
+
+          if (delta > 0) {
+            onNext();
+          } else {
+            onPrevious();
+          }
+        }}
         role="group"
-        style={{ "--queue-drag-x": `${dragOffset}px` } as CSSProperties}
       >
         <div className="queueOrbitTrack">
           {visibleTracks.map(({ index, offset, track }) => {
             const absoluteOffset = Math.abs(offset);
-            const orbitWidth = orbitSize.width || 1200;
-            const orbitHeight = orbitSize.height || 600;
-            const xRatios = [0, 0.216, 0.4, 0.516, 0.67];
-            const yRatios = [0, 0.149, 0.344, 0.626, 0.76];
-            const direction = offset < 0 ? -1 : 1;
             const coverUrl =
               track.coverUrl ?? queueFallbackCovers[index % queueFallbackCovers.length];
 
@@ -3724,9 +3814,16 @@ function CircularQueuePlayer({
                     : `播放 ${track.title}，${track.artist}`
                 }
                 className={`queueOrbitItem ${offset === 0 ? "isCurrent" : ""} ${
-                  absoluteOffset === 4 ? "isBuffer" : ""
+                  absoluteOffset === 5 ? "isBuffer" : ""
                 } ${!isTrackPlayable(track) ? "isUnavailable" : ""}`}
                 key={getPlayableTrackIdentity(track, index)}
+                ref={(node) => {
+                  if (node) {
+                    cardRefs.current.set(index, node);
+                  } else {
+                    cardRefs.current.delete(index);
+                  }
+                }}
                 onClick={() => {
                   if (Date.now() < suppressClickUntilRef.current || offset === 0) {
                     return;
@@ -3734,14 +3831,6 @@ function CircularQueuePlayer({
 
                   onSelectTrack(index);
                 }}
-                style={
-                  {
-                    "--queue-cover-rotation": `${offset * 20}deg`,
-                    "--queue-cover-x": `${direction * orbitWidth * xRatios[absoluteOffset]}px`,
-                    "--queue-cover-y": `${orbitHeight * yRatios[absoluteOffset]}px`,
-                    zIndex: 10 - absoluteOffset
-                  } as CSSProperties
-                }
                 type="button"
               >
                 <img
