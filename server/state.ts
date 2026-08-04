@@ -23,6 +23,26 @@ export type PlaybackSummary = {
 };
 
 const nowPlayingByUser = new Map<string, NowPlayingState>();
+// 防止长期运行后无限增长：超过上限时淘汰最久未更新的用户。
+// 淘汰只丢失内存态（下次访问重建为 idle），历史/队列已落盘，不丢数据。
+const maxNowPlayingEntries = 5_000;
+
+function evictStaleNowPlaying() {
+  if (nowPlayingByUser.size <= maxNowPlayingEntries) {
+    return;
+  }
+
+  const entries = [...nowPlayingByUser.entries()].sort(
+    (a, b) =>
+      new Date(a[1].updatedAt).getTime() - new Date(b[1].updatedAt).getTime()
+  );
+
+  const removeCount = nowPlayingByUser.size - maxNowPlayingEntries;
+
+  for (let index = 0; index < removeCount; index += 1) {
+    nowPlayingByUser.delete(entries[index][0]);
+  }
+}
 
 export function getNowPlaying(user: AuthenticatedUser) {
   const current = nowPlayingByUser.get(user.storageKey);
@@ -33,6 +53,7 @@ export function getNowPlaying(user: AuthenticatedUser) {
 
   const initial = createIdleState();
   nowPlayingByUser.set(user.storageKey, initial);
+  evictStaleNowPlaying();
   return initial;
 }
 
@@ -81,6 +102,7 @@ export async function setCurrentPlan(
   await appendPlaybackQueue(rootDir, user, playablePlan);
 
   nowPlayingByUser.set(user.storageKey, nextNowPlaying);
+  evictStaleNowPlaying();
 
   return nextNowPlaying;
 }

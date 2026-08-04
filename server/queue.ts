@@ -1,5 +1,6 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { writeJsonAtomic } from "./atomic-write.js";
 import type { AuthenticatedUser } from "./auth.js";
 import { getUserDataDir } from "./auth.js";
 import type { DjPlan } from "./brain.js";
@@ -56,10 +57,7 @@ export async function appendPlaybackQueue(
     recursive: true,
     mode: 0o700
   });
-  await writeFile(path, `${JSON.stringify(nextQueue, null, 2)}\n`, {
-    encoding: "utf8",
-    mode: 0o600
-  });
+  await writeJsonAtomic(path, nextQueue, { mode: 0o600 });
 
   return nextQueue;
 }

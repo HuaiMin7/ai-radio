@@ -6,9 +6,10 @@ import {
   randomBytes,
   timingSafeEqual
 } from "node:crypto";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, unlink } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { join } from "node:path";
+import { writeTextAtomic } from "./atomic-write.js";
 
 export type AuthenticatedUser = {
   provider: "qq";
@@ -148,10 +149,7 @@ export async function writeEncryptedUserSecret(
   const encrypted = encryptSecret(value);
 
   await mkdir(userDir, { recursive: true, mode: 0o700 });
-  await writeFile(path, `${JSON.stringify(encrypted)}\n`, {
-    encoding: "utf8",
-    mode: 0o600
-  });
+  await writeTextAtomic(path, `${JSON.stringify(encrypted)}\n`, { mode: 0o600 });
 }
 
 export async function readEncryptedUserSecret(
@@ -207,10 +205,11 @@ export async function revokeUserSessions(
   const userDir = getUserDataDir(rootDir, user);
 
   await mkdir(userDir, { recursive: true, mode: 0o700 });
-  await writeFile(join(userDir, "session-revoked-before"), `${revokedBefore}\n`, {
-    encoding: "utf8",
-    mode: 0o600
-  });
+  await writeTextAtomic(
+    join(userDir, "session-revoked-before"),
+    `${revokedBefore}\n`,
+    { mode: 0o600 }
+  );
 }
 
 export function createSessionToken(
