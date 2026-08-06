@@ -3194,7 +3194,7 @@ function DjSpeechBubble({ text }: { text: string }) {
   );
 }
 
-function LandingPage({
+export function LandingPage({
   chatWindow,
   error,
   hasPlaybackToast,
@@ -4410,7 +4410,7 @@ function MessageTimestamp({ createdAt }: { createdAt: string }) {
   );
 }
 
-function ChatWindow({
+export function ChatWindow({
   error,
   isLoading,
   isLandingChat,
@@ -4593,6 +4593,12 @@ function ChatWindow({
             <div className="messageContent">
               <MessageTimestamp createdAt={planningCreatedAt} />
               <p className="planningBubble">
+                <img
+                  alt=""
+                  aria-hidden="true"
+                  className="planningBubbleOrb"
+                  src={getPublicAssetUrl("/images/redio-planning-orb.png")}
+                />
                 <span className="thinkingShimmer" data-text={planningText}>
                   {planningText}
                 </span>
