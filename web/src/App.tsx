@@ -8,6 +8,7 @@ import {
   type SyntheticEvent
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { ThinkingOrb } from "thinking-orbs";
 import { StarfieldCanvas } from "./StarfieldCanvas";
 
 declare global {
@@ -3194,7 +3195,7 @@ function DjSpeechBubble({ text }: { text: string }) {
   );
 }
 
-function LandingPage({
+export function LandingPage({
   chatWindow,
   error,
   hasPlaybackToast,
@@ -4410,7 +4411,7 @@ function MessageTimestamp({ createdAt }: { createdAt: string }) {
   );
 }
 
-function ChatWindow({
+export function ChatWindow({
   error,
   isLoading,
   isLandingChat,
@@ -4593,6 +4594,13 @@ function ChatWindow({
             <div className="messageContent">
               <MessageTimestamp createdAt={planningCreatedAt} />
               <p className="planningBubble">
+                <ThinkingOrb
+                  aria-hidden="true"
+                  className="planningBubbleOrb"
+                  size={64}
+                  state="working"
+                  theme="dark"
+                />
                 <span className="thinkingShimmer" data-text={planningText}>
                   {planningText}
                 </span>
