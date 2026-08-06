@@ -4597,7 +4597,7 @@ export function ChatWindow({
                 <ThinkingOrb
                   aria-hidden="true"
                   className="planningBubbleOrb"
-                  size={20}
+                  size={64}
                   state="working"
                   theme="dark"
                 />
