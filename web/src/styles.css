@@ -3111,29 +3111,19 @@ p {
   color: rgba(255, 255, 255, 0.75);
 }
 
-/* 左侧粒子球图标：持续自转，暗示“正在运算” */
+/*
+ * 左侧 thinking orb：用 thinking-orbs 的 working 状态（粒子沿倾斜轨道运行）。
+ * 组件自带 canvas 逐帧动画，不需要再叠 CSS 旋转；
+ * 它也自己处理了 prefers-reduced-motion 与离屏/后台暂停。
+ * 预设只有 64 / 20 两档（各自调了点数与速度，不是缩放关系），
+ * 设计稿要 22px，所以取 20 预设再由 CSS 限定为 22——
+ * canvas backing store 是 20×DPR，显示 22 仍然锐利。
+ */
 .planningBubbleOrb {
   display: block;
-  width: 22px;
-  height: 22px;
+  width: 22px !important;
+  height: 22px !important;
   flex: 0 0 auto;
-  animation: redioPlanningOrbSpin 6s linear infinite;
-}
-
-@keyframes redioPlanningOrbSpin {
-  from {
-    transform: rotate(0deg);
-  }
-
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .planningBubbleOrb {
-    animation: none;
-  }
 }
 
 .thinkingShimmer {

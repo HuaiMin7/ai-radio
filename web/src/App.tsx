@@ -8,6 +8,7 @@ import {
   type SyntheticEvent
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
+import { ThinkingOrb } from "thinking-orbs";
 import { StarfieldCanvas } from "./StarfieldCanvas";
 
 declare global {
@@ -4593,11 +4594,12 @@ export function ChatWindow({
             <div className="messageContent">
               <MessageTimestamp createdAt={planningCreatedAt} />
               <p className="planningBubble">
-                <img
-                  alt=""
+                <ThinkingOrb
                   aria-hidden="true"
                   className="planningBubbleOrb"
-                  src={getPublicAssetUrl("/images/redio-planning-orb.png")}
+                  size={20}
+                  state="working"
+                  theme="dark"
                 />
                 <span className="thinkingShimmer" data-text={planningText}>
                   {planningText}
