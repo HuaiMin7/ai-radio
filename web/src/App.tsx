@@ -1,15 +1,26 @@
 import {
+  lazy,
+  Suspense,
   useEffect,
   useRef,
   useState,
   type CSSProperties,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
   type SyntheticEvent
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ThinkingOrb } from "thinking-orbs";
 import { StarfieldCanvas } from "./StarfieldCanvas";
+import { QueueCardTilt } from "./QueueCardTilt";
+
+// 调参面板只在体验版（VITE_MOCK=1）挂载
+const isTuningPanelEnabled = import.meta.env.VITE_MOCK === "1";
+
+// 懒加载：面板和它的样式被拆成独立 chunk，
+// 生产构建既不加载它，也不会把面板 CSS 打进主样式表。
+const QueueTuningPanel = lazy(async () => ({
+  default: (await import("./QueueTuningPanel")).QueueTuningPanel
+}));
 
 declare global {
   interface Window {
@@ -238,6 +249,7 @@ type PlayableTrack = Track & {
 
 type CircularQueuePlayerProps = {
   currentCaption: string;
+  introReady: boolean;
   currentTime: number;
   duration: number;
   isLiked: boolean;
@@ -255,6 +267,34 @@ type CircularQueuePlayerProps = {
   tracks: PlayableTrack[];
   volume: number;
 };
+
+const lastPlayedStorageKey = "redio.lastPlayed";
+
+type LastPlayedRecord = { key: string; time: number };
+
+function readLastPlayedRecord(): LastPlayedRecord | null {
+  try {
+    const raw = window.localStorage.getItem(lastPlayedStorageKey);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw) as Partial<LastPlayedRecord>;
+    if (typeof parsed.key !== "string" || typeof parsed.time !== "number") {
+      return null;
+    }
+    return { key: parsed.key, time: Math.max(0, parsed.time) };
+  } catch {
+    return null;
+  }
+}
+
+function writeLastPlayedRecord(record: LastPlayedRecord) {
+  try {
+    window.localStorage.setItem(lastPlayedStorageKey, JSON.stringify(record));
+  } catch {
+    /* ignore */
+  }
+}
 
 const djDuckingRatio = 0.5;
 const musicIntentPattern =
@@ -952,6 +992,10 @@ export function App() {
   const [draftMessage, setDraftMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
+  const pendingResumeRef = useRef<LastPlayedRecord | null>(null);
+  const resumeSeekRef = useRef<number | null>(null);
+  const hasRestoredSessionRef = useRef(false);
+  const [isSessionRestored, setIsSessionRestored] = useState(false);
   const [playbackRequestId, setPlaybackRequestId] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -2027,6 +2071,34 @@ export function App() {
     };
   }, []);
 
+  // —— 会话恢复：首屏数据就位后，把选中曲目恢复到上次播放的位置（暂停态）——
+  useEffect(() => {
+    if (isLoading || hasRestoredSessionRef.current) {
+      return;
+    }
+
+    hasRestoredSessionRef.current = true;
+    const record = readLastPlayedRecord();
+
+    if (record) {
+      for (let index = queueTracks.length - 1; index >= 0; index -= 1) {
+        const playableTrack = toPlayableTrack(queueTracks[index]);
+
+        if (
+          playableTrack &&
+          getPlayableTrackKey(playableTrack) === record.key &&
+          isTrackPlayable(playableTrack)
+        ) {
+          setSelectedTrackId(getPlayableTrackIdentity(playableTrack, index));
+          resumeSeekRef.current = record.time;
+          break;
+        }
+      }
+    }
+
+    setIsSessionRestored(true);
+  }, [isLoading, queueTracks]);
+
   const plan = nowPlaying?.currentPlan;
   const recommendedTracks = readRecommendedTracks();
   const tracks = recommendedTracks.length > 0 ? recommendedTracks : fallbackTracks;
@@ -2052,6 +2124,50 @@ export function App() {
       ? getCurrentLyricText(activeLyrics.lines, currentTime) ?? selectedTrack.artist
       : selectedTrack.artist;
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  useEffect(() => {
+    if (!isSessionRestored || resumeSeekRef.current !== null) {
+      return;
+    }
+
+    writeLastPlayedRecord({ key: selectedTrackKey, time: currentTime });
+  }, [isSessionRestored, selectedTrackKey, currentTime]);
+
+  // 恢复进度：音频元素挂载/元数据就绪的时机不确定，用短周期重试直到 seek 生效（上限 3s）
+  useEffect(() => {
+    if (!isSessionRestored || resumeSeekRef.current === null) {
+      return;
+    }
+
+    const deadline = Date.now() + 3000;
+    const timer = window.setInterval(() => {
+      const pendingTime = resumeSeekRef.current;
+      const audio = audioRef.current;
+
+      if (pendingTime === null || Date.now() > deadline) {
+        resumeSeekRef.current = null;
+        window.clearInterval(timer);
+        return;
+      }
+
+      if (!audio || audio.readyState < 1 || !Number.isFinite(audio.duration)) {
+        return;
+      }
+
+      const resumeTime = Math.min(pendingTime, Math.max(0, audio.duration - 1));
+
+      audio.currentTime = resumeTime;
+      setCurrentTime(resumeTime);
+      setDuration(audio.duration);
+      resumeSeekRef.current = null;
+      window.clearInterval(timer);
+    }, 120);
+
+    return () => window.clearInterval(timer);
+  }, [isSessionRestored]);
+
+
+
   const listenerName = qqLoginStatus?.nickname ?? qqLoginStatus?.userId ?? "你";
   const listenerCount = qqLoginStatus?.loggedIn ? 1 : 0;
   const agentGenreTags = [
@@ -2745,6 +2861,7 @@ export function App() {
             currentCaption,
             currentTime,
             duration,
+            introReady: isSessionRestored,
             isLiked: isTrackFeedbackActive("like"),
             isPlaying,
             onLike: () => void recordTrackFeedback("like"),
@@ -3422,11 +3539,9 @@ export function LandingPage({
         </div>
       </header>
 
-      {error ? (
-        <p aria-live="polite" className="landingStatusNotice">
-          {error}
-        </p>
-      ) : null}
+      <div className="landingStatusSlot" aria-live="polite">
+        {error ? <p className="landingStatusNotice">{error}</p> : null}
+      </div>
 
       {activeSection === "settings" ? (
         <section className="landingSettingsPage" aria-label="设置">
@@ -3456,6 +3571,11 @@ export function LandingPage({
         src={getPublicAssetUrl("/images/redio-landing-ellipse.svg")}
       />
       <StarfieldCanvas />
+      {isTuningPanelEnabled ? (
+        <Suspense fallback={null}>
+          <QueueTuningPanel defaults={queueTuningDefaults} target={queueTuning} />
+        </Suspense>
+      ) : null}
     </main>
   );
 }
@@ -3559,9 +3679,45 @@ function AskAnythingButton({ onClick }: { onClick: () => void }) {
 // —— 环形画廊参数（算法参考 reactbits.dev CircularGallery，bend≈6 的观感）——
 // 卡片沿圆弧分布：R = (H² + B²) / (2B)，下沉量 arc = R - √(R² - x²)，倾角 = asin(x / R)
 const QUEUE_BEND_RATIO = 0.46; // B / H，越大弧越弯
-const QUEUE_CENTER_SCALE = 1.65; // 中心卡相对两侧卡的放大倍数
+const QUEUE_CENTER_SCALE = 1.5; // 中心卡相对两侧卡的放大倍数（现场调参定稿）
+const QUEUE_CARD_RADIUS = 16; // 卡片圆角（px）
 const QUEUE_SCROLL_EASE = 0.09; // lerp 缓动系数，与 reactbits scrollEase 同义
-const QUEUE_CARD_SPACING_RATIO = 0.216; // 相邻卡片的水平间距（占容器宽度）
+const QUEUE_CARD_SPACING_RATIO = 0.186; // 相邻卡片的水平间距（占容器宽度，现场调参定稿）
+// 倾斜幅度：源码示例是 300px 卡片配 12°，我们的卡片只有 ~160px，
+// 同样角度下绝对位移更小、观感更弱，所以调到 16° 找回相当的立体感。
+const QUEUE_TILT_AMPLITUDE = 16;
+// 缩放：源码 scaleOnHover 默认 1.1；小卡片上 1.1 的绝对变化只有十几像素，
+// 提到 1.14 让"浮起来"的过程看得清。
+const QUEUE_TILT_HOVER_SCALE = 1.14;
+
+// —— 调参运行时 ——
+// 布局参数每帧从这里读取，Debug 面板改的是这个对象，因此无需重新渲染即可实时生效。
+// 生产构建里面板不挂载，这些值始终等于上面的默认常量。
+type QueueTuning = {
+  arcEvenSpacing: boolean;
+  bendRatio: number;
+  cardRadius: number;
+  centerScale: number;
+  compensateSpacing: boolean;
+  spacingRatio: number;
+  tiltAmplitude: number;
+  tiltHoverScale: number;
+  tooltipUpright: boolean;
+};
+
+const queueTuningDefaults: QueueTuning = {
+  arcEvenSpacing: true,
+  bendRatio: QUEUE_BEND_RATIO,
+  cardRadius: QUEUE_CARD_RADIUS,
+  centerScale: QUEUE_CENTER_SCALE,
+  compensateSpacing: true,
+  spacingRatio: QUEUE_CARD_SPACING_RATIO,
+  tiltAmplitude: QUEUE_TILT_AMPLITUDE,
+  tiltHoverScale: QUEUE_TILT_HOVER_SCALE,
+  tooltipUpright: true
+};
+
+const queueTuning: QueueTuning = { ...queueTuningDefaults };
 
 function lerpValue(from: number, to: number, t: number) {
   return from + (to - from) * t;
@@ -3569,6 +3725,7 @@ function lerpValue(from: number, to: number, t: number) {
 
 function CircularQueuePlayer({
   currentCaption,
+  introReady,
   currentTime,
   duration,
   isLiked,
@@ -3586,16 +3743,59 @@ function CircularQueuePlayer({
   tracks,
   volume
 }: CircularQueuePlayerProps) {
-  const dragStateRef = useRef<{ startX: number; startScroll: number; moved: boolean } | null>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
-  const suppressClickUntilRef = useRef(0);
   const volumeControlRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef(new Map<number, HTMLButtonElement>());
   const scrollRef = useRef({ current: selectedTrackIndex, target: selectedTrackIndex });
   const orbitSizeRef = useRef({ height: 600, width: 1200 });
-  const wheelLockUntilRef = useRef(0);
-  const [isDragging, setIsDragging] = useState(false);
+  // 点击切换期间加锁，参考 Originkit handleCardClick 的 lockRef：
+  // 防止过渡动画未结束时连点堆叠导致画廊抽搭跳动
+  const isNavLockedRef = useRef(false);
   const [isVolumePopoverOpen, setIsVolumePopoverOpen] = useState(false);
+  // —— 开场动画状态机：pending(隐藏待命) → reveal(波次浮现) → settle(滑入居中) → done ——
+  const [introState, setIntroState] = useState<"pending" | "reveal" | "settle" | "done">(
+    "pending"
+  );
+  const introStateRef = useRef(introState);
+  const selectedIndexRef = useRef(selectedTrackIndex);
+
+  introStateRef.current = introState;
+  selectedIndexRef.current = selectedTrackIndex;
+
+  const hasStartedIntroRef = useRef(false);
+
+  useEffect(() => {
+    if (!introReady || hasStartedIntroRef.current) {
+      return;
+    }
+
+    hasStartedIntroRef.current = true;
+    const targetIndex = selectedIndexRef.current;
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) {
+      scrollRef.current.current = targetIndex;
+      scrollRef.current.target = targetIndex;
+      setIntroState("done");
+      return;
+    }
+
+    // 落位起点：目标卡片旁 2.6 张卡处，浮现完成后优雅滑入
+    scrollRef.current.current = targetIndex + 2.6;
+    scrollRef.current.target = targetIndex;
+    setIntroState("reveal");
+
+    const settleTimer = window.setTimeout(() => setIntroState("settle"), 780);
+    const doneTimer = window.setTimeout(() => setIntroState("done"), 2000);
+
+    return () => {
+      window.clearTimeout(settleTimer);
+      window.clearTimeout(doneTimer);
+    };
+  }, [introReady]);
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
   const volumePercent = Math.round(volume * 100);
   const isMuted = volume <= 0;
@@ -3634,28 +3834,80 @@ function CircularQueuePlayer({
 
     const tick = () => {
       const scroll = scrollRef.current;
-      scroll.current = lerpValue(scroll.current, scroll.target, QUEUE_SCROLL_EASE);
+      const introPhase = introStateRef.current;
+
+      if (introPhase === "pending") {
+        // 数据未就绪：直接钉在选中位，杜绝"从 0 号位狂奔"的开场横扫
+        scroll.current = selectedIndexRef.current;
+        scroll.target = selectedIndexRef.current;
+      } else if (introPhase === "reveal") {
+        // 浮现阶段画廊保持在偏移位不动，等待卡片波次入场完成
+      } else {
+        scroll.current = lerpValue(scroll.current, scroll.target, QUEUE_SCROLL_EASE);
+      }
 
       const { width: orbitWidth } = orbitSizeRef.current;
-      const spacing = orbitWidth * QUEUE_CARD_SPACING_RATIO;
+      const spacing = orbitWidth * queueTuning.spacingRatio;
       const H = orbitWidth / 2;
-      const B = H * QUEUE_BEND_RATIO;
+      const B = H * queueTuning.bendRatio;
       const R = (H * H + B * B) / (2 * B);
+      const cardRadius = `${queueTuning.cardRadius}px`;
+
+      // 中心卡放大是"就地长大"，左右各多占 (scale - 1) × W / 2。
+      // 若不补偿，中心卡两侧的净间距会被吃掉这一截，画廊间距变得不均匀。
+      // 这里把补偿量作为刚性位移推给两侧所有卡片，让每两张卡之间的净空隙保持一致。
+      // 用 offsetWidth 读原始宽度：它是布局宽度，不受 transform 缩放影响。
+      const firstCard = cardRefs.current.values().next().value;
+      const cardBaseWidth = firstCard ? firstCard.offsetWidth : 0;
+      // 居中那张卡此刻的实际放大倍数（切歌过渡期间平滑变化，补偿量随之平滑）
+      const centerIndex = Math.round(scroll.current);
+      const centerProximity = Math.max(0, 1 - Math.abs(centerIndex - scroll.current));
+      const centerScaleNow = 1 + (queueTuning.centerScale - 1) * centerProximity;
+      const spacingCompensation = queueTuning.compensateSpacing
+        ? ((centerScaleNow - 1) * cardBaseWidth) / 2
+        : 0;
 
       cardRefs.current.forEach((card, index) => {
-        const x = (index - scroll.current) * spacing;
-        const effectiveX = Math.min(Math.abs(x), H);
-        const arc = R - Math.sqrt(Math.max(R * R - effectiveX * effectiveX, 0));
-        const rotation = Math.sign(x) * Math.asin(effectiveX / R);
+        const slot = index - scroll.current;
+        // 推移方向按"在居中卡的哪一侧"判定，而不是 rawX 的符号：
+        // 居中卡的 rawX 是趋近 0 的微小值，符号不稳定，会把它自己也推偏。
+        const side = Math.sign(index - centerIndex);
+
+        let x: number;
+        let arc: number;
+        let rotation: number;
+
+        if (queueTuning.arcEvenSpacing) {
+          // 沿弧长等距：每张卡占固定的圆心角 Δθ = 弧距 / R。
+          // 卡片沿 x 轴等距时，圆弧越往外越陡，同样的 Δx 对应更长的弧，
+          // 相邻卡沿弧线就被拉开——这正是"外侧看起来比中间松"的根因。
+          const arcStep = spacing / R;
+          const theta = slot * arcStep + (side * spacingCompensation) / R;
+          // 角度钳制在 ±90°，越界后不再继续绕到弧背面
+          const clamped = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, theta));
+          x = R * Math.sin(clamped);
+          arc = R * (1 - Math.cos(clamped));
+          rotation = clamped;
+        } else {
+          const rawX = slot * spacing;
+          x = rawX + side * spacingCompensation;
+          const effectiveX = Math.min(Math.abs(x), H);
+          arc = R - Math.sqrt(Math.max(R * R - effectiveX * effectiveX, 0));
+          rotation = Math.sign(x) * Math.asin(effectiveX / R);
+        }
 
         // 与中心的距离决定卡片大小：中心 1 → 两侧渐小
         const proximity = Math.max(0, 1 - Math.abs(index - scroll.current));
-        const scale = 1 + (QUEUE_CENTER_SCALE - 1) * proximity;
+        const scale = 1 + (queueTuning.centerScale - 1) * proximity;
 
         card.style.transform =
           `translate(calc(-50% + ${x}px), ${arc}px) ` +
           `rotate(${rotation}rad) scale(${scale})`;
         card.style.zIndex = String(100 - Math.round(Math.abs(x)));
+
+        if (card.style.borderRadius !== cardRadius) {
+          card.style.borderRadius = cardRadius;
+        }
       });
 
       raf = window.requestAnimationFrame(tick);
@@ -3685,40 +3937,18 @@ function CircularQueuePlayer({
     };
   }, [isVolumePopoverOpen]);
 
-  function finishDrag(event: ReactPointerEvent<HTMLDivElement>, shouldNavigate: boolean) {
-    const dragState = dragStateRef.current;
-
-    if (!dragState) {
+  // 点击任意卡片直接跳转到该曲目（参考 Originkit handleCardClick），
+  // 过渡期间加锁避免连点抢跑；锁的时长与 lerp 收敛时间估算保持一致。
+  function handleCardNavigate(index: number) {
+    if (isNavLockedRef.current || index === selectedTrackIndex) {
       return;
     }
 
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-
-    dragStateRef.current = null;
-    setIsDragging(false);
-
-    if (dragState.moved) {
-      suppressClickUntilRef.current = Date.now() + 250;
-    }
-
-    if (!shouldNavigate || !dragState.moved) {
-      scrollRef.current.target = selectedTrackIndex;
-      return;
-    }
-
-    // 松手时吸附到最近的卡片（等价 reactbits 的 onCheck），并同步业务选中态
-    const snapped = Math.max(
-      0,
-      Math.min(tracks.length - 1, Math.round(scrollRef.current.target))
-    );
-
-    if (snapped !== selectedTrackIndex) {
-      onSelectTrack(snapped);
-    } else {
-      scrollRef.current.target = selectedTrackIndex;
-    }
+    isNavLockedRef.current = true;
+    onSelectTrack(index);
+    window.setTimeout(() => {
+      isNavLockedRef.current = false;
+    }, 420);
   }
 
   return (
@@ -3728,67 +3958,9 @@ function CircularQueuePlayer({
       data-node-id="165:4787"
     >
       <div
-        aria-label="即将播放队列，可左右滑动切歌"
-        className={`queueOrbit ${isDragging ? "isDragging" : ""}`}
+        aria-label="即将播放队列，点击任意卡片切歌"
+        className="queueOrbit"
         ref={orbitRef}
-        onPointerCancel={(event) => finishDrag(event, false)}
-        onPointerDown={(event) => {
-          if (event.button !== 0) {
-            return;
-          }
-
-          dragStateRef.current = {
-            startX: event.clientX,
-            startScroll: scrollRef.current.target,
-            moved: false
-          };
-          setIsDragging(true);
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const dragState = dragStateRef.current;
-
-          if (!dragState) {
-            return;
-          }
-
-          const deltaX = event.clientX - dragState.startX;
-
-          if (Math.abs(deltaX) > 6) {
-            dragState.moved = true;
-          }
-
-          // 拖动位移直接映射为滚动量（负相关：向左拖 → 队列前进）
-          const spacing = orbitSizeRef.current.width * QUEUE_CARD_SPACING_RATIO || 1;
-          const nextTarget = dragState.startScroll - deltaX / spacing;
-          scrollRef.current.target = Math.max(
-            -0.35,
-            Math.min(tracks.length - 1 + 0.35, nextTarget)
-          );
-        }}
-        onPointerUp={(event) => finishDrag(event, true)}
-        onWheel={(event) => {
-          const now = Date.now();
-
-          if (now < wheelLockUntilRef.current) {
-            return;
-          }
-
-          const delta =
-            Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
-
-          if (Math.abs(delta) < 12) {
-            return;
-          }
-
-          wheelLockUntilRef.current = now + 320;
-
-          if (delta > 0) {
-            onNext();
-          } else {
-            onPrevious();
-          }
-        }}
         role="group"
       >
         <div className="queueOrbitTrack">
@@ -3807,7 +3979,14 @@ function CircularQueuePlayer({
                 }
                 className={`queueOrbitItem ${offset === 0 ? "isCurrent" : ""} ${
                   absoluteOffset === 5 ? "isBuffer" : ""
-                } ${!isTrackPlayable(track) ? "isUnavailable" : ""}`}
+                } ${!isTrackPlayable(track) ? "isUnavailable" : ""} ${
+                  introState === "pending"
+                    ? "introHidden"
+                    : introState === "done"
+                      ? ""
+                      : "introReveal"
+                }`}
+                style={{ "--intro-delay": `${absoluteOffset * 70}ms` } as CSSProperties}
                 key={getPlayableTrackIdentity(track, index)}
                 ref={(node) => {
                   if (node) {
@@ -3816,31 +3995,36 @@ function CircularQueuePlayer({
                     cardRefs.current.delete(index);
                   }
                 }}
-                onClick={() => {
-                  if (Date.now() < suppressClickUntilRef.current || offset === 0) {
-                    return;
-                  }
-
-                  onSelectTrack(index);
-                }}
+                onClick={() => handleCardNavigate(index)}
                 type="button"
               >
-                <img
-                  alt=""
-                  draggable={false}
-                  onError={(event) => {
-                    event.currentTarget.src =
-                      queueFallbackCovers[index % queueFallbackCovers.length];
-                  }}
-                  src={coverUrl}
-                />
+                <QueueCardTilt
+                  readAmplitude={() => queueTuning.tiltAmplitude}
+                  readHoverScale={() => queueTuning.tiltHoverScale}
+                  readTooltipUpright={() => queueTuning.tooltipUpright}
+                  tooltip={track.title}
+                >
+                  <img
+                    alt=""
+                    draggable={false}
+                    onError={(event) => {
+                      event.currentTarget.src =
+                        queueFallbackCovers[index % queueFallbackCovers.length];
+                    }}
+                    src={coverUrl}
+                  />
+                </QueueCardTilt>
               </button>
             );
           })}
         </div>
       </div>
 
-      <div className="queuePlayerContent">
+      <div
+        className={`queuePlayerContent ${
+          introState === "done" ? "" : "introContentPending"
+        }`}
+      >
         <div className="queuePlayerHeading" data-node-id="165:4957">
           <h1 data-node-id="165:4958" title={selectedTrack.title}>
             {selectedTrack.title}
