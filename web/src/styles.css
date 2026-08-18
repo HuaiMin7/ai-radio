@@ -23,9 +23,6 @@
 }
 
 :root {
-  --app-cursor: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2235%22%20height%3D%2235%22%20viewBox%3D%220%200%2035%2035%22%20fill%3D%22none%22%3E%3Cg%20filter%3D%22url(%23filter0_d_98_44)%22%3E%3Cpath%20d%3D%22M10.3624%208.57854C9.25892%208.20278%208.20395%209.25634%208.57775%2010.3608L13.717%2025.5454C14.0968%2026.6675%2015.6086%2026.8458%2016.2389%2025.8428L19.3428%2019.4602C19.445%2019.25%2019.6176%2019.0823%2019.8306%2018.9861L25.8419%2016.2721C26.8448%2015.6428%2026.6686%2014.1311%2025.5479%2013.7495L10.3624%208.57854Z%22%20fill%3D%22black%22%2F%3E%3Cpath%20d%3D%22M10.3624%208.57854C9.25892%208.20278%208.20395%209.25634%208.57775%2010.3608L13.717%2025.5454C14.0968%2026.6675%2015.6086%2026.8458%2016.2389%2025.8428L19.3428%2019.4602C19.445%2019.25%2019.6176%2019.0823%2019.8306%2018.9861L25.8419%2016.2721C26.8448%2015.6428%2026.6686%2014.1311%2025.5479%2013.7495L10.3624%208.57854Z%22%20stroke%3D%22white%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fg%3E%3Cdefs%3E%3Cfilter%20id%3D%22filter0_d_98_44%22%20x%3D%220%22%20y%3D%220%22%20width%3D%2235.001%22%20height%3D%2235.0011%22%20filterUnits%3D%22userSpaceOnUse%22%20color-interpolation-filters%3D%22sRGB%22%3E%3CfeFlood%20flood-opacity%3D%220%22%20result%3D%22BackgroundImageFix%22%2F%3E%3CfeColorMatrix%20in%3D%22SourceAlpha%22%20type%3D%22matrix%22%20values%3D%220%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%200%20127%200%22%20result%3D%22hardAlpha%22%2F%3E%3CfeOffset%2F%3E%3CfeGaussianBlur%20stdDeviation%3D%224%22%2F%3E%3CfeComposite%20in2%3D%22hardAlpha%22%20operator%3D%22out%22%2F%3E%3CfeColorMatrix%20type%3D%22matrix%22%20values%3D%220%200%200%200%200.340416%200%200%200%200%200.250141%200%200%200%200%200.825045%200%200%200%201%200%22%2F%3E%3CfeBlend%20mode%3D%22normal%22%20in2%3D%22BackgroundImageFix%22%20result%3D%22effect1_dropShadow_98_44%22%2F%3E%3CfeBlend%20mode%3D%22normal%22%20in%3D%22SourceGraphic%22%20in2%3D%22effect1_dropShadow_98_44%22%20result%3D%22shape%22%2F%3E%3C%2Ffilter%3E%3C%2Fdefs%3E%3C%2Fsvg%3E")
-      10 9,
-    auto;
   color: #f6f5f1;
   background: #222;
   font-family:
@@ -44,7 +41,7 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background: #292929;
-  cursor: var(--app-cursor);
+  cursor: auto;
   scrollbar-color: rgba(210, 210, 220, 0.32) #111114;
   scrollbar-width: thin;
 }
@@ -81,20 +78,16 @@ input:not([type="range"]) {
 button,
 input[type="range"],
 .progressTrack {
-  cursor: var(--app-cursor);
-}
-
-button {
-  cursor: var(--app-cursor);
+  cursor: pointer;
 }
 
 button:disabled {
-  cursor: var(--app-cursor);
+  cursor: not-allowed;
   opacity: 0.6;
 }
 
 .micButton:disabled {
-  cursor: var(--app-cursor);
+  cursor: not-allowed;
 }
 
 h1,
@@ -116,11 +109,21 @@ p {
   font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
 }
 
-.landingStatusNotice {
+/* 固定高度占位槽：无论提示是否出现都占住这段空间，避免下方画廊被顶下去再弹回 */
+.landingStatusSlot {
   position: relative;
   z-index: 2;
+  width: 100%;
+  min-height: 52px;
+  flex: 0 0 auto;
+}
+
+.landingStatusNotice {
+  position: absolute;
+  top: 12px;
+  left: 50%;
   width: min(720px, calc(100% - 48px));
-  margin: 12px auto 0;
+  margin: 0;
   border: 1px solid rgba(255, 191, 102, 0.24);
   border-radius: 12px;
   padding: 10px 14px;
@@ -128,6 +131,21 @@ p {
   background: rgba(255, 191, 102, 0.08);
   font-size: 13px;
   line-height: 1.5;
+  text-align: center;
+  transform: translateX(-50%);
+  animation: landingStatusNoticeEnter 220ms ease-out;
+}
+
+@keyframes landingStatusNoticeEnter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
 }
 
 .loginModalOverlay {
@@ -1184,7 +1202,6 @@ p {
   z-index: 1;
   height: 100%;
   overflow: visible;
-  touch-action: pan-y;
   user-select: none;
 }
 
@@ -1196,23 +1213,16 @@ p {
   height: 0;
 }
 
-.queueOrbit.isDragging,
-.queueOrbit.isDragging * {
-  cursor: grabbing;
-}
-
-.queueOrbit {
-  cursor: grab;
-}
-
 .queueOrbitItem {
   position: absolute;
   top: 0;
   left: 0;
-  overflow: hidden;
+  /* 不裁剪：内壳 hover 倾斜时会略微翘出边界，裁掉会显得被方框卡住。
+     圆角裁剪交给内壳 .queueCardTilt 自己做。 */
+  overflow: visible;
   width: var(--queue-side-cover-size);
   height: var(--queue-side-cover-size);
-  border: 2px solid #fff;
+  border: 0;
   border-radius: 16px;
   padding: 0;
   background: #161518;
@@ -1256,6 +1266,76 @@ p {
   height: 100%;
   object-fit: cover;
   pointer-events: none;
+}
+
+/* —— 开场动画：卡片波次浮现（外层 transform 归帧循环管，动画只碰 opacity/filter 与内层 img）—— */
+.queueOrbitItem.introHidden {
+  opacity: 0;
+  transition: none;
+}
+
+.queueOrbitItem.introHidden img {
+  transform: scale(0.82);
+}
+
+.queueOrbitItem.introReveal {
+  animation: queueCardReveal 560ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--intro-delay, 0ms);
+}
+
+.queueOrbitItem.introReveal img {
+  animation: queueCardCoverReveal 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--intro-delay, 0ms);
+}
+
+@keyframes queueCardReveal {
+  from {
+    opacity: 0;
+    filter: brightness(1.35) saturate(0.7);
+  }
+  60% {
+    filter: brightness(1.08) saturate(0.95);
+  }
+  to {
+    opacity: 1;
+    filter: brightness(1) saturate(1);
+  }
+}
+
+@keyframes queueCardCoverReveal {
+  from {
+    transform: scale(0.82);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+/* 未可用曲目的透明度以最终态为准，动画结束后仍由既有规则接管 */
+.queueOrbitItem.introReveal.isUnavailable:not(.isCurrent) {
+  animation-fill-mode: both;
+}
+
+/* —— 开场时歌名与控制区后进：先半隐下沉，落位后浮起 —— */
+.queuePlayerContent {
+  transition: opacity 480ms ease, transform 480ms ease;
+}
+
+.queuePlayerContent.introContentPending {
+  opacity: 0;
+  transform: translateX(-50%) translateY(14px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queueOrbitItem.introReveal,
+  .queueOrbitItem.introReveal img {
+    animation: none;
+  }
+
+  .queuePlayerContent {
+    transition: none;
+  }
 }
 
 .queuePlayerContent {
@@ -3750,5 +3830,75 @@ p {
   .queueOrbitTrack,
   .queueOrbitItem {
     transition-duration: 0.01ms;
+  }
+}
+
+/* —— 画廊调参面板（仅体验版）—— */
+
+/* —— 卡片 hover 倾斜（内壳承接 3D 旋转，外层仍由弧线帧循环控制）—— */
+
+/* 透视不写死在这里：卡片尺寸响应式，透视需按比例动态计算，
+   由 QueueCardTilt 组件写到 .queueCardTiltRoot 上（对齐源码 800/300 的比值） */
+
+.queueCardTilt {
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  /* 圆角跟随卡片：帧循环把调参值写到外层的 border-radius，这里继承同一个值 */
+  border-radius: inherit;
+  background: #161518;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.queueCardTilt img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 与源码 .tilted-card-img 一致：提升到自己的合成层，3D 变换更稳更顺 */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queueCardTilt {
+    transform: none !important;
+  }
+}
+
+/* —— hover 跟随气泡（参数取自 TiltedCard 源码 .tilted-card-caption）—— */
+.queueCardTiltRoot {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  /* 气泡要能溢出卡片显示，这层不裁剪；圆角裁剪在内层 .queueCardTilt */
+  border-radius: inherit;
+  /* perspective 由组件按卡片尺寸动态写入（对齐源码 .tilted-card-figure） */
+}
+
+.queueCardCaption {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 3;
+  border-radius: 4px;
+  padding: 4px 10px;
+  background-color: #fff;
+  color: #2d2d2d;
+  white-space: nowrap;
+  font-size: 10px;
+  /* 左上角就是钉在光标上的那一点：缩放和旋转都以它为原点，
+     否则反向缩放会把气泡推离鼠标 */
+  transform-origin: 0 0;
+  /* x / y / rotate / scale / opacity 由 motion 驱动，跟随鼠标 */
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .queueCardCaption {
+    display: none;
   }
 }
