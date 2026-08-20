@@ -10,7 +10,15 @@ import {
 } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { ThinkingOrb } from "thinking-orbs";
-import { StarfieldCanvas } from "./StarfieldCanvas";
+import { AmbientTintLayer } from "./AmbientTintLayer";
+import {
+  STARFIELD_BLOOM_STRENGTH,
+  STARFIELD_DOT_CORE,
+  STARFIELD_INITIAL_PHI,
+  STARFIELD_INITIAL_RADIUS,
+  STARFIELD_INITIAL_THETA,
+  StarfieldCanvas
+} from "./StarfieldCanvas";
 import { QueueCardTilt } from "./QueueCardTilt";
 
 // 调参面板只在体验版（VITE_MOCK=1）挂载
@@ -3339,6 +3347,11 @@ export function LandingPage({
 }) {
   const accountLabel = status?.nickname ?? status?.userId ?? "账号昵称";
   const isLoggedIn = status?.loggedIn === true;
+  // 星空吸色取正在播放的那首（= 画廊中央卡片），兜底规则与画廊保持一致
+  const starfieldCoverUrl =
+    player.selectedTrack.coverUrl ??
+    queueFallbackCovers[player.selectedTrackIndex % queueFallbackCovers.length];
+  const starfieldView = useStarfieldViewTuning();
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"home" | "settings">("home");
@@ -3563,14 +3576,15 @@ export function LandingPage({
         </section>
       )}
 
-      <img
-        alt=""
-        aria-hidden="true"
-        className="landingGlow"
-        data-node-id="164:1648"
-        src={getPublicAssetUrl("/images/redio-landing-ellipse.svg")}
+      <AmbientTintLayer coverUrl={starfieldCoverUrl} />
+      <StarfieldCanvas
+        bloomStrength={starfieldView.bloom}
+        coverUrl={starfieldCoverUrl}
+        dotCore={starfieldView.dotCore}
+        initialPhi={starfieldView.phi}
+        initialRadius={starfieldView.radius}
+        initialTheta={starfieldView.theta}
       />
-      <StarfieldCanvas />
       {isTuningPanelEnabled ? (
         <Suspense fallback={null}>
           <QueueTuningPanel defaults={queueTuningDefaults} target={queueTuning} />
@@ -3676,6 +3690,14 @@ function AskAnythingButton({ onClick }: { onClick: () => void }) {
   );
 }
 
+// —— 封面氛围色参数 ——
+// Mineradio 原值是 brightness(0.18) / saturate(1.5)，那是配深蓝冷调页面的。
+// Redio 底色是暖黑 #0a0908，同样亮度会显得发灰上浮，所以压到 0.15；
+// 饱和度略提到 1.55 补偿压暗带来的褪色，让封面色调仍然辨认得出。
+const AMBIENT_BRIGHTNESS = 0.18;
+const AMBIENT_SATURATE = 1.5;
+const AMBIENT_OPACITY = 1;
+
 // —— 环形画廊参数（算法参考 reactbits.dev CircularGallery，bend≈6 的观感）——
 // 卡片沿圆弧分布：R = (H² + B²) / (2B)，下沉量 arc = R - √(R² - x²)，倾角 = asin(x / R)
 const QUEUE_BEND_RATIO = 0.46; // B / H，越大弧越弯
@@ -3689,16 +3711,53 @@ const QUEUE_TILT_AMPLITUDE = 16;
 // 缩放：源码 scaleOnHover 默认 1.1；小卡片上 1.1 的绝对变化只有十几像素，
 // 提到 1.14 让"浮起来"的过程看得清。
 const QUEUE_TILT_HOVER_SCALE = 1.14;
+// 两侧卡片淡出：与 Mineradio 同斜率（每远离一张衰减 0.30）、同下限 0.22。
+// 正在播放那张为 1.0，第 1 张 0.70、第 2 张 0.40，第 3 张起触底。
+const QUEUE_SIDE_OPACITY_FALLOFF = 0.3;
+const QUEUE_SIDE_OPACITY_FLOOR = 0.22;
+
+// —— 悬浮呼吸（参考 Mineradio app.js:11136/11154/11155）——
+// 三条角频率互不整除的正弦分管上下 / 前后 / 缩放，周期分别约 6.83s、8.06s、5.15s。
+// 比值 1.33 与 1.18 都不是整数倍，合成轨迹长时间不重复，所以看不出是循环动画。
+const QUEUE_FLOAT_FREQ_Y = 0.92;
+const QUEUE_FLOAT_FREQ_Z = 0.78;
+const QUEUE_FLOAT_FREQ_SCALE = 1.22;
+// 每张卡按序号错开相位（30°~42°），整排各自呼吸而不是齐刷刷同步晃。
+const QUEUE_FLOAT_PHASE_Y = 0.64;
+const QUEUE_FLOAT_PHASE_Z = 0.52;
+const QUEUE_FLOAT_PHASE_SCALE = 0.74;
+// 原版幅度是 three.js 世界坐标下卡片尺寸的 5.2% / 3.0% / 2.6%，
+// 这里按卡片实际像素宽度等比换算，保持同样的观感比例。
+const QUEUE_FLOAT_RATIO_Y = 0.052;
+const QUEUE_FLOAT_RATIO_Z = 0.03;
+const QUEUE_FLOAT_RATIO_SCALE = 0.026;
+// A 档：浮动总强度（0 = 关闭，1 = 原版比例）
+const QUEUE_FLOAT_AMPLITUDE = 1;
+// B 档：景深强度。0 = 纯 2D 起伏；>0 时容器透视生效、浮动带上 Z 轴远近。
+const QUEUE_FLOAT_DEPTH = 1;
+// 透视距离（px）：越小透视越夸张。按卡片尺寸的若干倍取，避免小屏上形变过猛。
+const QUEUE_PERSPECTIVE_RATIO = 7.5;
 
 // —— 调参运行时 ——
 // 布局参数每帧从这里读取，Debug 面板改的是这个对象，因此无需重新渲染即可实时生效。
 // 生产构建里面板不挂载，这些值始终等于上面的默认常量。
 type QueueTuning = {
+  ambientBrightness: number;
+  ambientOpacity: number;
+  ambientSaturate: number;
   arcEvenSpacing: boolean;
+  starfieldBloom: number;
+  starfieldDotCore: number;
+  starfieldPhi: number;
+  starfieldRadius: number;
+  starfieldTheta: number;
   bendRatio: number;
   cardRadius: number;
   centerScale: number;
   compensateSpacing: boolean;
+  floatAmplitude: number;
+  floatDepth: number;
+  sideOpacityFalloff: number;
   spacingRatio: number;
   tiltAmplitude: number;
   tiltHoverScale: number;
@@ -3706,11 +3765,22 @@ type QueueTuning = {
 };
 
 const queueTuningDefaults: QueueTuning = {
+  ambientBrightness: AMBIENT_BRIGHTNESS,
+  ambientOpacity: AMBIENT_OPACITY,
+  ambientSaturate: AMBIENT_SATURATE,
   arcEvenSpacing: true,
+  starfieldBloom: STARFIELD_BLOOM_STRENGTH,
+  starfieldDotCore: STARFIELD_DOT_CORE,
+  starfieldPhi: STARFIELD_INITIAL_PHI,
+  starfieldRadius: STARFIELD_INITIAL_RADIUS,
+  starfieldTheta: STARFIELD_INITIAL_THETA,
   bendRatio: QUEUE_BEND_RATIO,
   cardRadius: QUEUE_CARD_RADIUS,
   centerScale: QUEUE_CENTER_SCALE,
   compensateSpacing: true,
+  floatAmplitude: QUEUE_FLOAT_AMPLITUDE,
+  floatDepth: QUEUE_FLOAT_DEPTH,
+  sideOpacityFalloff: QUEUE_SIDE_OPACITY_FALLOFF,
   spacingRatio: QUEUE_CARD_SPACING_RATIO,
   tiltAmplitude: QUEUE_TILT_AMPLITUDE,
   tiltHoverScale: QUEUE_TILT_HOVER_SCALE,
@@ -3718,6 +3788,55 @@ const queueTuningDefaults: QueueTuning = {
 };
 
 const queueTuning: QueueTuning = { ...queueTuningDefaults };
+
+/**
+ * 把 queueTuning 里的初始视角同步成 React state。
+ *
+ * 画廊参数由帧循环每帧直接读 queueTuning，不需要重渲染；但星空的初始视角
+ * 是组件 prop，必须走 state 才能传下去。调参面板改的是普通对象、React 无从
+ * 感知，所以这里用低频轮询兜住——只在体验版挂了面板时才有变化。
+ */
+function useStarfieldViewTuning() {
+  const [view, setView] = useState({
+    bloom: queueTuning.starfieldBloom,
+    dotCore: queueTuning.starfieldDotCore,
+    phi: queueTuning.starfieldPhi,
+    radius: queueTuning.starfieldRadius,
+    theta: queueTuning.starfieldTheta
+  });
+
+  useEffect(() => {
+    if (!isTuningPanelEnabled) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setView((previous) => {
+        if (
+          previous.bloom === queueTuning.starfieldBloom &&
+          previous.dotCore === queueTuning.starfieldDotCore &&
+          previous.phi === queueTuning.starfieldPhi &&
+          previous.radius === queueTuning.starfieldRadius &&
+          previous.theta === queueTuning.starfieldTheta
+        ) {
+          return previous;
+        }
+
+        return {
+          bloom: queueTuning.starfieldBloom,
+          dotCore: queueTuning.starfieldDotCore,
+          phi: queueTuning.starfieldPhi,
+          radius: queueTuning.starfieldRadius,
+          theta: queueTuning.starfieldTheta
+        };
+      });
+    }, 200);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  return view;
+}
 
 function lerpValue(from: number, to: number, t: number) {
   return from + (to - from) * t;
@@ -3744,6 +3863,8 @@ function CircularQueuePlayer({
   volume
 }: CircularQueuePlayerProps) {
   const orbitRef = useRef<HTMLDivElement>(null);
+  // 景深透视挂在轨道容器上（卡片的共同父级），而不是每张卡自己
+  const orbitTrackRef = useRef<HTMLDivElement>(null);
   const volumeControlRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef(new Map<number, HTMLButtonElement>());
   const scrollRef = useRef({ current: selectedTrackIndex, target: selectedTrackIndex });
@@ -3867,6 +3988,28 @@ function CircularQueuePlayer({
         ? ((centerScaleNow - 1) * cardBaseWidth) / 2
         : 0;
 
+      // 悬浮呼吸：秒为单位的连续时间，直接喂给正弦。
+      // 入场阶段不参与，避免卡片一边浮现一边飘。
+      const floatAmp = introPhase === "done" ? Math.max(0, queueTuning.floatAmplitude) : 0;
+      const floatDepth = Math.max(0, queueTuning.floatDepth);
+      const nowSec = performance.now() / 1000;
+      // 幅度按卡片实际尺寸等比换算，小屏卡片小、浮动也跟着小
+      const floatBaseY = cardBaseWidth * QUEUE_FLOAT_RATIO_Y * floatAmp;
+      const floatBaseZ = cardBaseWidth * QUEUE_FLOAT_RATIO_Z * floatAmp * floatDepth;
+      const floatBaseScale = QUEUE_FLOAT_RATIO_SCALE * floatAmp;
+
+      // B 档景深：容器透视只在需要时挂上，depth=0 时保持纯 2D 渲染路径
+      const track = orbitTrackRef.current;
+      if (track) {
+        const wantPerspective = floatBaseZ > 0.01;
+        const nextPerspective = wantPerspective
+          ? `${Math.round(cardBaseWidth * QUEUE_PERSPECTIVE_RATIO)}px`
+          : "";
+        if (track.style.perspective !== nextPerspective) {
+          track.style.perspective = nextPerspective;
+        }
+      }
+
       cardRefs.current.forEach((card, index) => {
         const slot = index - scroll.current;
         // 推移方向按"在居中卡的哪一侧"判定，而不是 rawX 的符号：
@@ -3897,12 +4040,53 @@ function CircularQueuePlayer({
         }
 
         // 与中心的距离决定卡片大小：中心 1 → 两侧渐小
-        const proximity = Math.max(0, 1 - Math.abs(index - scroll.current));
-        const scale = 1 + (queueTuning.centerScale - 1) * proximity;
+        const centerDistance = Math.abs(index - scroll.current);
+        const proximity = Math.max(0, 1 - centerDistance);
+        const baseScale = 1 + (queueTuning.centerScale - 1) * proximity;
 
+        // 三条异频正弦 + 按序号错开的相位。必须叠进这同一次 transform 计算：
+        // 外层 transform 已被布局占满，另起 CSS animation 会互相覆盖。
+        let floatY = 0;
+        let floatZ = 0;
+        let scale = baseScale;
+        if (floatAmp > 0) {
+          floatY =
+            Math.sin(nowSec * QUEUE_FLOAT_FREQ_Y + index * QUEUE_FLOAT_PHASE_Y) * floatBaseY;
+          floatZ =
+            Math.cos(nowSec * QUEUE_FLOAT_FREQ_Z + index * QUEUE_FLOAT_PHASE_Z) * floatBaseZ;
+          const breath =
+            Math.sin(nowSec * QUEUE_FLOAT_FREQ_SCALE + index * QUEUE_FLOAT_PHASE_SCALE) *
+            floatBaseScale;
+          scale = baseScale * (1 + breath);
+        }
+
+        // 两侧淡出：正在播放那张保持 100%，越远越淡。
+        // Mineradio 用 `d < 0.5 ? 1 : max(0.22, 1 - d * 0.30)`，在 d=0.5 处
+        // 有个 1.0→0.85 的跳变；他们逐帧重绘 canvas 看不出来，我们是 DOM
+        // 连续插值，跳变会在滑动时闪一下，所以去掉分段、保留同样的斜率与下限。
+        let cardOpacity = Math.max(
+          QUEUE_SIDE_OPACITY_FLOOR,
+          1 - centerDistance * queueTuning.sideOpacityFalloff
+        );
+        // 首尾用于循环衔接的占位卡必须保持全透明，
+        // 不可用曲目再压一档以保留"这首点不了"的提示。
+        if (card.classList.contains("isBuffer")) cardOpacity = 0;
+        else if (card.classList.contains("isUnavailable")) cardOpacity *= 0.68;
+
+        // translateZ 放在 rotate 之前：先把卡片推到自己的深度，再绕自身旋转，
+        // 否则弧形倾角会把 Z 位移拐成斜向偏移。
+        const zPart = floatZ !== 0 ? ` translateZ(${floatZ.toFixed(2)}px)` : "";
         card.style.transform =
-          `translate(calc(-50% + ${x}px), ${arc}px) ` +
-          `rotate(${rotation}rad) scale(${scale})`;
+          `translate(calc(-50% + ${x}px), ${(arc + floatY).toFixed(2)}px)` +
+          `${zPart} rotate(${rotation}rad) scale(${scale})`;
+        // 开场阶段把不透明度交还 CSS：introHidden 的 opacity:0 是普通声明，
+        // 会被内联样式盖掉导致卡片提前闪出（introReveal 是动画，优先级高于
+        // 内联，不受影响，但一并让开更好理解）。
+        if (card.classList.contains("introHidden") || card.classList.contains("introReveal")) {
+          card.style.removeProperty("opacity");
+        } else {
+          card.style.opacity = String(Number(cardOpacity.toFixed(3)));
+        }
         card.style.zIndex = String(100 - Math.round(Math.abs(x)));
 
         if (card.style.borderRadius !== cardRadius) {
@@ -3963,7 +4147,7 @@ function CircularQueuePlayer({
         ref={orbitRef}
         role="group"
       >
-        <div className="queueOrbitTrack">
+        <div className="queueOrbitTrack" ref={orbitTrackRef}>
           {visibleTracks.map(({ index, offset, track }) => {
             const absoluteOffset = Math.abs(offset);
             const coverUrl =
