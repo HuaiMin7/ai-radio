@@ -61,6 +61,40 @@
   margin-top: 14px;
 }
 
+/* 分组 Tab：画廊布局与背景视觉分开，避免参数堆成一长条 */
+.tuningTabs {
+  display: flex;
+  gap: 4px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 10px;
+  padding: 3px;
+  background: rgb(255 255 255 / 4%);
+}
+
+.tuningTab {
+  flex: 1 1 0;
+  border: 0;
+  border-radius: 7px;
+  padding: 6px 0;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.tuningTab:hover {
+  color: #e4e4e7;
+}
+
+.tuningTab.isActive {
+  background: rgb(255 36 66 / 88%);
+  color: #fff;
+}
+
 .tuningField {
   display: flex;
   flex-direction: column;

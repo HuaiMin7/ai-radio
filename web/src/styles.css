@@ -23,6 +23,15 @@
 }
 
 :root {
+  /* 封面氛围色层的默认参数，体验版调参面板会覆盖这几个值 */
+  --ambient-blur: 120px;
+  /* 与 mineradio 线上一致：brightness 0.18 / saturate 1.5。
+     原先 0.15 / 1.55 是为配暖黑基调手调的，偏暗且偏艳。 */
+  --ambient-brightness: 0.18;
+  --ambient-saturate: 1.5;
+  --ambient-opacity: 1;
+  --ambient-scale: 1.4;
+
   color: #f6f5f1;
   background: #222;
   font-family:
@@ -1241,13 +1250,10 @@ p {
   box-shadow: none;
 }
 
+/* 不可用曲目只降饱和：不透明度由 JS 按距中心距离逐帧写内联值，
+   在这里再写 opacity 会被内联样式盖掉、反而看不出"不可用"。 */
 .queueOrbitItem.isUnavailable:not(.isCurrent) {
   filter: saturate(0.55);
-  opacity: 0.62;
-}
-
-.queueOrbitItem:not(.isCurrent) {
-  opacity: 0.92;
 }
 
 .queueOrbitItem.isBuffer {
@@ -1644,18 +1650,47 @@ p {
   box-shadow: none;
 }
 
-.landingGlow {
+/**
+ * 封面氛围色层：当前歌曲封面铺满视口 + 超大模糊，
+ * 让整屏底色跟着歌走，而不是死板的 #0a0908。
+ *
+ * 模糊半径大到看不出任何图形轮廓，只剩一片色场；
+ * 亮度压暗让它退到背景，饱和度补偿压暗导致的发灰；
+ * scale 是为了把模糊在边缘的透明羽化推到视口之外。
+ */
+.landingAmbientTint {
   position: absolute;
-  top: calc(50% + 15px);
-  left: calc(50% - 2px);
+  inset: 0;
   z-index: 0;
-  display: block;
-  width: 800px;
-  height: 800px;
-  max-width: none;
-  mix-blend-mode: screen;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  /* 变量默认值写在 :root 上，体验版调参面板改根变量即可实时生效 */
+  filter: blur(var(--ambient-blur)) brightness(var(--ambient-brightness))
+    saturate(var(--ambient-saturate));
+  opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -50%);
+  transform: scale(var(--ambient-scale));
+  transition:
+    opacity 1200ms ease,
+    background-image 1500ms ease;
+  will-change: opacity;
+}
+
+.landingAmbientTint.isVisible {
+  opacity: var(--ambient-opacity);
+}
+
+/* 上一首的封面留在下层做交叉淡出，切歌时颜色平滑推移而非闪一下 */
+.landingAmbientTint.isPrevious {
+  z-index: 0;
+  transition: opacity 1200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landingAmbientTint {
+    transition: none;
+  }
 }
 
 .landingParticleField {
@@ -1666,6 +1701,13 @@ p {
   width: 100%;
   height: 100%;
   pointer-events: none;
+}
+
+/* 拖拽视角时全局换成抓手，明确当前处于拖拽态 */
+body.isStarfieldDragging,
+body.isStarfieldDragging * {
+  cursor: grabbing !important;
+  user-select: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3722,9 +3764,10 @@ p {
     gap: 8px;
   }
 
-  .landingGlow {
-    width: 620px;
-    height: 620px;
+  /* 小屏降低模糊半径：大半径 blur 在移动端 GPU 上开销明显 */
+  .landingAmbientTint {
+    --ambient-blur: 84px;
+    --ambient-scale: 1.5;
   }
 
   .pageShell {
@@ -3857,6 +3900,11 @@ p {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* 图片自己也带圆角：它因 translateZ 被提升为独立合成层，父层的
+     overflow:hidden 圆角裁剪在合成阶段对它会失效（卡片被 scale 放大时
+     尤其明显，四角看起来是直的，hover 时父层重新成层才"恢复"）。
+     把圆角直接落在图片上，就不依赖父层裁剪。 */
+  border-radius: inherit;
   /* 与源码 .tilted-card-img 一致：提升到自己的合成层，3D 变换更稳更顺 */
   transform: translateZ(0);
   will-change: transform;
