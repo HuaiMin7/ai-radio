@@ -18,7 +18,7 @@
 
 - 前端：React 19 + Vite + TypeScript。
 - 后端：Node.js 原生 HTTP server + TypeScript，通过 `tsx` 运行。
-- 大模型：OpenAI-compatible HTTP adapter，通过阿里云百炼调用 `deepseek-v4-flash`。
+- 大模型：OpenAI-compatible HTTP adapter，直接调用 DeepSeek 官方 `deepseek-v4-pro` API。
 - 音乐：默认 QQ 音乐解析；QQ 失败保持显式失败并尝试可播种子曲目，不把本地测试音频伪装成推荐歌曲。旧 NetEase adapter 仅保留为显式开启的 legacy 测试路径。
 - 状态：本地 JSON 文件，写入 history、queue 和 feedback。
 
@@ -93,8 +93,8 @@ http://127.0.0.1:3000
 AI_RADIO_BRAIN_PROVIDER=custom-http
 AI_RADIO_SESSION_SECRET=
 AI_RADIO_SECURE_COOKIES=0
-AI_RADIO_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_RADIO_MODEL_NAME=deepseek-v4-flash
+AI_RADIO_MODEL_BASE_URL=https://api.deepseek.com
+AI_RADIO_MODEL_NAME=deepseek-v4-pro
 AI_RADIO_MODEL_API_KEY=
 
 AI_RADIO_MUSIC_PROVIDER=qq
@@ -124,9 +124,9 @@ DASHSCOPE_API_KEY=
 - `AI_RADIO_BRAIN_PROVIDER=custom-http`：走 OpenAI-compatible 接口。
 - `AI_RADIO_SESSION_SECRET`：签名本站会话并派生账号凭据加密密钥；公开部署必须使用至少 32 字符的稳定随机值。
 - `AI_RADIO_SECURE_COOKIES=1`：公开 HTTPS 部署必须启用，确保本站会话 Cookie 只通过 HTTPS 发送。
-- `AI_RADIO_MODEL_BASE_URL`：模型服务 base URL。
-- `AI_RADIO_MODEL_NAME`：模型名，例如 `deepseek-v4-flash`。
-- `AI_RADIO_MODEL_API_KEY`：本地填写，不要提交。
+- `AI_RADIO_MODEL_BASE_URL`：DeepSeek 官方 OpenAI-compatible base URL。
+- `AI_RADIO_MODEL_NAME`：模型名，默认 `deepseek-v4-pro`。
+- `AI_RADIO_MODEL_API_KEY`：DeepSeek 官方 API Key，本地填写，不要提交。
 - `AI_RADIO_MUSIC_PROVIDER=qq | local | netease`：音乐来源；默认 `qq`，`netease` 需要同时启用 legacy 开关。
 - `AI_RADIO_NETEASE_API_BASE_URL`：旧 NetEase 本地服务地址。
 - `AI_RADIO_ENABLE_NETEASE_PROVIDER`：设为 `1` 时才允许 `AI_RADIO_MUSIC_PROVIDER=netease` 生效。
@@ -211,7 +211,7 @@ POST /api/qq/logout     # 清除本地 QQ Cookie
 
 - 前端播放器主界面。
 - 聊天输入和发送。
-- 通过百炼调用 DeepSeek 生成 DJ 文案和歌曲推荐。
+- 通过 DeepSeek 官方 API 生成 DJ 文案和歌曲推荐。
 - `custom-http` 大模型 adapter。
 - `local` 音乐 adapter。
 - `qq` 音乐 adapter，依赖本地 QQ 登录 Cookie 才能尽量拿到完整播放 URL。
@@ -334,8 +334,8 @@ http://127.0.0.1:8788/api/now
 
 ```env
 AI_RADIO_BRAIN_PROVIDER=custom-http
-AI_RADIO_MODEL_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-AI_RADIO_MODEL_NAME=deepseek-v4-flash
+AI_RADIO_MODEL_BASE_URL=https://api.deepseek.com
+AI_RADIO_MODEL_NAME=deepseek-v4-pro
 AI_RADIO_MODEL_API_KEY=
 ```
 

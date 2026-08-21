@@ -163,7 +163,7 @@ function createRecoveryTurn(): AiTurn {
 
 async function generateCustomHttpTurn(context: PromptContext): Promise<AiTurn> {
   const baseUrl = process.env.AI_RADIO_MODEL_BASE_URL;
-  const model = process.env.AI_RADIO_MODEL_NAME ?? "deepseek-v4-flash";
+  const model = process.env.AI_RADIO_MODEL_NAME ?? "deepseek-v4-pro";
   const apiKey = process.env.AI_RADIO_MODEL_API_KEY;
 
   if (!baseUrl || !model) {
