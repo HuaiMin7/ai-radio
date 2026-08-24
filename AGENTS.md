@@ -20,7 +20,7 @@
 - 后端：Node.js 原生 HTTP server + TypeScript，通过 `tsx` 运行。
 - 大模型：OpenAI-compatible HTTP adapter，直接调用 DeepSeek 官方 `deepseek-v4-pro` API。
 - 音乐：默认 QQ 音乐解析；QQ 失败保持显式失败并尝试可播种子曲目，不把本地测试音频伪装成推荐歌曲。旧 NetEase adapter 仅保留为显式开启的 legacy 测试路径。
-- 状态：本地 JSON 文件，写入 history、queue 和 feedback。
+- 状态：本地 JSON 文件，写入 history、queue、feedback 和账号级播放进度。
 
 ## 目录结构
 
@@ -38,6 +38,7 @@
 │   ├── music.ts          # 音乐 adapter
 │   ├── state.ts          # 当前播放状态
 │   ├── history.ts        # 播放历史 / 推荐记录
+│   ├── playback-state.ts # 账号级播放位置 / 续播状态
 │   ├── scheduler.ts      # 后续节目调度
 │   └── tts.ts            # Qwen TTS / macOS say fallback
 ├── user/                 # 用户个人资料
@@ -146,6 +147,7 @@ GET  /api/now           # 当前播放状态
 GET  /api/history       # 播放历史 / 推荐记录
 GET  /api/chat          # 当前音乐账号的普通聊天 / 推荐对话
 GET  /api/queue         # 播放队列
+GET  /api/playback-state # 当前账号上次播放位置
 GET  /api/feedback      # 歌曲反馈记录
 GET  /api/weather       # 天气上下文
 GET  /api/audio/proxy   # 代理远端音频并保留 Range 请求
@@ -159,6 +161,7 @@ POST /api/plan          # 根据用户输入生成新节目段落
 POST /api/tts           # 生成 DJ 语音
 POST /api/resolve-track # 解析单曲可播放状态
 POST /api/feedback      # 记录喜欢 / 跳过 / 重播
+PUT  /api/playback-state # 保存当前账号播放位置
 POST /api/qq/login/cookie # 仅本地开发可手动保存 QQ Cookie，公开站禁用
 POST /api/qq/logout     # 清除本地 QQ Cookie
 ```

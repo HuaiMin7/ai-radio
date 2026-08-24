@@ -17,6 +17,11 @@ import {
 } from "./feedback.js";
 import { readPlaybackHistory } from "./history.js";
 import { resolvePlayableTrack } from "./music.js";
+import {
+  readPlaybackResumeState,
+  writePlaybackResumeState,
+  type PlaybackResumeStateInput
+} from "./playback-state.js";
 import { readPlaybackQueue } from "./queue.js";
 import {
   authenticateAndSaveQqCookie,
@@ -107,7 +112,7 @@ function sendJsonWithCors(
   origin: string | undefined
 ) {
   response.writeHead(statusCode, {
-    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Range",
     ...(isAllowedCorsOrigin(origin)
       ? {
@@ -545,6 +550,36 @@ function readFeedbackRequest(body: unknown) {
   return undefined;
 }
 
+function readPlaybackStateRequest(body: unknown): PlaybackResumeStateInput | null {
+  if (typeof body !== "object" || body === null) {
+    return null;
+  }
+
+  const candidate = body as Partial<PlaybackResumeStateInput>;
+
+  if (
+    candidate.version !== 1 ||
+    typeof candidate.queueId !== "string" ||
+    !candidate.queueId.trim() ||
+    candidate.queueId.length > 200 ||
+    typeof candidate.positionSeconds !== "number" ||
+    !Number.isFinite(candidate.positionSeconds) ||
+    candidate.positionSeconds < 0 ||
+    typeof candidate.wasPlaying !== "boolean" ||
+    typeof candidate.introPlayed !== "boolean"
+  ) {
+    return null;
+  }
+
+  return {
+    version: 1,
+    queueId: candidate.queueId,
+    positionSeconds: candidate.positionSeconds,
+    wasPlaying: candidate.wasPlaying,
+    introPlayed: candidate.introPlayed
+  };
+}
+
 function readCookieRequest(body: unknown) {
   if (
     typeof body === "object" &&
@@ -772,6 +807,17 @@ export function createRouter(rootDir: string): Handler {
         return;
       }
 
+      if (request.method === "GET" && url.pathname === "/api/playback-state") {
+        const user = requireAuthenticatedUser(authenticatedUser);
+        sendJsonWithCors(
+          response,
+          200,
+          await readPlaybackResumeState(rootDir, user),
+          origin
+        );
+        return;
+      }
+
       if (request.method === "GET" && url.pathname === "/api/feedback") {
         const user = requireAuthenticatedUser(authenticatedUser);
         sendJsonWithCors(
@@ -915,6 +961,27 @@ export function createRouter(rootDir: string): Handler {
           response,
           200,
           await appendTrackFeedback(rootDir, user, feedback),
+          origin
+        );
+        return;
+      }
+
+      if (request.method === "PUT" && url.pathname === "/api/playback-state") {
+        const user = requireAuthenticatedUser(authenticatedUser);
+        const body = await readJsonBody(request);
+        const playbackState = readPlaybackStateRequest(body);
+
+        if (!playbackState) {
+          sendJsonWithCors(response, 400, {
+            error: "Valid playback state is required"
+          }, origin);
+          return;
+        }
+
+        sendJsonWithCors(
+          response,
+          200,
+          await writePlaybackResumeState(rootDir, user, playbackState),
           origin
         );
         return;

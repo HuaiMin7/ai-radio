@@ -276,33 +276,17 @@ type CircularQueuePlayerProps = {
   volume: number;
 };
 
-const lastPlayedStorageKey = "redio.lastPlayed";
+type PlaybackResumeStateInput = {
+  version: 1;
+  queueId: string;
+  positionSeconds: number;
+  wasPlaying: boolean;
+  introPlayed: boolean;
+};
 
-type LastPlayedRecord = { key: string; time: number };
-
-function readLastPlayedRecord(): LastPlayedRecord | null {
-  try {
-    const raw = window.localStorage.getItem(lastPlayedStorageKey);
-    if (!raw) {
-      return null;
-    }
-    const parsed = JSON.parse(raw) as Partial<LastPlayedRecord>;
-    if (typeof parsed.key !== "string" || typeof parsed.time !== "number") {
-      return null;
-    }
-    return { key: parsed.key, time: Math.max(0, parsed.time) };
-  } catch {
-    return null;
-  }
-}
-
-function writeLastPlayedRecord(record: LastPlayedRecord) {
-  try {
-    window.localStorage.setItem(lastPlayedStorageKey, JSON.stringify(record));
-  } catch {
-    /* ignore */
-  }
-}
+type PlaybackResumeState = PlaybackResumeStateInput & {
+  updatedAt: string;
+};
 
 const djDuckingRatio = 0.5;
 const musicIntentPattern =
@@ -996,13 +980,16 @@ export function App() {
   const bridgeAutoRefreshInFlightRef = useRef(false);
   const lastSyncedBridgeCookieRef = useRef("");
   const lastAudibleVolumeRef = useRef(0.5);
+  const pendingPlaybackRestoreRef = useRef<PlaybackResumeState | null>(null);
+  const playbackStateReadyRef = useRef(false);
+  const latestPlaybackStateRef = useRef<PlaybackResumeStateInput | null>(null);
+  const playbackStateWriteRef = useRef<Promise<void>>(Promise.resolve());
+  const playbackStateSaveErrorLoggedRef = useRef(false);
+  const playedDjIntroQueueIdsRef = useRef(new Set<string>());
   const [nowPlaying, setNowPlaying] = useState<NowPlayingState | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
-  const pendingResumeRef = useRef<LastPlayedRecord | null>(null);
-  const resumeSeekRef = useRef<number | null>(null);
-  const hasRestoredSessionRef = useRef(false);
   const [isSessionRestored, setIsSessionRestored] = useState(false);
   const [playbackRequestId, setPlaybackRequestId] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1056,7 +1043,37 @@ export function App() {
   const [playbackToast, setPlaybackToast] = useState<string | null>(null);
 
   useEffect(() => {
+    const savePlaybackStateBeforeLeave = () => {
+      const snapshot = latestPlaybackStateRef.current;
+
+      if (!snapshot) {
+        return;
+      }
+
+      void fetch(getApiUrl("/api/playback-state"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify(snapshot),
+        keepalive: true
+      }).catch(() => {
+        // The regular five-second checkpoint remains the fallback on page exit.
+      });
+    };
+    const savePlaybackStateWhenHidden = () => {
+      if (document.visibilityState === "hidden") {
+        savePlaybackStateBeforeLeave();
+      }
+    };
+
+    window.addEventListener("pagehide", savePlaybackStateBeforeLeave);
+    document.addEventListener("visibilitychange", savePlaybackStateWhenHidden);
+
     return () => {
+      window.removeEventListener("pagehide", savePlaybackStateBeforeLeave);
+      document.removeEventListener("visibilitychange", savePlaybackStateWhenHidden);
       if (playbackToastTimerRef.current !== null) {
         window.clearTimeout(playbackToastTimerRef.current);
       }
@@ -1080,6 +1097,54 @@ export function App() {
         ...currentLogs
       ].slice(0, 30)
     );
+  }
+
+  function savePlaybackStateForTrack(
+    track: PlayableTrack,
+    positionSeconds: number,
+    wasPlaying: boolean,
+    introPlayed = track.queueId
+      ? playedDjIntroQueueIdsRef.current.has(track.queueId)
+      : false
+  ) {
+    if (!playbackStateReadyRef.current || !track.queueId) {
+      return Promise.resolve();
+    }
+
+    const snapshot: PlaybackResumeStateInput = {
+      version: 1,
+      queueId: track.queueId,
+      positionSeconds: Number.isFinite(positionSeconds)
+        ? Math.max(positionSeconds, 0)
+        : 0,
+      wasPlaying,
+      introPlayed
+    };
+
+    latestPlaybackStateRef.current = snapshot;
+    const write = playbackStateWriteRef.current.then(async () => {
+      await fetchJson<PlaybackResumeState>("/api/playback-state", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(snapshot)
+      });
+      playbackStateSaveErrorLoggedRef.current = false;
+    });
+    const handledWrite = write.catch((requestError) => {
+      if (!playbackStateSaveErrorLoggedRef.current) {
+        playbackStateSaveErrorLoggedRef.current = true;
+        appendLog(
+          "error",
+          "续播位置保存失败",
+          requestError instanceof Error ? requestError.message : "播放状态写入失败"
+        );
+      }
+    });
+
+    playbackStateWriteRef.current = handledWrite;
+    return handledWrite;
   }
 
   function clearPlaybackToast() {
@@ -1151,6 +1216,84 @@ export function App() {
     return entries;
   }
 
+  async function loadPlaybackResumeState() {
+    return fetchJson<PlaybackResumeState | null>("/api/playback-state");
+  }
+
+  function preparePlaybackRestore(
+    state: PlaybackResumeState | null,
+    entries: QueueTrack[]
+  ) {
+    pendingPlaybackRestoreRef.current = null;
+    latestPlaybackStateRef.current = null;
+
+    if (!state) {
+      playbackStateReadyRef.current = true;
+      setIsSessionRestored(true);
+      return;
+    }
+
+    const savedTrackIndex = entries.findIndex((track) => track.id === state.queueId);
+
+    if (savedTrackIndex < 0) {
+      playbackStateReadyRef.current = true;
+      setIsSessionRestored(true);
+      appendLog("info", "上次播放位置已失效", "对应歌曲已不在当前队列中");
+      return;
+    }
+
+    let resumeTrackIndex = savedTrackIndex;
+    let resumeTrack = toPlayableTrack(entries[resumeTrackIndex]);
+    let resumeState = state;
+
+    if (!resumeTrack || !isTrackPlayable(resumeTrack)) {
+      resumeTrackIndex = entries.findIndex((track, index) => {
+        if (index <= savedTrackIndex) {
+          return false;
+        }
+
+        const playableTrack = toPlayableTrack(track);
+        return playableTrack !== null && isTrackPlayable(playableTrack);
+      });
+      resumeTrack =
+        resumeTrackIndex >= 0 ? toPlayableTrack(entries[resumeTrackIndex]) : null;
+
+      if (!resumeTrack?.queueId) {
+        playbackStateReadyRef.current = true;
+        setIsSessionRestored(true);
+        appendLog("info", "上次播放位置无法恢复", "队列中没有后续可播放歌曲");
+        return;
+      }
+
+      resumeState = {
+        ...state,
+        queueId: resumeTrack.queueId,
+        positionSeconds: 0,
+        wasPlaying: false,
+        introPlayed: false
+      };
+    }
+
+    if (!resumeTrack.queueId) {
+      playbackStateReadyRef.current = true;
+      setIsSessionRestored(true);
+      return;
+    }
+
+    if (resumeState.introPlayed) {
+      playedDjIntroQueueIdsRef.current.add(resumeTrack.queueId);
+    }
+
+    pendingPlaybackRestoreRef.current = resumeState;
+    setSelectedTrackId(getPlayableTrackIdentity(resumeTrack, resumeTrackIndex));
+    setIsSessionRestored(true);
+    appendLog(
+      "info",
+      "找到上次播放位置",
+      `${resumeTrack.title} / ${resumeTrack.artist} · ${formatPlaybackTime(resumeState.positionSeconds)}`
+    );
+  }
+
   async function loadFeedback() {
     const entries = await fetchJson<TrackFeedbackEntry[]>("/api/feedback");
     setFeedbackEntries(entries);
@@ -1168,12 +1311,23 @@ export function App() {
   }
 
   async function loadAuthenticatedData() {
-    await Promise.all([
+    playbackStateReadyRef.current = false;
+    setIsSessionRestored(false);
+    const [, , queue, , playbackState] = await Promise.all([
       loadNowPlaying(),
       loadHistory(),
       loadQueue(),
-      loadChatHistory()
+      loadChatHistory(),
+      loadPlaybackResumeState().catch((requestError) => {
+        appendLog(
+          "error",
+          "续播位置读取失败",
+          requestError instanceof Error ? requestError.message : "播放状态读取失败"
+        );
+        return null;
+      })
     ]);
+    preparePlaybackRestore(playbackState, queue);
     await Promise.allSettled([
       loadFeedback().catch((requestError) => {
         const errorMessage =
@@ -1191,12 +1345,17 @@ export function App() {
   }
 
   function resetAuthenticatedData() {
+    playbackStateReadyRef.current = false;
+    pendingPlaybackRestoreRef.current = null;
+    latestPlaybackStateRef.current = null;
+    playedDjIntroQueueIdsRef.current.clear();
     setNowPlaying(null);
     setHistoryEntries([]);
     setQueueTracks([]);
     setFeedbackEntries([]);
     setMessages([]);
     setSelectedTrackId(null);
+    setIsSessionRestored(false);
     setIsPlaying(false);
     audioRef.current?.pause();
   }
@@ -1788,6 +1947,15 @@ export function App() {
       await audio.play();
       setError(null);
       appendLog("success", "DJ 文案开始播报", tts.provider);
+      if (selectedTrack.queueId) {
+        playedDjIntroQueueIdsRef.current.add(selectedTrack.queueId);
+        void savePlaybackStateForTrack(
+          selectedTrack,
+          audioRef.current?.currentTime ?? currentTime,
+          isPlaying,
+          true
+        );
+      }
       return true;
     } catch (requestError) {
       setIsSpeaking(false);
@@ -1929,6 +2097,7 @@ export function App() {
           setSelectedTrackId(
             getPlayableTrackIdentity(matchingQueueTrack, matchingQueueIndex)
           );
+          void savePlaybackStateForTrack(matchingQueueTrack, 0, false, false);
         }
 
         requestTrackPlayback(hasDjCopy ? firstDjIntro : undefined);
@@ -2079,34 +2248,6 @@ export function App() {
     };
   }, []);
 
-  // —— 会话恢复：首屏数据就位后，把选中曲目恢复到上次播放的位置（暂停态）——
-  useEffect(() => {
-    if (isLoading || hasRestoredSessionRef.current) {
-      return;
-    }
-
-    hasRestoredSessionRef.current = true;
-    const record = readLastPlayedRecord();
-
-    if (record) {
-      for (let index = queueTracks.length - 1; index >= 0; index -= 1) {
-        const playableTrack = toPlayableTrack(queueTracks[index]);
-
-        if (
-          playableTrack &&
-          getPlayableTrackKey(playableTrack) === record.key &&
-          isTrackPlayable(playableTrack)
-        ) {
-          setSelectedTrackId(getPlayableTrackIdentity(playableTrack, index));
-          resumeSeekRef.current = record.time;
-          break;
-        }
-      }
-    }
-
-    setIsSessionRestored(true);
-  }, [isLoading, queueTracks]);
-
   const plan = nowPlaying?.currentPlan;
   const recommendedTracks = readRecommendedTracks();
   const tracks = recommendedTracks.length > 0 ? recommendedTracks : fallbackTracks;
@@ -2134,45 +2275,22 @@ export function App() {
   const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   useEffect(() => {
-    if (!isSessionRestored || resumeSeekRef.current !== null) {
+    if (!isPlaying || !selectedTrack.queueId) {
       return;
     }
 
-    writeLastPlayedRecord({ key: selectedTrackKey, time: currentTime });
-  }, [isSessionRestored, selectedTrackKey, currentTime]);
+    const checkpointTimer = window.setInterval(() => {
+      void savePlaybackStateForTrack(
+        selectedTrack,
+        audioRef.current?.currentTime ?? 0,
+        true
+      );
+    }, 5000);
 
-  // 恢复进度：音频元素挂载/元数据就绪的时机不确定，用短周期重试直到 seek 生效（上限 3s）
-  useEffect(() => {
-    if (!isSessionRestored || resumeSeekRef.current === null) {
-      return;
-    }
-
-    const deadline = Date.now() + 3000;
-    const timer = window.setInterval(() => {
-      const pendingTime = resumeSeekRef.current;
-      const audio = audioRef.current;
-
-      if (pendingTime === null || Date.now() > deadline) {
-        resumeSeekRef.current = null;
-        window.clearInterval(timer);
-        return;
-      }
-
-      if (!audio || audio.readyState < 1 || !Number.isFinite(audio.duration)) {
-        return;
-      }
-
-      const resumeTime = Math.min(pendingTime, Math.max(0, audio.duration - 1));
-
-      audio.currentTime = resumeTime;
-      setCurrentTime(resumeTime);
-      setDuration(audio.duration);
-      resumeSeekRef.current = null;
-      window.clearInterval(timer);
-    }, 120);
-
-    return () => window.clearInterval(timer);
-  }, [isSessionRestored]);
+    return () => {
+      window.clearInterval(checkpointTimer);
+    };
+  }, [isPlaying, selectedTrack.queueId, selectedTrackKey]);
 
 
 
@@ -2452,6 +2570,7 @@ export function App() {
     }
 
     setSelectedTrackId(getPlayableTrackIdentity(track, index));
+    void savePlaybackStateForTrack(track, 0, false);
   }
 
   function playTrackAt(index: number, shouldStartPlayback = true) {
@@ -2462,6 +2581,7 @@ export function App() {
     }
 
     setSelectedTrackId(getPlayableTrackIdentity(track, index));
+    void savePlaybackStateForTrack(track, 0, false);
 
     if (!isTrackPlayable(track)) {
       stopPlaybackForUnavailableTrack();
@@ -2556,6 +2676,7 @@ export function App() {
       audio.currentTime = 0;
     }
 
+    void savePlaybackStateForTrack(selectedTrack, 0, true);
     void startSongPlayback();
   }
 
@@ -2570,6 +2691,7 @@ export function App() {
     const nextTrack = tracks[nextTrackIndex];
 
     setSelectedTrackId(getPlayableTrackIdentity(nextTrack, nextTrackIndex));
+    void savePlaybackStateForTrack(nextTrack, 0, false);
     requestTrackPlayback(nextTrack?.djIntro);
   }
 
@@ -2721,6 +2843,75 @@ export function App() {
 
     audioRef.current.currentTime = nextTime;
     setCurrentTime(nextTime);
+    void savePlaybackStateForTrack(selectedTrack, nextTime, isPlaying);
+  }
+
+  function handleSongLoadedMetadata(event: SyntheticEvent<HTMLAudioElement>) {
+    const audio = event.currentTarget;
+    const nextDuration = audio.duration;
+
+    setDuration(nextDuration);
+    const restoreState = pendingPlaybackRestoreRef.current;
+    const nearEndWindow = Number.isFinite(nextDuration) && nextDuration > 0
+      ? Math.min(10, Math.max(1, nextDuration * 0.05))
+      : 0;
+    const isRestoreNearEnd =
+      nearEndWindow > 0 &&
+      restoreState !== null &&
+      restoreState.positionSeconds >= nextDuration - nearEndWindow;
+
+    if (!restoreState || restoreState.queueId !== selectedTrack.queueId) {
+      return;
+    }
+
+    if (isRestoreNearEnd) {
+      const nextTrackIndex = findNextVerifiedTrackIndex(tracks, selectedTrackIndex);
+      const nextTrack = nextTrackIndex >= 0 ? tracks[nextTrackIndex] : null;
+
+      if (nextTrack?.queueId) {
+        pendingPlaybackRestoreRef.current = null;
+        playbackStateReadyRef.current = true;
+        setSelectedTrackId(getPlayableTrackIdentity(nextTrack, nextTrackIndex));
+        setCurrentTime(0);
+        setDuration(0);
+        void savePlaybackStateForTrack(nextTrack, 0, false, false);
+        showPlaybackToast(`上次歌曲已播完，已定位到《${nextTrack.title}》`);
+        appendLog(
+          "success",
+          "已恢复上次播放队列",
+          `${nextTrack.title} / ${nextTrack.artist} · 00:00`
+        );
+        return;
+      }
+    }
+
+    const resumePosition =
+      Number.isFinite(nextDuration) && nextDuration > 0
+        ? Math.min(
+            isRestoreNearEnd ? 0 : restoreState.positionSeconds,
+            Math.max(nextDuration - 0.25, 0)
+          )
+        : 0;
+
+    audio.currentTime = resumePosition;
+    setCurrentTime(resumePosition);
+    pendingPlaybackRestoreRef.current = null;
+    playbackStateReadyRef.current = true;
+
+    const isStale =
+      Date.now() - Date.parse(restoreState.updatedAt) > 24 * 60 * 60 * 1000;
+    const restoreMessage = resumePosition > 0
+      ? `已恢复《${selectedTrack.title}》至 ${formatPlaybackTime(resumePosition)}，点击播放继续`
+      : `已恢复《${selectedTrack.title}》，点击播放继续`;
+
+    showPlaybackToast(
+      isStale ? `${restoreMessage}；也可生成今天的新电台` : restoreMessage
+    );
+    appendLog(
+      "success",
+      "已恢复上次播放位置",
+      `${selectedTrack.title} / ${selectedTrack.artist} · ${formatPlaybackTime(resumePosition)}`
+    );
   }
 
   const sharedAudioPlayers = (
@@ -2739,10 +2930,41 @@ export function App() {
             setError(null);
           }
         }}
-        onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)}
-        onPause={() => setIsPlaying(false)}
-        onPlay={() => setIsPlaying(true)}
-        onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)}
+        onLoadedMetadata={handleSongLoadedMetadata}
+        onPause={(event) => {
+          setIsPlaying(false);
+          void savePlaybackStateForTrack(
+            selectedTrack,
+            event.currentTarget.currentTime,
+            false
+          );
+        }}
+        onPlay={(event) => {
+          setIsPlaying(true);
+          void savePlaybackStateForTrack(
+            selectedTrack,
+            event.currentTarget.currentTime,
+            true
+          );
+        }}
+        onTimeUpdate={(event) => {
+          const nextCurrentTime = event.currentTarget.currentTime;
+
+          setCurrentTime(nextCurrentTime);
+          if (
+            playbackStateReadyRef.current &&
+            selectedTrack.queueId &&
+            !event.currentTarget.paused
+          ) {
+            latestPlaybackStateRef.current = {
+              version: 1,
+              queueId: selectedTrack.queueId,
+              positionSeconds: nextCurrentTime,
+              wasPlaying: true,
+              introPlayed: playedDjIntroQueueIdsRef.current.has(selectedTrack.queueId)
+            };
+          }
+        }}
         preload="metadata"
         ref={audioRef}
         src={getPlaybackAudioUrl(selectedTrack)}

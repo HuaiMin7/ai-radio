@@ -95,9 +95,10 @@ present local test audio as the requested song.
 ## Account Memory
 
 The verified QQ account ID owns a separate local data directory. Normal model
-chat, recommendation turns, playback history, queue, and feedback are read and
-written only through the signed account session. Signing out hides all account
-data; signing back into the same QQ account restores it.
+chat, recommendation turns, playback history, queue, feedback, and the current
+track position are read and written only through the signed account session.
+Signing out hides all account data; signing back into the same QQ account
+restores the last track in a paused state at the saved position.
 
 Production requires a stable secret of at least 32 characters:
 

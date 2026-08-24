@@ -16,6 +16,10 @@ import {
 import { appendChatTurn, readChatHistory } from "../server/chat.js";
 import { appendTrackFeedback, readTrackFeedback } from "../server/feedback.js";
 import { appendPlaybackHistory, readPlaybackHistory } from "../server/history.js";
+import {
+  readPlaybackResumeState,
+  writePlaybackResumeState
+} from "../server/playback-state.js";
 import { appendPlaybackQueue, readPlaybackQueue } from "../server/queue.js";
 import { createRouter } from "../server/router.js";
 
@@ -108,15 +112,28 @@ try {
     artist: plan.play[0].artist,
     source: "local"
   });
+  const firstUserQueue = await readPlaybackQueue(rootDir, firstUser);
+  await writePlaybackResumeState(rootDir, firstUser, {
+    version: 1,
+    queueId: firstUserQueue[0].id,
+    positionSeconds: 23.5,
+    wasPlaying: false,
+    introPlayed: true
+  });
 
   assert.equal((await readChatHistory(rootDir, firstUser)).length, 2);
   assert.equal((await readPlaybackHistory(rootDir, firstUser)).length, 1);
   assert.equal((await readPlaybackQueue(rootDir, firstUser)).length, 1);
   assert.equal((await readTrackFeedback(rootDir, firstUser)).length, 1);
+  assert.equal(
+    (await readPlaybackResumeState(rootDir, firstUser))?.positionSeconds,
+    23.5
+  );
   assert.deepEqual(await readChatHistory(rootDir, secondUser), []);
   assert.deepEqual(await readPlaybackHistory(rootDir, secondUser), []);
   assert.deepEqual(await readPlaybackQueue(rootDir, secondUser), []);
   assert.deepEqual(await readTrackFeedback(rootDir, secondUser), []);
+  assert.equal(await readPlaybackResumeState(rootDir, secondUser), null);
 
   const server = createServer((request, response) => {
     void createRouter(rootDir)(request, response);
@@ -128,6 +145,9 @@ try {
     assert(address && typeof address === "object");
     const baseUrl = `http://127.0.0.1:${address.port}`;
     const unauthenticated = await fetch(`${baseUrl}/api/chat`);
+    const unauthenticatedPlaybackState = await fetch(
+      `${baseUrl}/api/playback-state`
+    );
     const authenticated = await fetch(`${baseUrl}/api/chat`, {
       headers: {
         Cookie: `redio_session=${createSessionToken(firstUser)}`
@@ -138,12 +158,45 @@ try {
     const publicBridgeLogin = await fetch(`${baseUrl}/api/qq/login/cookie`, {
       method: "POST"
     });
+    const authenticatedPlaybackStateWrite = await fetch(
+      `${baseUrl}/api/playback-state`,
+      {
+        method: "PUT",
+        headers: {
+          Cookie: `redio_session=${createSessionToken(firstUser)}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          version: 1,
+          queueId: firstUserQueue[0].id,
+          positionSeconds: 42,
+          wasPlaying: true,
+          introPlayed: true
+        })
+      }
+    );
+    const authenticatedPlaybackStateRead = await fetch(
+      `${baseUrl}/api/playback-state`,
+      {
+        headers: {
+          Cookie: `redio_session=${createSessionToken(firstUser)}`
+        }
+      }
+    );
 
     assert.equal(unauthenticated.status, 401);
+    assert.equal(unauthenticatedPlaybackState.status, 401);
     assert.equal(authenticated.status, 200);
     assert.equal((await authenticated.json() as unknown[]).length, 2);
     assert.equal(health.status, 200);
     assert.equal(publicBridgeLogin.status, 400);
+    assert.equal(authenticatedPlaybackStateWrite.status, 200);
+    assert.equal(authenticatedPlaybackStateRead.status, 200);
+    assert.equal(
+      (await authenticatedPlaybackStateRead.json() as { positionSeconds: number })
+        .positionSeconds,
+      42
+    );
 
     const sessionToken = createSessionToken(firstUser, Date.now() - 10);
     await revokeUserSessions(rootDir, firstUser);
@@ -165,7 +218,9 @@ try {
     });
   }
 
-  console.log("[ok] signed sessions, encrypted credentials, chat persistence, and user isolation");
+  console.log(
+    "[ok] signed sessions, encrypted credentials, chat/playback persistence, and user isolation"
+  );
 } finally {
   await rm(rootDir, { recursive: true, force: true });
 }
