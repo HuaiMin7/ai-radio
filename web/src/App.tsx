@@ -24,6 +24,12 @@ import { QueueCardTilt } from "./QueueCardTilt";
 // 调参面板只在体验版（VITE_MOCK=1）挂载
 const isTuningPanelEnabled = import.meta.env.VITE_MOCK === "1";
 
+/**
+ * 开始页退场时长，须与 styles.css 里 .landingStartGate.isLeaving 的
+ * transition 时长一致：文字淡出走完再挂载画廊，两段动画就不会互相抢戏。
+ */
+const startExitDurationMs = 420;
+
 // 懒加载：面板和它的样式被拆成独立 chunk，
 // 生产构建既不加载它，也不会把面板 CSS 打进主样式表。
 const QueueTuningPanel = lazy(async () => ({
@@ -3359,7 +3365,20 @@ export function LandingPage({
   // 必须点一次「点击进入」才进电台主界面。这一次点击同时充当浏览器
   // 自动播放所需的用户手势，避免开始页阶段就有声音冒出来。
   const [hasStarted, setHasStarted] = useState(false);
+  // 退场过渡：点击后开始页文字先淡出上移，落幕再把舞台交给画廊。
+  // 少了这一步，标题会瞬间消失、同时画廊开场，两个动作抢同一时间窗，观感很硬。
+  const [isLeavingStart, setIsLeavingStart] = useState(false);
+  const startExitTimerRef = useRef<number | null>(null);
   const isRadioStage = isLoggedIn && hasStarted;
+
+  useEffect(
+    () => () => {
+      if (startExitTimerRef.current !== null) {
+        window.clearTimeout(startExitTimerRef.current);
+      }
+    },
+    []
+  );
 
   function startRadio() {
     if (!isLoggedIn) {
@@ -3367,7 +3386,25 @@ export function LandingPage({
       return;
     }
 
-    setHasStarted(true);
+    if (isLeavingStart || hasStarted) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) {
+      setHasStarted(true);
+      return;
+    }
+
+    setIsLeavingStart(true);
+    startExitTimerRef.current = window.setTimeout(() => {
+      setHasStarted(true);
+      setIsLeavingStart(false);
+      startExitTimerRef.current = null;
+    }, startExitDurationMs);
   }
 
   useEffect(() => {
@@ -3592,7 +3629,7 @@ export function LandingPage({
           ) : (
             // 开始页整块可点：语义上就是一个进入按钮，键盘 Enter/Space 同样生效
             <button
-              className="landingHeroCopy landingStartGate"
+              className={`landingHeroCopy landingStartGate${isLeavingStart ? " isLeaving" : ""}`}
               data-node-id="372:457"
               onClick={startRadio}
               type="button"

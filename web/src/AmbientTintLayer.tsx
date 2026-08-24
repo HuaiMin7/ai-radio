@@ -21,8 +21,23 @@ export function AmbientTintLayer({ coverUrl }: { coverUrl?: string | null }) {
   // current 是正在显示的那层，previous 是正在淡出的上一层
   const [current, setCurrent] = useState<AmbientLayer | null>(null);
   const [previous, setPrevious] = useState<AmbientLayer | null>(null);
+  // 当前层要先以 opacity:0 渲染一帧，下一帧才加 isVisible——否则元素
+  // 一挂载就是最终态，浏览器没有起始值可插值，1200ms 淡入会被整段跳过，
+  // 整屏氛围色瞬间砸满。注意判定要落在「这一层自己」上而不是组件挂载，
+  // 因为首层是等封面图加载完才出现的，那时组件早已挂载多帧。
+  const [visibleLayerId, setVisibleLayerId] = useState<number | null>(null);
   const layerIdRef = useRef(0);
   const fadeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!current || visibleLayerId === current.id) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => setVisibleLayerId(current.id));
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [current, visibleLayerId]);
 
   useEffect(() => {
     if (!coverUrl) {
@@ -96,7 +111,7 @@ export function AmbientTintLayer({ coverUrl }: { coverUrl?: string | null }) {
       {current ? (
         <div
           aria-hidden="true"
-          className="landingAmbientTint isVisible"
+          className={`landingAmbientTint${visibleLayerId === current.id ? " isVisible" : ""}`}
           key={`ambient-${current.id}`}
           style={{ backgroundImage: `url("${current.url}")` }}
         />
