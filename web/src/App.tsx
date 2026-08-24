@@ -3355,6 +3355,20 @@ export function LandingPage({
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"home" | "settings">("home");
+  // 开始页闸门（设计稿 372:451）：新进页面一律先落在开始页，
+  // 必须点一次「点击进入」才进电台主界面。这一次点击同时充当浏览器
+  // 自动播放所需的用户手势，避免开始页阶段就有声音冒出来。
+  const [hasStarted, setHasStarted] = useState(false);
+  const isRadioStage = isLoggedIn && hasStarted;
+
+  function startRadio() {
+    if (!isLoggedIn) {
+      onLogin();
+      return;
+    }
+
+    setHasStarted(true);
+  }
 
   useEffect(() => {
     if (!isAccountMenuOpen) {
@@ -3388,29 +3402,37 @@ export function LandingPage({
     }
   }, [isLoggedIn]);
 
+  // 在开始页直接用 Chat 推歌时，歌一旦真的响了就必须把画廊亮出来——
+  // 否则「中央卡片 = 正在播放」的绑定会断在一个看不见播放器的页面上。
+  useEffect(() => {
+    if (player.isPlaying) {
+      setHasStarted(true);
+    }
+  }, [player.isPlaying]);
+
+  // 退出登录后回到开始页，下次登录仍需重新点一次进入
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setHasStarted(false);
+    }
+  }, [isLoggedIn]);
+
   return (
     <main
-      className={`landingPage ${isLoggedIn ? "isLoggedIn" : ""}${hasPlaybackToast ? " hasPlaybackToast" : ""}`}
+      className={`landingPage ${isRadioStage ? "isLoggedIn" : "isStartStage"}${hasPlaybackToast ? " hasPlaybackToast" : ""}`}
       data-node-id="164:1145"
     >
       <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
         <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
+          {/* 设计稿 372:451 的品牌名（Outfit 600 / 24px）；点击回官网首页，
+              取代原先的返回箭头 icon */}
           <a
             aria-label="返回 halou.net.cn 首页"
             className="landingBrand"
-            data-node-id="239:869"
+            data-node-id="372:452"
             href="https://www.halou.net.cn/"
           >
-            <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 24 24" width="24">
-              <path
-                d="M14.9998 19.9201L8.47984 13.4001C7.70984 12.6301 7.70984 11.3701 8.47984 10.6001L14.9998 4.08008"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeMiterlimit="10"
-                strokeWidth="1.5"
-              />
-            </svg>
+            TuneChat
           </a>
         </div>
 
@@ -3563,23 +3585,34 @@ export function LandingPage({
       ) : (
         <section
           className="landingHero"
-          data-node-id={isLoggedIn ? "271:1283" : "164:1156"}
+          data-node-id={isRadioStage ? "271:1283" : "372:456"}
         >
-          {isLoggedIn ? (
+          {isRadioStage ? (
             <CircularQueuePlayer {...player} />
           ) : (
-            <div className="landingHeroCopy" data-node-id="164:1638">
-              <h1 data-node-id="164:1639">Music&apos;s</h1>
-              <p data-node-id="164:1640">你的心情，自有频率</p>
-            </div>
+            // 开始页整块可点：语义上就是一个进入按钮，键盘 Enter/Space 同样生效
+            <button
+              className="landingHeroCopy landingStartGate"
+              data-node-id="372:457"
+              onClick={startRadio}
+              type="button"
+            >
+              <h1 data-node-id="372:458">Music&apos;s</h1>
+              <p data-node-id="372:459">你的心情，自有频率</p>
+              <span className="landingStartHint" data-node-id="372:460">
+                {isLoggedIn ? "点击进入" : "登录后进入"}
+              </span>
+            </button>
           )}
         </section>
       )}
 
-      <AmbientTintLayer coverUrl={starfieldCoverUrl} />
+      {/* 开始页只保留纯 #0a0908 底 + 星空粒子，不叠封面氛围色；
+          进入电台后氛围色与星空吸色照常生效 */}
+      {isRadioStage ? <AmbientTintLayer coverUrl={starfieldCoverUrl} /> : null}
       <StarfieldCanvas
         bloomStrength={starfieldView.bloom}
-        coverUrl={starfieldCoverUrl}
+        coverUrl={isRadioStage ? starfieldCoverUrl : null}
         dotCore={starfieldView.dotCore}
         initialPhi={starfieldView.phi}
         initialRadius={starfieldView.radius}

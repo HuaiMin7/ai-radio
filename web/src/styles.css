@@ -592,6 +592,8 @@ p {
   font-weight: 600;
   line-height: normal;
   white-space: nowrap;
+  /* 品牌名是文字链接，去掉浏览器默认下划线（设计稿 372:452 无下划线） */
+  text-decoration: none;
 }
 
 .landingLinks {
@@ -1180,6 +1182,45 @@ p {
   font-weight: 400;
   line-height: 1.4;
   white-space: nowrap;
+}
+
+/* 开始页整块可点（设计稿 372:451）：语义是按钮，外观仍是纯文字排版 */
+.landingStartGate {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.landingStartGate:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 24px;
+  border-radius: 8px;
+}
+
+/* 「点击进入」：设计稿 16px / 行高 22.4，与副标题间距 24px */
+.landingStartHint {
+  color: rgba(255, 255, 255, 0.55);
+  font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(14px, min(1.12vw, 2.1vh), 16px);
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: nowrap;
+  transition: color 240ms ease;
+}
+
+.landingStartGate:hover .landingStartHint,
+.landingStartGate:focus-visible .landingStartHint {
+  color: rgba(255, 255, 255, 0.92);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landingStartHint {
+    transition: none;
+  }
 }
 
 .circularQueuePlayer {

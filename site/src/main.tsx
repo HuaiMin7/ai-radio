@@ -19,8 +19,20 @@ type Page = "projects" | "info" | "radio";
  * 若将来改成子域名（如 app.<域名>），只需改这里的 APP_URL 一处。
  */
 const APP_URL = "/app/";
+
+/**
+ * 点击 TuneChat 一律在新标签页打开电台，官网这一页保持不动。
+ *
+ * 注意：线上曾被改成 `window.location.href = "/app"`（同页跳转），
+ * 该改动未回流本仓库，重新部署会被覆盖。这里保持新标签页语义，
+ * 并对弹窗拦截做兜底——被拦时退化为当前页跳转，至少不会点了没反应。
+ */
 function enterApp() {
-  window.open(APP_URL, "_blank", "noopener,noreferrer");
+  const appWindow = window.open(APP_URL, "_blank", "noopener,noreferrer");
+
+  if (!appWindow) {
+    window.location.href = APP_URL;
+  }
 }
 
 // 统一的下划线链接样式：hover 时黑线从左滑出；active 时常驻
