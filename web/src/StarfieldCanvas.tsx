@@ -379,12 +379,38 @@ const WHEEL_SPEED = 0.0045; // 滚轮每单位 deltaY 改变多少半径
 /** 落点在这些元素上时不接管事件，交还给画廊/按钮/面板 */
 const INTERACTIVE_SELECTOR =
   "button, a, input, textarea, select, label, [role='button'], [role='menu']," +
-  " .queueOrbitItem, .tuningPanel, .landingChatWindow, .landingAccountMenuAnchor," +
+  " .queueOrbitItem, .tuningPanel, .landingChatAnchor, .landingAccountMenuAnchor," +
   " .landingSettingsPage, .queueProgressRow, .landingStatusNotice";
 
 function isPointerOverInteractive(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
   return Boolean(target.closest(INTERACTIVE_SELECTOR));
+}
+
+/**
+ * 落点是否处在一个「此刻真的能滚」的容器里。
+ *
+ * 滚轮不能只靠类名白名单判断：项目里有九个可滚动容器（对话消息、队列、
+ * 设置页…），漏掉任何一个，滚轮就会被星空吞掉、页面滚不动。这里改为沿
+ * 祖先链实测 scrollHeight/clientHeight 与当前 scrollTop，只有确实还有
+ * 剩余滚动空间时才让行 —— 容器已滚到底再继续滚，仍然交给星空缩放。
+ */
+function isWheelOverScrollable(target: EventTarget | null, deltaY: number) {
+  let node = target instanceof Element ? target : null;
+  while (node && node !== document.body && node !== document.documentElement) {
+    const style = window.getComputedStyle(node);
+    const canScrollY =
+      style.overflowY === "auto" || style.overflowY === "scroll";
+    if (canScrollY && node.scrollHeight > node.clientHeight + 1) {
+      const atTop = node.scrollTop <= 0;
+      const atBottom =
+        node.scrollTop + node.clientHeight >= node.scrollHeight - 1;
+      // 还有余量可滚就让给它；已到边界则不拦，滚轮继续用于星空
+      if (!((deltaY < 0 && atTop) || (deltaY > 0 && atBottom))) return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
 }
 
 function clampRange(value: number, min: number, max: number) {
@@ -736,7 +762,8 @@ export function StarfieldCanvas({
     const handleWheel = (event: WheelEvent) => {
       if (!viewControlRef.current) return;
       if (isPointerOverInteractive(event.target)) return;
-      // 落地页不滚动，这里可以安全接管滚轮
+      // 浮层里的列表（对话消息、队列、设置页…）优先吃滚轮，滚到底才让给星空
+      if (isWheelOverScrollable(event.target, event.deltaY)) return;
       event.preventDefault();
       orbit.userRadius = clampRange(
         orbit.userRadius + event.deltaY * WHEEL_SPEED,
