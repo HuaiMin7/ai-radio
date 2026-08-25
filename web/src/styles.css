@@ -1455,42 +1455,19 @@ p {
    相对 CD 盒：left 52.778% / top 77.387% / w 42.593% / h 13.065%。
    这里以封面帧为定位基准（.queueCdCase 即封面尺寸），换算后为
    left 48.691% / top 78.534% / w 48.168% / h 13.613%。 */
+/* 贴纸：纯装饰素材，文字（"Here With U"）是素材自带的，不替换成歌名。
+   相对 CD 盒 left 52.778% / top 77.387% / w 42.593% / h 13.065%；
+   这里以封面帧为定位基准（.queueCdCase 即封面尺寸），换算后如下。 */
 .queueCdTape {
   position: absolute;
+  z-index: 3;
   top: 78.534%;
   left: 48.691%;
-  z-index: 3;
-  display: flex;
-  /* 贴纸自身作为容器，供文字用 cq 单位跟着它缩放 */
-  container-type: size;
   width: 48.168%;
   height: 13.613%;
-  align-items: center;
-  justify-content: center;
-  background-image: var(--cd-tape-image);
-  background-position: center;
-  background-size: 100% 100%;
-  background-repeat: no-repeat;
+  /* 贴纸有撕裂边与轻微倾斜，整张按框铺满、不裁切 */
+  object-fit: fill;
   pointer-events: none;
-}
-
-.queueCdTapeText {
-  /* 设计稿是打字机字体，用等宽字体族近似 */
-  overflow: hidden;
-  /* 留出胶带两端的撕裂边，不让字压到边缘 */
-  max-width: 88%;
-  color: #17161a;
-  font-weight: 700;
-  /* 字号随贴纸高度走：卡片是响应式的（clamp 随视口变），
-     用 cqh 才能让字和胶带始终等比，不会在小卡上被截断 */
-  font-size: 52cqh;
-  font-family: "Courier New", "DM Mono", ui-monospace, monospace;
-  line-height: 1;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  letter-spacing: -0.04em;
-  /* 贴纸本身是斜着贴上去的，文字跟着倾斜才像印在胶带上 */
-  transform: rotate(-1.2deg);
 }
 
 /* 堆叠顺序照设计稿图层：封面/碟片(1) → 外壳(2) → 贴纸(3) */

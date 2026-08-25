@@ -4318,21 +4318,14 @@ function CircularQueuePlayer({
                       src={getPublicAssetUrl("/images/cd-case-shell.png")}
                     />
                     {/* 贴纸在最上层（设计稿图层顺序：封面 → 外壳 → 贴纸）。
-                        设计稿把 "Here With U" 烤进了图里，这里只用胶带底纹，
-                        歌名用文字层叠上去，每张卡才能显示自己的歌名。 */}
-                    <span
+                        纯装饰素材，文字是素材自带的一部分，不替换成歌名。 */}
+                    <img
+                      alt=""
                       aria-hidden="true"
                       className="queueCdTape"
-                      style={
-                        {
-                          "--cd-tape-image": `url(${getPublicAssetUrl(
-                            "/images/cd-case-tape.png"
-                          )})`
-                        } as CSSProperties
-                      }
-                    >
-                      <span className="queueCdTapeText">{track.title}</span>
-                    </span>
+                      draggable={false}
+                      src={getPublicAssetUrl("/images/cd-case-tape.png")}
+                    />
                   </span>
                 </QueueCardTilt>
               </button>
