@@ -3803,6 +3803,9 @@ const QUEUE_FLOAT_RATIO_Z = 0.03;
 const QUEUE_FLOAT_RATIO_SCALE = 0.026;
 // A 档：浮动总强度（0 = 关闭，1 = 原版比例）
 const QUEUE_FLOAT_AMPLITUDE = 1;
+// 呼吸幅度的渐入缓动系数：入场结束后用 lerp 把幅度从 0 推到满，
+// 约 700ms 收敛。一刀切启用会让呼吸突然满幅摆动，像多出一段动画。
+const QUEUE_FLOAT_RAMP_EASE = 0.06;
 // B 档：景深强度。0 = 纯 2D 起伏；>0 时容器透视生效、浮动带上 Z 轴远近。
 const QUEUE_FLOAT_DEPTH = 1;
 // 透视距离（px）：越小透视越夸张。按卡片尺寸的若干倍取，避免小屏上形变过猛。
@@ -3949,6 +3952,8 @@ function CircularQueuePlayer({
   );
   const introStateRef = useRef(introState);
   const selectedIndexRef = useRef(selectedTrackIndex);
+  // 呼吸幅度的渐入进度（0→1），在 rAF 里逼近目标值
+  const floatRampRef = useRef(0);
 
   introStateRef.current = introState;
   selectedIndexRef.current = selectedTrackIndex;
@@ -3974,13 +3979,20 @@ function CircularQueuePlayer({
       return;
     }
 
-    // 落位起点：目标卡片旁 2.6 张卡处，浮现完成后优雅滑入
+    // 落位起点：目标卡片旁 2.6 张卡处，浮现过程中就开始滑入
     scrollRef.current.current = targetIndex + 2.6;
     scrollRef.current.target = targetIndex;
     setIntroState("reveal");
 
-    const settleTimer = window.setTimeout(() => setIntroState("settle"), 780);
-    const doneTimer = window.setTimeout(() => setIntroState("done"), 2000);
+    // 三段刻意重叠，不排成接力赛：
+    //   reveal  0→260ms   卡片波次浮现（首卡 0ms，末卡 350ms 延迟仍在跑）
+    //   settle  260ms 起  画廊边浮现边滑入居中，两段叠在一起
+    //   done    1000ms    呼吸浮动与歌名/控制区接上，此时滑入已基本收敛
+    // 早先是 780 / 2000ms，那套时间表是为「开页即进电台」写的（要等数据和
+    // 图片）；现在有开始页闸门，点进来时数据早已就绪，长间隔只剩拖沓——
+    // 实测卡片 0.9s 就位后要空等 1.5s 文本才动，观感是三段脱节。
+    const settleTimer = window.setTimeout(() => setIntroState("settle"), 260);
+    const doneTimer = window.setTimeout(() => setIntroState("done"), 1000);
 
     return () => {
       window.clearTimeout(settleTimer);
@@ -4059,8 +4071,15 @@ function CircularQueuePlayer({
         : 0;
 
       // 悬浮呼吸：秒为单位的连续时间，直接喂给正弦。
-      // 入场阶段不参与，避免卡片一边浮现一边飘。
-      const floatAmp = introPhase === "done" ? Math.max(0, queueTuning.floatAmplitude) : 0;
+      // 入场阶段幅度为 0（避免卡片一边浮现一边飘），进入 done 后不是一刀切
+      // 拉满，而是用 ramp 在 700ms 内把幅度从 0 推到 1——否则呼吸会突然
+      // 满幅启动，观感像是"入场结束后又多出一段动画"。
+      const floatRampTarget = introPhase === "done" ? 1 : 0;
+
+      floatRampRef.current +=
+        (floatRampTarget - floatRampRef.current) * QUEUE_FLOAT_RAMP_EASE;
+
+      const floatAmp = Math.max(0, queueTuning.floatAmplitude) * floatRampRef.current;
       const floatDepth = Math.max(0, queueTuning.floatDepth);
       const nowSec = performance.now() / 1000;
       // 幅度按卡片实际尺寸等比换算，小屏卡片小、浮动也跟着小
@@ -4274,9 +4293,11 @@ function CircularQueuePlayer({
         </div>
       </div>
 
+      {/* 歌名与控制区在 settle（画廊滑入）阶段就开始浮起，跟卡片落位交叠；
+          等到 done 才动会让文本显得是"第二段动画"，观感割裂 */}
       <div
         className={`queuePlayerContent ${
-          introState === "done" ? "" : "introContentPending"
+          introState === "pending" || introState === "reveal" ? "introContentPending" : ""
         }`}
       >
         <div className="queuePlayerHeading" data-node-id="165:4957">
