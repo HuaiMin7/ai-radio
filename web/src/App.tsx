@@ -4277,20 +4277,39 @@ function CircularQueuePlayer({
                   readTooltipUpright={() => queueTuning.tooltipUpright}
                   tooltip={track.title}
                 >
-                  {/* CD 盒（设计稿 380:508）：封面嵌进「封面嵌入」图层的位置，
-                      外壳与胶带贴纸叠在上层。几何比例全部来自设计稿实测值，
-                      见 styles.css 的 .queueCdCase 一节 */}
-                  <span className="queueCdCase">
-                    <img
-                      alt=""
-                      className="queueCdCover"
-                      draggable={false}
-                      onError={(event) => {
-                        event.currentTarget.src =
-                          queueFallbackCovers[index % queueFallbackCovers.length];
-                      }}
-                      src={coverUrl}
-                    />
+                  {/* CD 盒（设计稿 380:508 / 381:569）：封面嵌进「封面嵌入」图层，
+                      外壳与歌名贴纸依次叠在上层。几何比例全部来自设计稿实测值，
+                      见 styles.css 的 .queueCdCase 一节。
+
+                      中心卡（offset === 0）额外走「光盘态」：封面裁成内切圆 + 中心
+                      转轴，并随播放状态转动——正在播放的那张才是被取出来放进机器
+                      转的碟，其余保持方形封面。 */}
+                  <span
+                    className={`queueCdCase ${offset === 0 ? "isDisc" : ""} ${
+                      offset === 0 && isPlaying ? "isSpinning" : ""
+                    }`}
+                  >
+                    <span className="queueCdDisc">
+                      <img
+                        alt=""
+                        className="queueCdCover"
+                        draggable={false}
+                        onError={(event) => {
+                          event.currentTarget.src =
+                            queueFallbackCovers[index % queueFallbackCovers.length];
+                        }}
+                        src={coverUrl}
+                      />
+                      {offset === 0 ? (
+                        <img
+                          alt=""
+                          aria-hidden="true"
+                          className="queueCdHub"
+                          draggable={false}
+                          src={getPublicAssetUrl("/images/cd-disc-hub.png")}
+                        />
+                      ) : null}
+                    </span>
                     <img
                       alt=""
                       aria-hidden="true"
@@ -4298,6 +4317,22 @@ function CircularQueuePlayer({
                       draggable={false}
                       src={getPublicAssetUrl("/images/cd-case-shell.png")}
                     />
+                    {/* 贴纸在最上层（设计稿图层顺序：封面 → 外壳 → 贴纸）。
+                        设计稿把 "Here With U" 烤进了图里，这里只用胶带底纹，
+                        歌名用文字层叠上去，每张卡才能显示自己的歌名。 */}
+                    <span
+                      aria-hidden="true"
+                      className="queueCdTape"
+                      style={
+                        {
+                          "--cd-tape-image": `url(${getPublicAssetUrl(
+                            "/images/cd-case-tape.png"
+                          )})`
+                        } as CSSProperties
+                      }
+                    >
+                      <span className="queueCdTapeText">{track.title}</span>
+                    </span>
                   </span>
                 </QueueCardTilt>
               </button>
