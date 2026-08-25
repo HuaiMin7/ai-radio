@@ -4277,15 +4277,28 @@ function CircularQueuePlayer({
                   readTooltipUpright={() => queueTuning.tooltipUpright}
                   tooltip={track.title}
                 >
-                  <img
-                    alt=""
-                    draggable={false}
-                    onError={(event) => {
-                      event.currentTarget.src =
-                        queueFallbackCovers[index % queueFallbackCovers.length];
-                    }}
-                    src={coverUrl}
-                  />
+                  {/* CD 盒（设计稿 380:508）：封面嵌进「封面嵌入」图层的位置，
+                      外壳与胶带贴纸叠在上层。几何比例全部来自设计稿实测值，
+                      见 styles.css 的 .queueCdCase 一节 */}
+                  <span className="queueCdCase">
+                    <img
+                      alt=""
+                      className="queueCdCover"
+                      draggable={false}
+                      onError={(event) => {
+                        event.currentTarget.src =
+                          queueFallbackCovers[index % queueFallbackCovers.length];
+                      }}
+                      src={coverUrl}
+                    />
+                    <img
+                      alt=""
+                      aria-hidden="true"
+                      className="queueCdShell"
+                      draggable={false}
+                      src={getPublicAssetUrl("/images/cd-case-shell.png")}
+                    />
+                  </span>
                 </QueueCardTilt>
               </button>
             );

@@ -1324,6 +1324,14 @@ p {
   box-shadow: none;
 }
 
+/* CD 盒自带外形与阴影，卡片格子的底色与圆角要让位，
+   否则盒子四周会露出一圈深色方块 */
+.queueOrbitItem:has(.queueCdCase),
+.queueOrbitItem.isCurrent:has(.queueCdCase) {
+  border-radius: 0;
+  background: transparent;
+}
+
 /* 不可用曲目只降饱和：不透明度由 JS 按距中心距离逐帧写内联值，
    在这里再写 opacity 会被内联样式盖掉、反而看不出"不可用"。 */
 .queueOrbitItem.isUnavailable:not(.isCurrent) {
@@ -1340,11 +1348,56 @@ p {
   outline-offset: 5px;
 }
 
-.queueOrbitItem img {
+/* 排除 CD 盒外壳：它有自己的尺寸与偏移（见 .queueCdShell），
+   这条通用规则的 width/height:100% 会把它压成正方形 */
+.queueOrbitItem img:not(.queueCdShell) {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  pointer-events: none;
+}
+
+/* —— CD 盒（设计稿 380:508 「CD盒」）——
+   实测几何：外壳 216×199，封面窗口「封面嵌入」191×191（正方形），
+   窗口相对外壳 left 9.722% / top 2.010% / w 88.426% / h 95.980%。
+
+   定位基准选的是「封面」而不是「外壳」：卡片格子仍是正方形，封面严格填满
+   这个正方形，CD 盒再以它为基准反算尺寸向外扩。这样画廊的等距弧线排列与
+   卡片尺寸统一都不受影响——盒子只是贴在封面上的一层皮。
+   反算：外壳宽 = 封面 ÷ 88.426% = 113.089%，高 = 封面 ÷ 95.980% = 104.188%，
+   左偏移 = -9.722% × 113.089% = -10.994%，上偏移 = -2.010% × 104.188% = -2.094%。 */
+.queueCdCase {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.queueCdCover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* 封面比例各异（正方、长方都有），设计稿「封面嵌入」是 scaleMode=FILL，
+     所以这里用 cover 裁切填满窗口，保证每个盒子规格一致 */
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* 盒子外形由贴图给出，嵌在里面的封面是直角，不要继承卡片圆角 */
+.queueCdCase .queueCdCover {
+  border-radius: 0;
+}
+
+.queueCdShell {
+  position: absolute;
+  top: -2.094%;
+  left: -10.994%;
+  width: 113.089%;
+  /* 高度按外壳自身比例（216:199）由宽度推导，避免拉伸失真 */
+  height: 104.188%;
+  /* 外壳是带透明中心的贴图，必须整张显示、不能裁切 */
+  object-fit: fill;
   pointer-events: none;
 }
 
@@ -1354,7 +1407,8 @@ p {
   transition: none;
 }
 
-.queueOrbitItem.introHidden img {
+/* 只缩放封面本体：若把外壳也一起缩放，浮现过程中盒子与封面会错位 */
+.queueOrbitItem.introHidden img:not(.queueCdShell) {
   transform: scale(0.82);
 }
 
@@ -1363,7 +1417,7 @@ p {
   animation-delay: var(--intro-delay, 0ms);
 }
 
-.queueOrbitItem.introReveal img {
+.queueOrbitItem.introReveal img:not(.queueCdShell) {
   animation: queueCardCoverReveal 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--intro-delay, 0ms);
 }
@@ -1409,7 +1463,7 @@ p {
 
 @media (prefers-reduced-motion: reduce) {
   .queueOrbitItem.introReveal,
-  .queueOrbitItem.introReveal img {
+  .queueOrbitItem.introReveal img:not(.queueCdShell) {
     animation: none;
   }
 
@@ -3969,7 +4023,16 @@ body.isStarfieldDragging * {
   will-change: transform;
 }
 
-.queueCardTilt img {
+/* CD 盒模式：盒子要向外扩出卡片格子（左侧书脊 + 四周边框），
+   所以这一层不能裁剪，圆角与底色也交给 CD 盒贴图自己表达——
+   否则会在盒子外露出一圈方形底色。 */
+.queueCardTilt:has(.queueCdCase) {
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+}
+
+.queueCardTilt img:not(.queueCdShell) {
   display: block;
   width: 100%;
   height: 100%;
