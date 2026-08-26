@@ -24,6 +24,12 @@ import { QueueCardTilt } from "./QueueCardTilt";
 // 调参面板只在体验版（VITE_MOCK=1）挂载
 const isTuningPanelEnabled = import.meta.env.VITE_MOCK === "1";
 
+/**
+ * 开始页退场时长，须与 styles.css 里 .landingStartGate.isLeaving 的
+ * transition 时长一致：文字淡出走完再挂载画廊，两段动画就不会互相抢戏。
+ */
+const startExitDurationMs = 420;
+
 // 懒加载：面板和它的样式被拆成独立 chunk，
 // 生产构建既不加载它，也不会把面板 CSS 打进主样式表。
 const QueueTuningPanel = lazy(async () => ({
@@ -3355,6 +3361,51 @@ export function LandingPage({
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState<"home" | "settings">("home");
+  // 开始页闸门（设计稿 372:451）：新进页面一律先落在开始页，
+  // 必须点一次「点击进入」才进电台主界面。这一次点击同时充当浏览器
+  // 自动播放所需的用户手势，避免开始页阶段就有声音冒出来。
+  const [hasStarted, setHasStarted] = useState(false);
+  // 退场过渡：点击后开始页文字先淡出上移，落幕再把舞台交给画廊。
+  // 少了这一步，标题会瞬间消失、同时画廊开场，两个动作抢同一时间窗，观感很硬。
+  const [isLeavingStart, setIsLeavingStart] = useState(false);
+  const startExitTimerRef = useRef<number | null>(null);
+  const isRadioStage = isLoggedIn && hasStarted;
+
+  useEffect(
+    () => () => {
+      if (startExitTimerRef.current !== null) {
+        window.clearTimeout(startExitTimerRef.current);
+      }
+    },
+    []
+  );
+
+  function startRadio() {
+    if (!isLoggedIn) {
+      onLogin();
+      return;
+    }
+
+    if (isLeavingStart || hasStarted) {
+      return;
+    }
+
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) {
+      setHasStarted(true);
+      return;
+    }
+
+    setIsLeavingStart(true);
+    startExitTimerRef.current = window.setTimeout(() => {
+      setHasStarted(true);
+      setIsLeavingStart(false);
+      startExitTimerRef.current = null;
+    }, startExitDurationMs);
+  }
 
   useEffect(() => {
     if (!isAccountMenuOpen) {
@@ -3388,29 +3439,37 @@ export function LandingPage({
     }
   }, [isLoggedIn]);
 
+  // 在开始页直接用 Chat 推歌时，歌一旦真的响了就必须把画廊亮出来——
+  // 否则「中央卡片 = 正在播放」的绑定会断在一个看不见播放器的页面上。
+  useEffect(() => {
+    if (player.isPlaying) {
+      setHasStarted(true);
+    }
+  }, [player.isPlaying]);
+
+  // 退出登录后回到开始页，下次登录仍需重新点一次进入
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setHasStarted(false);
+    }
+  }, [isLoggedIn]);
+
   return (
     <main
-      className={`landingPage ${isLoggedIn ? "isLoggedIn" : ""}${hasPlaybackToast ? " hasPlaybackToast" : ""}`}
+      className={`landingPage ${isRadioStage ? "isLoggedIn" : "isStartStage"}${hasPlaybackToast ? " hasPlaybackToast" : ""}`}
       data-node-id="164:1145"
     >
       <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
         <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
+          {/* 设计稿 372:451 的品牌名（Outfit 600 / 24px）；点击回官网首页，
+              取代原先的返回箭头 icon */}
           <a
             aria-label="返回 halou.net.cn 首页"
             className="landingBrand"
-            data-node-id="239:869"
+            data-node-id="372:452"
             href="https://www.halou.net.cn/"
           >
-            <svg aria-hidden="true" fill="none" height="24" viewBox="0 0 24 24" width="24">
-              <path
-                d="M14.9998 19.9201L8.47984 13.4001C7.70984 12.6301 7.70984 11.3701 8.47984 10.6001L14.9998 4.08008"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeMiterlimit="10"
-                strokeWidth="1.5"
-              />
-            </svg>
+            TuneChat
           </a>
         </div>
 
@@ -3563,23 +3622,34 @@ export function LandingPage({
       ) : (
         <section
           className="landingHero"
-          data-node-id={isLoggedIn ? "271:1283" : "164:1156"}
+          data-node-id={isRadioStage ? "271:1283" : "372:456"}
         >
-          {isLoggedIn ? (
+          {isRadioStage ? (
             <CircularQueuePlayer {...player} />
           ) : (
-            <div className="landingHeroCopy" data-node-id="164:1638">
-              <h1 data-node-id="164:1639">Music&apos;s</h1>
-              <p data-node-id="164:1640">你的心情，自有频率</p>
-            </div>
+            // 开始页整块可点：语义上就是一个进入按钮，键盘 Enter/Space 同样生效
+            <button
+              className={`landingHeroCopy landingStartGate${isLeavingStart ? " isLeaving" : ""}`}
+              data-node-id="372:457"
+              onClick={startRadio}
+              type="button"
+            >
+              <h1 data-node-id="372:458">Music&apos;s</h1>
+              <p data-node-id="372:459">你的心情，自有频率</p>
+              <span className="landingStartHint" data-node-id="372:460">
+                {isLoggedIn ? "点击进入" : "登录后进入"}
+              </span>
+            </button>
           )}
         </section>
       )}
 
-      <AmbientTintLayer coverUrl={starfieldCoverUrl} />
+      {/* 开始页只保留纯 #0a0908 底 + 星空粒子，不叠封面氛围色；
+          进入电台后氛围色与星空吸色照常生效 */}
+      {isRadioStage ? <AmbientTintLayer coverUrl={starfieldCoverUrl} /> : null}
       <StarfieldCanvas
         bloomStrength={starfieldView.bloom}
-        coverUrl={starfieldCoverUrl}
+        coverUrl={isRadioStage ? starfieldCoverUrl : null}
         dotCore={starfieldView.dotCore}
         initialPhi={starfieldView.phi}
         initialRadius={starfieldView.radius}
@@ -3733,6 +3803,9 @@ const QUEUE_FLOAT_RATIO_Z = 0.03;
 const QUEUE_FLOAT_RATIO_SCALE = 0.026;
 // A 档：浮动总强度（0 = 关闭，1 = 原版比例）
 const QUEUE_FLOAT_AMPLITUDE = 1;
+// 呼吸幅度的渐入缓动系数：入场结束后用 lerp 把幅度从 0 推到满，
+// 约 700ms 收敛。一刀切启用会让呼吸突然满幅摆动，像多出一段动画。
+const QUEUE_FLOAT_RAMP_EASE = 0.06;
 // B 档：景深强度。0 = 纯 2D 起伏；>0 时容器透视生效、浮动带上 Z 轴远近。
 const QUEUE_FLOAT_DEPTH = 1;
 // 透视距离（px）：越小透视越夸张。按卡片尺寸的若干倍取，避免小屏上形变过猛。
@@ -3879,6 +3952,8 @@ function CircularQueuePlayer({
   );
   const introStateRef = useRef(introState);
   const selectedIndexRef = useRef(selectedTrackIndex);
+  // 呼吸幅度的渐入进度（0→1），在 rAF 里逼近目标值
+  const floatRampRef = useRef(0);
 
   introStateRef.current = introState;
   selectedIndexRef.current = selectedTrackIndex;
@@ -3904,13 +3979,20 @@ function CircularQueuePlayer({
       return;
     }
 
-    // 落位起点：目标卡片旁 2.6 张卡处，浮现完成后优雅滑入
+    // 落位起点：目标卡片旁 2.6 张卡处，浮现过程中就开始滑入
     scrollRef.current.current = targetIndex + 2.6;
     scrollRef.current.target = targetIndex;
     setIntroState("reveal");
 
-    const settleTimer = window.setTimeout(() => setIntroState("settle"), 780);
-    const doneTimer = window.setTimeout(() => setIntroState("done"), 2000);
+    // 三段刻意重叠，不排成接力赛：
+    //   reveal  0→260ms   卡片波次浮现（首卡 0ms，末卡 350ms 延迟仍在跑）
+    //   settle  260ms 起  画廊边浮现边滑入居中，两段叠在一起
+    //   done    1000ms    呼吸浮动与歌名/控制区接上，此时滑入已基本收敛
+    // 早先是 780 / 2000ms，那套时间表是为「开页即进电台」写的（要等数据和
+    // 图片）；现在有开始页闸门，点进来时数据早已就绪，长间隔只剩拖沓——
+    // 实测卡片 0.9s 就位后要空等 1.5s 文本才动，观感是三段脱节。
+    const settleTimer = window.setTimeout(() => setIntroState("settle"), 260);
+    const doneTimer = window.setTimeout(() => setIntroState("done"), 1000);
 
     return () => {
       window.clearTimeout(settleTimer);
@@ -3989,8 +4071,15 @@ function CircularQueuePlayer({
         : 0;
 
       // 悬浮呼吸：秒为单位的连续时间，直接喂给正弦。
-      // 入场阶段不参与，避免卡片一边浮现一边飘。
-      const floatAmp = introPhase === "done" ? Math.max(0, queueTuning.floatAmplitude) : 0;
+      // 入场阶段幅度为 0（避免卡片一边浮现一边飘），进入 done 后不是一刀切
+      // 拉满，而是用 ramp 在 700ms 内把幅度从 0 推到 1——否则呼吸会突然
+      // 满幅启动，观感像是"入场结束后又多出一段动画"。
+      const floatRampTarget = introPhase === "done" ? 1 : 0;
+
+      floatRampRef.current +=
+        (floatRampTarget - floatRampRef.current) * QUEUE_FLOAT_RAMP_EASE;
+
+      const floatAmp = Math.max(0, queueTuning.floatAmplitude) * floatRampRef.current;
       const floatDepth = Math.max(0, queueTuning.floatDepth);
       const nowSec = performance.now() / 1000;
       // 幅度按卡片实际尺寸等比换算，小屏卡片小、浮动也跟着小
@@ -4188,15 +4277,56 @@ function CircularQueuePlayer({
                   readTooltipUpright={() => queueTuning.tooltipUpright}
                   tooltip={track.title}
                 >
-                  <img
-                    alt=""
-                    draggable={false}
-                    onError={(event) => {
-                      event.currentTarget.src =
-                        queueFallbackCovers[index % queueFallbackCovers.length];
-                    }}
-                    src={coverUrl}
-                  />
+                  {/* CD 盒（设计稿 380:508 / 381:569）：封面嵌进「封面嵌入」图层，
+                      外壳与歌名贴纸依次叠在上层。几何比例全部来自设计稿实测值，
+                      见 styles.css 的 .queueCdCase 一节。
+
+                      中心卡（offset === 0）额外走「光盘态」：封面裁成内切圆 + 中心
+                      转轴，并随播放状态转动——正在播放的那张才是被取出来放进机器
+                      转的碟，其余保持方形封面。 */}
+                  <span
+                    className={`queueCdCase ${offset === 0 ? "isDisc" : ""} ${
+                      offset === 0 && isPlaying ? "isSpinning" : ""
+                    }`}
+                  >
+                    <span className="queueCdDisc">
+                      <img
+                        alt=""
+                        className="queueCdCover"
+                        draggable={false}
+                        onError={(event) => {
+                          event.currentTarget.src =
+                            queueFallbackCovers[index % queueFallbackCovers.length];
+                        }}
+                        src={coverUrl}
+                      />
+                      {offset === 0 ? (
+                        <img
+                          alt=""
+                          aria-hidden="true"
+                          className="queueCdHub"
+                          draggable={false}
+                          src={getPublicAssetUrl("/images/cd-disc-hub.png")}
+                        />
+                      ) : null}
+                    </span>
+                    <img
+                      alt=""
+                      aria-hidden="true"
+                      className="queueCdShell"
+                      draggable={false}
+                      src={getPublicAssetUrl("/images/cd-case-shell.png")}
+                    />
+                    {/* 贴纸在最上层（设计稿图层顺序：封面 → 外壳 → 贴纸）。
+                        纯装饰素材，文字是素材自带的一部分，不替换成歌名。 */}
+                    <img
+                      alt=""
+                      aria-hidden="true"
+                      className="queueCdTape"
+                      draggable={false}
+                      src={getPublicAssetUrl("/images/cd-case-tape.png")}
+                    />
+                  </span>
                 </QueueCardTilt>
               </button>
             );
@@ -4204,9 +4334,11 @@ function CircularQueuePlayer({
         </div>
       </div>
 
+      {/* 歌名与控制区在 settle（画廊滑入）阶段就开始浮起，跟卡片落位交叠；
+          等到 done 才动会让文本显得是"第二段动画"，观感割裂 */}
       <div
         className={`queuePlayerContent ${
-          introState === "done" ? "" : "introContentPending"
+          introState === "pending" || introState === "reveal" ? "introContentPending" : ""
         }`}
       >
         <div className="queuePlayerHeading" data-node-id="165:4957">

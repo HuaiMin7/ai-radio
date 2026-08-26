@@ -592,6 +592,8 @@ p {
   font-weight: 600;
   line-height: normal;
   white-space: nowrap;
+  /* 品牌名是文字链接，去掉浏览器默认下划线（设计稿 372:452 无下划线） */
+  text-decoration: none;
 }
 
 .landingLinks {
@@ -1182,6 +1184,78 @@ p {
   white-space: nowrap;
 }
 
+/* 开始页整块可点（设计稿 372:451）：语义是按钮，外观仍是纯文字排版 */
+.landingStartGate {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.landingStartGate:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 24px;
+  border-radius: 8px;
+}
+
+/* 「点击进入」：设计稿 16px / 行高 22.4，与副标题间距 24px。
+   不透明度 50%——比副标题（70%）更弱一档，形成三级视觉层次 */
+.landingStartHint {
+  display: block;
+  color: rgba(255, 255, 255, 0.5);
+  font-family: "PingFang SC", "Noto Sans SC", "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(14px, min(1.12vw, 2.1vh), 16px);
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: nowrap;
+  transition: color 240ms ease;
+}
+
+.landingStartGate:hover .landingStartHint,
+.landingStartGate:focus-visible .landingStartHint {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* 退场：文字整体淡出并轻微上移收小，为画廊入场腾出时间窗。
+   时长与 App.tsx 的 startExitDurationMs（420ms）一致 */
+.landingStartGate {
+  transition:
+    opacity 420ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 420ms cubic-bezier(0.4, 0, 0.2, 1),
+    filter 420ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.landingStartGate.isLeaving {
+  opacity: 0;
+  transform: translateY(-18px) scale(0.965);
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+/* 「点击进入」比标题先走半步，退场有前后层次而非整块消失 */
+.landingStartGate.isLeaving .landingStartHint {
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landingStartHint,
+  .landingStartGate,
+  .landingStartGate.isLeaving .landingStartHint {
+    transition: none;
+  }
+
+  .landingStartGate.isLeaving {
+    transition: none;
+  }
+}
+
 .circularQueuePlayer {
   --queue-current-cover-size: clamp(180px, calc(31.4dvh - 22.6px), 260px);
   --queue-side-cover-size: clamp(104px, calc(19.324dvh - 13.913px), 160px);
@@ -1250,6 +1324,14 @@ p {
   box-shadow: none;
 }
 
+/* CD 盒自带外形与阴影，卡片格子的底色与圆角要让位，
+   否则盒子四周会露出一圈深色方块 */
+.queueOrbitItem:has(.queueCdCase),
+.queueOrbitItem.isCurrent:has(.queueCdCase) {
+  border-radius: 0;
+  background: transparent;
+}
+
 /* 不可用曲目只降饱和：不透明度由 JS 按距中心距离逐帧写内联值，
    在这里再写 opacity 会被内联样式盖掉、反而看不出"不可用"。 */
 .queueOrbitItem.isUnavailable:not(.isCurrent) {
@@ -1266,11 +1348,139 @@ p {
   outline-offset: 5px;
 }
 
-.queueOrbitItem img {
+/* 只作用于「不在 CD 盒内」的图片：盒内的外壳与转轴都有自己的尺寸与偏移，
+   这条通用规则的 width/height:100% 会把它们压成撑满卡片的正方形。
+   用 :not(.queueCdCase *) 一次排除整个盒内子树，避免每加一层就补一个 :not() */
+.queueOrbitItem img:not(.queueCdCase *) {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
+  pointer-events: none;
+}
+
+/* —— CD 盒（设计稿 380:508 「CD盒」）——
+   实测几何：外壳 216×199，封面窗口「封面嵌入」191×191（正方形），
+   窗口相对外壳 left 9.722% / top 2.010% / w 88.426% / h 95.980%。
+
+   定位基准选的是「封面」而不是「外壳」：卡片格子仍是正方形，封面严格填满
+   这个正方形，CD 盒再以它为基准反算尺寸向外扩。这样画廊的等距弧线排列与
+   卡片尺寸统一都不受影响——盒子只是贴在封面上的一层皮。
+   反算：外壳宽 = 封面 ÷ 88.426% = 113.089%，高 = 封面 ÷ 95.980% = 104.188%，
+   左偏移 = -9.722% × 113.089% = -10.994%，上偏移 = -2.010% × 104.188% = -2.094%。 */
+.queueCdCase {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.queueCdCover {
+  position: absolute;
+  display: block;
+  /* 尺寸显式声明：通用的 .queueOrbitItem img 规则已排除整个盒内子树，
+     盒内每一层都自己负责尺寸 */
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  /* 封面比例各异（正方、长方都有），设计稿「封面嵌入」是 scaleMode=FILL，
+     所以这里用 cover 裁切填满窗口，保证每个盒子规格一致 */
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* 盒子外形由贴图给出，嵌在里面的封面是直角，不要继承卡片圆角 */
+.queueCdCase .queueCdCover {
+  border-radius: 0;
+}
+
+/* 封面容器：默认就是封面本身（方形），光盘态下变成可旋转的碟片 */
+.queueCdDisc {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+/* —— 光盘态（仅中心卡 / 正在播放的那张，设计稿 381:569）——
+   设计稿把「封面嵌入」帧裁成了内切圆：实测圆盘直径 = 封面帧宽 191（100%），
+   圆心在 (49.91%, 49.91%)，即正圆内切。 */
+.queueCdCase.isDisc .queueCdDisc {
+  border-radius: 50%;
+  overflow: hidden;
+  /* 碟片边缘的一圈高光，让它看起来是张有厚度的盘而不是被抠圆的图 */
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.28),
+    inset 0 0 12px rgba(0, 0, 0, 0.45),
+    0 2px 10px rgba(0, 0, 0, 0.4);
+  /* 转起来时边缘不出锯齿 */
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* 光盘转轴（设计稿 381:573，40×41 居中，占封面 20.942% × 21.466%）。
+   放在 .queueCdDisc 内部，跟着碟片一起转。 */
+.queueCdHub {
+  position: absolute;
+  top: 39.267%;
+  left: 39.267%;
+  width: 20.942%;
+  height: 21.466%;
+  object-fit: fill;
+  pointer-events: none;
+}
+
+/* 转动：CSS animation 常驻，用 animation-play-state 控制启停。
+   这样暂停时会停在当前角度、恢复后接着转，不会跳回 0°——
+   若改用 class 切换 animation，每次暂停都会瞬回原点。 */
+.queueCdCase.isDisc .queueCdDisc {
+  animation: queueCdSpin 8s linear infinite;
+  animation-play-state: paused;
+}
+
+.queueCdCase.isDisc.isSpinning .queueCdDisc {
+  animation-play-state: running;
+}
+
+@keyframes queueCdSpin {
+  from {
+    transform: translateZ(0) rotate(0deg);
+  }
+
+  to {
+    transform: translateZ(0) rotate(360deg);
+  }
+}
+
+/* —— 歌名贴纸（设计稿 381:572）——
+   相对 CD 盒：left 52.778% / top 77.387% / w 42.593% / h 13.065%。
+   这里以封面帧为定位基准（.queueCdCase 即封面尺寸），换算后为
+   left 48.691% / top 78.534% / w 48.168% / h 13.613%。 */
+/* 贴纸：纯装饰素材，文字（"Here With U"）是素材自带的，不替换成歌名。
+   相对 CD 盒 left 52.778% / top 77.387% / w 42.593% / h 13.065%；
+   这里以封面帧为定位基准（.queueCdCase 即封面尺寸），换算后如下。 */
+.queueCdTape {
+  position: absolute;
+  z-index: 3;
+  top: 78.534%;
+  left: 48.691%;
+  width: 48.168%;
+  height: 13.613%;
+  /* 贴纸有撕裂边与轻微倾斜，整张按框铺满、不裁切 */
+  object-fit: fill;
+  pointer-events: none;
+}
+
+/* 堆叠顺序照设计稿图层：封面/碟片(1) → 外壳(2) → 贴纸(3) */
+.queueCdShell {
+  position: absolute;
+  z-index: 2;
+  top: -2.094%;
+  left: -10.994%;
+  width: 113.089%;
+  /* 高度按外壳自身比例（216:199）由宽度推导，避免拉伸失真 */
+  height: 104.188%;
+  /* 外壳是带透明中心的贴图，必须整张显示、不能裁切 */
+  object-fit: fill;
   pointer-events: none;
 }
 
@@ -1280,7 +1490,8 @@ p {
   transition: none;
 }
 
-.queueOrbitItem.introHidden img {
+/* 只缩放封面本体：外壳与转轴若被一起缩放，浮现过程中会与封面错位 */
+.queueOrbitItem.introHidden img:not(.queueCdCase *) {
   transform: scale(0.82);
 }
 
@@ -1289,7 +1500,7 @@ p {
   animation-delay: var(--intro-delay, 0ms);
 }
 
-.queueOrbitItem.introReveal img {
+.queueOrbitItem.introReveal img:not(.queueCdCase *) {
   animation: queueCardCoverReveal 640ms cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--intro-delay, 0ms);
 }
@@ -1335,7 +1546,7 @@ p {
 
 @media (prefers-reduced-motion: reduce) {
   .queueOrbitItem.introReveal,
-  .queueOrbitItem.introReveal img {
+  .queueOrbitItem.introReveal img:not(.queueCdCase *) {
     animation: none;
   }
 
@@ -3895,7 +4106,16 @@ body.isStarfieldDragging * {
   will-change: transform;
 }
 
-.queueCardTilt img {
+/* CD 盒模式：盒子要向外扩出卡片格子（左侧书脊 + 四周边框），
+   所以这一层不能裁剪，圆角与底色也交给 CD 盒贴图自己表达——
+   否则会在盒子外露出一圈方形底色。 */
+.queueCardTilt:has(.queueCdCase) {
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+}
+
+.queueCardTilt img:not(.queueCdCase *) {
   display: block;
   width: 100%;
   height: 100%;
