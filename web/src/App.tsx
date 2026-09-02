@@ -4024,8 +4024,9 @@ function CircularQueuePlayer({
       return;
     }
 
-    // 落位起点：目标卡片旁 2.6 张卡处，浮现过程中就开始滑入
-    scrollRef.current.current = targetIndex + 2.6;
+    // 当前曲目从第一次可见开始就应位于中心；侧边歌曲仅做波次浮现。
+    // 旧逻辑先把整条队列偏移 2.6 个卡位，会短暂把当前曲目甩到左下角。
+    scrollRef.current.current = targetIndex;
     scrollRef.current.target = targetIndex;
     setIntroState("reveal");
 
