@@ -14,6 +14,7 @@
     "build": "tsc -b && vite build",
     "build:public": "tsc -b && VITE_BASE_PATH=/app/ VITE_PUBLIC_DEMO=1 vite build",
     "check:multi-user": "tsx scripts/multi-user-check.ts",
+    "check:qq-login": "tsx scripts/qq-login-check.ts",
     "start:api": "tsx server/index.ts",
     "preview": "vite preview"
   },

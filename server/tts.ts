@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
-import { access, mkdir, readFile, unlink, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { access, mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 
@@ -79,7 +79,9 @@ async function synthesizeAliyunQwenSpeech(
   try {
     await access(filePath);
   } catch {
-    const requestFilePath = getTtsFilePath(rootDir, `${id}.json`);
+    const attemptId = randomUUID();
+    const requestFilePath = getTtsFilePath(rootDir, `${id}.${attemptId}.json`);
+    const tempFilePath = getTtsFilePath(rootDir, `${id}.${attemptId}.wav`);
     const scriptPath = join(rootDir, "server", "qwen-tts-realtime.py");
 
     await mkdir(dirname(filePath), { recursive: true });
@@ -92,7 +94,7 @@ async function synthesizeAliyunQwenSpeech(
         instructions,
         websocketUrl,
         text: normalizedText,
-        outputPath: filePath
+        outputPath: tempFilePath
       }),
       "utf8"
     );
@@ -101,8 +103,10 @@ async function synthesizeAliyunQwenSpeech(
       await execFileAsync(await getPythonExecutable(rootDir), [scriptPath, requestFilePath], {
         timeout: 45000
       });
+      await rename(tempFilePath, filePath);
     } finally {
       await unlink(requestFilePath).catch(() => undefined);
+      await unlink(tempFilePath).catch(() => undefined);
     }
   }
 
@@ -131,25 +135,32 @@ async function synthesizeMacosSpeech(
   try {
     await access(filePath);
   } catch {
-    const tempFilePath = getTtsFilePath(rootDir, `${id}.aiff`);
+    const attemptId = randomUUID();
+    const tempInputPath = getTtsFilePath(rootDir, `${id}.${attemptId}.aiff`);
+    const tempOutputPath = getTtsFilePath(rootDir, `${id}.${attemptId}.m4a`);
 
     await mkdir(dirname(filePath), { recursive: true });
-    await execFileAsync("/usr/bin/say", [
-      ...(voice ? ["-v", voice] : []),
-      ...(rate ? ["-r", rate] : []),
-      "-o",
-      tempFilePath,
-      normalizedText
-    ]);
-    await execFileAsync("/usr/bin/afconvert", [
-      "-f",
-      "m4af",
-      "-d",
-      "aac",
-      tempFilePath,
-      filePath
-    ]);
-    await unlink(tempFilePath).catch(() => undefined);
+    try {
+      await execFileAsync("/usr/bin/say", [
+        ...(voice ? ["-v", voice] : []),
+        ...(rate ? ["-r", rate] : []),
+        "-o",
+        tempInputPath,
+        normalizedText
+      ]);
+      await execFileAsync("/usr/bin/afconvert", [
+        "-f",
+        "m4af",
+        "-d",
+        "aac",
+        tempInputPath,
+        tempOutputPath
+      ]);
+      await rename(tempOutputPath, filePath);
+    } finally {
+      await unlink(tempInputPath).catch(() => undefined);
+      await unlink(tempOutputPath).catch(() => undefined);
+    }
   }
 
   return {

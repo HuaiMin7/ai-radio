@@ -1,10 +1,15 @@
+import { mkdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import type { AuthenticatedUser } from "./auth.js";
 import {
   createAuthenticatedUser,
   deleteEncryptedUserSecret,
+  getUserDataDir,
   readEncryptedUserSecret,
   writeEncryptedUserSecret
 } from "./auth.js";
+import { writeTextAtomic } from "./atomic-write.js";
+import { isAllowedQqAudioUrl } from "./qq-audio-host.js";
 
 export type QqLoginStatus = {
   provider: "qq";
@@ -14,6 +19,8 @@ export type QqLoginStatus = {
   nickname?: string;
   avatarUrl?: string;
   playbackKeyReady: boolean;
+  playbackProbeStatus?: "ready" | "ticket_missing" | "probe_unavailable" | "expired";
+  lastPlaybackProbeAt?: string;
   profileSource?: "qq-profile" | "fallback";
   message?: string;
 };
@@ -127,6 +134,13 @@ const qqQualityCandidates = [
   { prefix: "M500", ext: ".mp3", label: "128k MP3" },
   { prefix: "C400", ext: ".m4a", label: "AAC/M4A" }
 ];
+const defaultPlaybackProbeTracks = [
+  { title: "We Never", artist: "Hi Noise" },
+  { title: "月下煮茶", artist: "李思潼" },
+  { title: "来去打工", artist: "王以诺" }
+];
+const defaultPlaybackProbeMaxAgeMs = 6 * 60 * 60 * 1000;
+const playbackProbeFilename = "qq-playback-probe.json";
 const persistedQqCookieNames = new Set([
   "uin",
   "qqmusic_uin",
@@ -135,24 +149,13 @@ const persistedQqCookieNames = new Set([
   "qm_keyst",
   "qqmusic_key",
   "music_key",
-  "p_skey",
-  "skey",
-  "psrf_qqopenid",
-  "psrf_qqunionid",
-  "psrf_qqaccess_token",
-  "psrf_qqrefresh_token",
-  "wxopenid",
-  "wxunionid",
-  "wxrefresh_token",
-  "wxskey",
-  "p_uin",
-  "ptcz",
-  "RK"
+  "wxskey"
 ]);
 
 export async function authenticateAndSaveQqCookie(
   rootDir: string,
-  cookieText: string
+  cookieText: string,
+  options: { probePlayback?: boolean } = {}
 ) {
   const normalizedCookie = normalizeQqCookieInput(cookieText);
   const fallback = readQqLoginStatusFromCookie(normalizedCookie);
@@ -188,15 +191,18 @@ export async function authenticateAndSaveQqCookie(
     normalizedCookie
   );
 
-  return {
-    user,
-    status: {
-      ...fallback,
-      nickname: profile.nickname,
-      avatarUrl: profile.avatarUrl || fallback.avatarUrl,
-      profileSource: "qq-profile" as const
-    }
+  const accountStatus: QqLoginStatus = {
+    ...fallback,
+    nickname: profile.nickname,
+    avatarUrl: profile.avatarUrl || fallback.avatarUrl,
+    playbackKeyReady: false,
+    playbackProbeStatus: fallback.playbackKeyReady ? "expired" : "ticket_missing",
+    profileSource: "qq-profile"
   };
+
+  if (options.probePlayback === false) return { user, status: accountStatus };
+
+  return { user, status: await probeAndSaveQqPlayback(rootDir, user) };
 }
 
 export async function clearQqCookie(
@@ -227,16 +233,143 @@ export async function getQqLoginStatus(
     return getLoggedOutQqStatus();
   }
 
+  const probe = await readPlaybackProbe(rootDir, user);
+  const playbackKeyReady =
+    fallback.playbackKeyReady &&
+    probe?.status === "ready" &&
+    Date.now() - probe.probedAt <= getPlaybackProbeMaxAgeMs();
+  const playbackProbeStatus: QqLoginStatus["playbackProbeStatus"] =
+    !fallback.playbackKeyReady
+      ? "ticket_missing"
+      : playbackKeyReady
+        ? "ready"
+        : probe?.status === "probe_unavailable"
+          ? "probe_unavailable"
+          : "expired";
   const profile = await fetchQqProfile(cookie, fallback.userId);
   if (!profile) {
-    return fallback;
+    return {
+      ...fallback,
+      playbackKeyReady,
+      playbackProbeStatus,
+      lastPlaybackProbeAt: probe ? new Date(probe.probedAt).toISOString() : undefined
+    };
   }
 
   return {
     ...fallback,
     nickname: profile.nickname,
     avatarUrl: profile.avatarUrl || fallback.avatarUrl,
+    playbackKeyReady,
+    playbackProbeStatus,
+    lastPlaybackProbeAt: probe ? new Date(probe.probedAt).toISOString() : undefined,
     profileSource: "qq-profile"
+  };
+}
+
+export async function probeAndSaveQqPlayback(
+  rootDir: string,
+  user: AuthenticatedUser
+) {
+  const cookie = await readQqCookie(rootDir, user);
+  const cookieObj = parseCookieString(cookie);
+  const rawStatus = readQqLoginStatusFromCookie(cookie);
+  const diagnostics: NonNullable<PlaybackProbeRecord["diagnostics"]> = {
+    credentialFields: ["qm_keyst", "qqmusic_key", "music_key", "wxskey"].filter(
+      (name) => Boolean(cookieObj[name])
+    ),
+    attempts: []
+  };
+
+  if (!rawStatus.playbackKeyReady) {
+    await writePlaybackProbe(rootDir, user, "ticket_missing", diagnostics);
+    return getQqLoginStatus(rootDir, user);
+  }
+
+  const probeTracks = getPlaybackProbeTracks();
+  for (const [probeIndex, track] of probeTracks.entries()) {
+    try {
+      const resolved = await resolveQqPlayableUrl(rootDir, user, track.title, track.artist);
+      if (!resolved.playable) {
+        diagnostics.attempts.push({
+          probeIndex,
+          stage: "resolve",
+          reason: resolved.reason,
+          qqCode: resolved.qqCode
+        });
+        console.warn("[qq-playback-probe] resolve failed", {
+          probeIndex,
+          reason: resolved.reason,
+          qqCode: resolved.qqCode
+        });
+        continue;
+      }
+
+      const audioUrl = new URL(resolved.url);
+      if (!isAllowedQqAudioUrl(audioUrl)) {
+        diagnostics.attempts.push({ probeIndex, stage: "host" });
+        console.warn("[qq-playback-probe] rejected audio host", { probeIndex });
+        continue;
+      }
+
+      const response = await fetch(audioUrl, {
+        headers: { Range: "bytes=0-1023" },
+        signal: AbortSignal.timeout(8000)
+      });
+      const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+      const probeBytes = await response.arrayBuffer();
+      const isAudioContent =
+        contentType.startsWith("audio/") ||
+        contentType === "application/octet-stream" ||
+        contentType === "video/mp4";
+
+      if (
+        (response.ok || response.status === 206) &&
+        isAudioContent &&
+        probeBytes.byteLength > 0
+      ) {
+        diagnostics.attempts.push({
+          probeIndex,
+          stage: "audio",
+          status: response.status,
+          contentType,
+          bytes: probeBytes.byteLength
+        });
+        await writePlaybackProbe(rootDir, user, "ready", diagnostics);
+        return getQqLoginStatus(rootDir, user);
+      }
+      diagnostics.attempts.push({
+        probeIndex,
+        stage: "audio",
+        status: response.status,
+        contentType,
+        bytes: probeBytes.byteLength
+      });
+      console.warn("[qq-playback-probe] invalid audio response", {
+        probeIndex,
+        status: response.status,
+        contentType,
+        bytes: probeBytes.byteLength
+      });
+    } catch (error) {
+      diagnostics.attempts.push({
+        probeIndex,
+        stage: "request",
+        error: error instanceof Error ? error.name : "UnknownError"
+      });
+      console.warn("[qq-playback-probe] request failed", {
+        probeIndex,
+        error: error instanceof Error ? error.name : "UnknownError"
+      });
+      // Continue through the configured probe set before declaring it unavailable.
+    }
+  }
+
+  await writePlaybackProbe(rootDir, user, "probe_unavailable", diagnostics);
+  const status = await getQqLoginStatus(rootDir, user);
+  return {
+    ...status,
+    message: "账号已确认，但播放验证暂未通过。请稍后刷新二维码重试。"
   };
 }
 
@@ -697,9 +830,8 @@ async function resolveQqSongUrl(
     comm: {
       uin,
       format: "json",
-      ct: musicKey ? 19 : 24,
-      cv: 0,
-      ...(musicKey ? { authst: musicKey } : {})
+      ct: 24,
+      cv: 0
     },
     req_0: {
       module: "vkey.GetVkeyServer",
@@ -711,7 +843,8 @@ async function resolveQqSongUrl(
         uin,
         loginflag: 1,
         platform: "20",
-        filename: candidates.map((candidate) => candidate.filename)
+        filename: candidates.map((candidate) => candidate.filename),
+        ...(musicKey ? { authst: musicKey } : {})
       }
     }
   };
@@ -1017,6 +1150,91 @@ function parseJsonText(text: string) {
 
 async function readQqCookie(rootDir: string, user: AuthenticatedUser) {
   return (await readEncryptedUserSecret(rootDir, user, "qq-cookie")).trim();
+}
+
+type PlaybackProbeRecord = {
+  version: 1;
+  status: "ready" | "ticket_missing" | "probe_unavailable";
+  probedAt: number;
+  diagnostics?: {
+    credentialFields: string[];
+    attempts: Array<{
+      probeIndex: number;
+      stage: "resolve" | "host" | "audio" | "request";
+      reason?: string;
+      qqCode?: string | number;
+      status?: number;
+      contentType?: string;
+      bytes?: number;
+      error?: string;
+    }>;
+  };
+};
+
+async function readPlaybackProbe(
+  rootDir: string,
+  user: AuthenticatedUser
+): Promise<PlaybackProbeRecord | null> {
+  try {
+    const raw = await readFile(join(getUserDataDir(rootDir, user), playbackProbeFilename), "utf8");
+    const parsed = JSON.parse(raw) as Partial<PlaybackProbeRecord>;
+    if (
+      parsed.version !== 1 ||
+      !["ready", "ticket_missing", "probe_unavailable"].includes(parsed.status ?? "") ||
+      typeof parsed.probedAt !== "number"
+    ) {
+      return null;
+    }
+    return parsed as PlaybackProbeRecord;
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "ENOENT"
+    ) return null;
+    throw error;
+  }
+}
+
+async function writePlaybackProbe(
+  rootDir: string,
+  user: AuthenticatedUser,
+  status: PlaybackProbeRecord["status"],
+  diagnostics?: PlaybackProbeRecord["diagnostics"]
+) {
+  const userDir = getUserDataDir(rootDir, user);
+  const record: PlaybackProbeRecord = {
+    version: 1,
+    status,
+    probedAt: Date.now(),
+    ...(diagnostics ? { diagnostics } : {})
+  };
+  await mkdir(userDir, { recursive: true, mode: 0o700 });
+  await writeTextAtomic(
+    join(userDir, playbackProbeFilename),
+    `${JSON.stringify(record)}\n`,
+    { mode: 0o600 }
+  );
+}
+
+function getPlaybackProbeTracks() {
+  const configured = (process.env.AI_RADIO_QQ_PLAYBACK_PROBE_TRACKS ?? "")
+    .split(";")
+    .map((entry) => {
+      const [title = "", artist = ""] = entry.split("|");
+      return { title: title.trim(), artist: artist.trim() };
+    })
+    .filter((track) => track.title && track.artist);
+
+  return configured.length >= 3 ? configured.slice(0, 5) : defaultPlaybackProbeTracks;
+}
+
+function getPlaybackProbeMaxAgeMs() {
+  const configured = Number(process.env.AI_RADIO_QQ_PLAYBACK_PROBE_MAX_AGE_MS ?? "");
+  return Number.isFinite(configured) && configured >= 60_000
+    ? configured
+    : defaultPlaybackProbeMaxAgeMs;
 }
 
 function getLoggedOutQqStatus(): QqLoginStatus {

@@ -26,25 +26,37 @@ type SessionPayload = {
 };
 
 type EncryptedSecret = {
-  version: 1;
+  version: 1 | 2;
   iv: string;
   authTag: string;
   ciphertext: string;
 };
 
 const sessionCookieName = "redio_session";
+const loginBindingCookieName = "redio_login";
 const sessionMaxAgeSeconds = 60 * 60 * 24 * 30;
+const loginBindingMaxAgeSeconds = 3 * 60;
 const ephemeralSecret = randomBytes(32).toString("hex");
 
 export function assertAuthConfiguration() {
-  const configuredSecret = process.env.AI_RADIO_SESSION_SECRET?.trim() ?? "";
+  const sessionSecret = process.env.AI_RADIO_SESSION_SECRET?.trim() ?? "";
+  const credentialSecret = process.env.AI_RADIO_CREDENTIAL_SECRET?.trim() ?? "";
+  const runtimeEnvironment = process.env.NODE_ENV?.trim().toLowerCase() ?? "";
+  const isProduction =
+    process.env.AI_RADIO_PUBLIC_DEMO === "1" ||
+    (runtimeEnvironment !== "" &&
+      runtimeEnvironment !== "development" &&
+      runtimeEnvironment !== "test");
 
-  if (
-    process.env.AI_RADIO_PUBLIC_DEMO === "1" &&
-    configuredSecret.length < 32
-  ) {
+  if (isProduction && sessionSecret.length < 32) {
     throw new Error(
-      "AI_RADIO_SESSION_SECRET must contain at least 32 characters in public mode"
+      "AI_RADIO_SESSION_SECRET must contain at least 32 characters in production"
+    );
+  }
+
+  if (isProduction && credentialSecret.length < 32) {
+    throw new Error(
+      "AI_RADIO_CREDENTIAL_SECRET must contain at least 32 characters in production"
     );
   }
 }
@@ -96,8 +108,8 @@ export function setAuthenticatedUser(
     process.env.AI_RADIO_SECURE_COOKIES === "1" ||
     request.headers["x-forwarded-proto"] === "https";
 
-  response.setHeader(
-    "Set-Cookie",
+  appendSetCookie(
+    response,
     [
       `${sessionCookieName}=${token}`,
       "Path=/",
@@ -119,8 +131,8 @@ export function clearAuthenticatedUser(
     process.env.AI_RADIO_SECURE_COOKIES === "1" ||
     request.headers["x-forwarded-proto"] === "https";
 
-  response.setHeader(
-    "Set-Cookie",
+  appendSetCookie(
+    response,
     [
       `${sessionCookieName}=`,
       "Path=/",
@@ -131,6 +143,48 @@ export function clearAuthenticatedUser(
     ]
       .filter(Boolean)
       .join("; ")
+  );
+}
+
+export function createLoginBinding(
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  const nonce = randomBytes(32).toString("base64url");
+
+  appendSetCookie(
+    response,
+    [
+      `${loginBindingCookieName}=${nonce}`,
+      "Path=/api/qq/login/qr",
+      `Max-Age=${loginBindingMaxAgeSeconds}`,
+      "HttpOnly",
+      "SameSite=Lax",
+      isSecureRequest(request) ? "Secure" : ""
+    ].filter(Boolean).join("; ")
+  );
+
+  return nonce;
+}
+
+export function readLoginBinding(request: IncomingMessage) {
+  return readCookie(request.headers.cookie, loginBindingCookieName);
+}
+
+export function clearLoginBinding(
+  request: IncomingMessage,
+  response: ServerResponse
+) {
+  appendSetCookie(
+    response,
+    [
+      `${loginBindingCookieName}=`,
+      "Path=/api/qq/login/qr",
+      "Max-Age=0",
+      "HttpOnly",
+      "SameSite=Lax",
+      isSecureRequest(request) ? "Secure" : ""
+    ].filter(Boolean).join("; ")
   );
 }
 
@@ -165,7 +219,7 @@ export async function readEncryptedUserSecret(
     const parsed = JSON.parse(raw) as Partial<EncryptedSecret>;
 
     if (
-      parsed.version !== 1 ||
+      (parsed.version !== 1 && parsed.version !== 2) ||
       typeof parsed.iv !== "string" ||
       typeof parsed.authTag !== "string" ||
       typeof parsed.ciphertext !== "string"
@@ -173,7 +227,14 @@ export async function readEncryptedUserSecret(
       throw new Error("Invalid encrypted credential");
     }
 
-    return decryptSecret(parsed as EncryptedSecret);
+    const secret = parsed as EncryptedSecret;
+    const value = decryptSecret(secret);
+
+    if (secret.version === 1) {
+      await writeEncryptedUserSecret(rootDir, user, name, value);
+    }
+
+    return value;
   } catch (error) {
     if (isMissingFileError(error)) {
       return "";
@@ -300,14 +361,14 @@ async function readSessionRevokedBefore(
 
 function encryptSecret(value: string): EncryptedSecret {
   const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", getEncryptionKey(), iv);
+  const cipher = createCipheriv("aes-256-gcm", getCredentialEncryptionKey(), iv);
   const ciphertext = Buffer.concat([
     cipher.update(value, "utf8"),
     cipher.final()
   ]);
 
   return {
-    version: 1,
+    version: 2,
     iv: iv.toString("base64url"),
     authTag: cipher.getAuthTag().toString("base64url"),
     ciphertext: ciphertext.toString("base64url")
@@ -317,7 +378,9 @@ function encryptSecret(value: string): EncryptedSecret {
 function decryptSecret(secret: EncryptedSecret) {
   const decipher = createDecipheriv(
     "aes-256-gcm",
-    getEncryptionKey(),
+    secret.version === 1
+      ? getLegacyCredentialEncryptionKey()
+      : getCredentialEncryptionKey(),
     Buffer.from(secret.iv, "base64url")
   );
   decipher.setAuthTag(Buffer.from(secret.authTag, "base64url"));
@@ -328,9 +391,15 @@ function decryptSecret(secret: EncryptedSecret) {
   ]).toString("utf8");
 }
 
-function getEncryptionKey() {
+function getLegacyCredentialEncryptionKey() {
   return createHash("sha256")
     .update(`redio-user-credential:${getSessionSecret()}`)
+    .digest();
+}
+
+function getCredentialEncryptionKey() {
+  return createHash("sha256")
+    .update(`redio-user-credential-v2:${getCredentialSecret()}`)
     .digest();
 }
 
@@ -342,6 +411,32 @@ function sign(value: string) {
 
 function getSessionSecret() {
   return process.env.AI_RADIO_SESSION_SECRET?.trim() || ephemeralSecret;
+}
+
+function getCredentialSecret() {
+  return (
+    process.env.AI_RADIO_CREDENTIAL_SECRET?.trim() ||
+    process.env.AI_RADIO_SESSION_SECRET?.trim() ||
+    ephemeralSecret
+  );
+}
+
+function isSecureRequest(request: IncomingMessage) {
+  return (
+    process.env.AI_RADIO_SECURE_COOKIES === "1" ||
+    request.headers["x-forwarded-proto"] === "https"
+  );
+}
+
+function appendSetCookie(response: ServerResponse, cookie: string) {
+  const current = response.getHeader("Set-Cookie");
+  const values = Array.isArray(current)
+    ? current.map(String)
+    : typeof current === "string"
+      ? [current]
+      : [];
+
+  response.setHeader("Set-Cookie", [...values, cookie]);
 }
 
 function readCookie(header: string | undefined, name: string) {

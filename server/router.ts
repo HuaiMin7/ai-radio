@@ -2,7 +2,10 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { Readable } from "node:stream";
 import {
   clearAuthenticatedUser,
+  clearLoginBinding,
+  createLoginBinding,
   readAuthenticatedUser,
+  readLoginBinding,
   revokeUserSessions,
   setAuthenticatedUser,
   type AuthenticatedUser
@@ -26,6 +29,7 @@ import {
   searchQqSongs
 } from "./qq-music.js";
 import { createQqQrLogin, pollQqQrLogin } from "./qq-login.js";
+import { isAllowedQqAudioUrl } from "./qq-audio-host.js";
 import { getNowPlaying, getPublicNowPlaying, setCurrentPlan } from "./state.js";
 import {
   getSpeechAudioContentType,
@@ -46,8 +50,11 @@ const defaultAllowedCorsOrigins = [
 const publicRateLimitPaths = new Set([
   "/api/plan",
   "/api/tts",
-  "/api/qq/login/cookie",
-  "/api/qq/login/qr"
+  "/api/qq/login/cookie"
+]);
+const qqLoginRateLimitPaths = new Set([
+  "/api/qq/login/qr",
+  "/api/qq/login/qr/status"
 ]);
 const rateLimitBuckets = new Map<
   string,
@@ -383,12 +390,7 @@ function isCorsRejected(origin: string | undefined) {
 }
 
 function isAllowedAudioProxyUrl(url: URL) {
-  const hostname = url.hostname.toLowerCase();
-
-  return (
-    (url.protocol === "http:" || url.protocol === "https:") &&
-    (hostname === "qq.com" || hostname.endsWith(".qq.com"))
-  );
+  return isAllowedQqAudioUrl(url);
 }
 
 function isPublicDemo() {
@@ -410,18 +412,23 @@ function getClientAddress(request: IncomingMessage) {
 }
 
 function isPublicRateLimited(request: IncomingMessage, pathname: string) {
-  if (
-    !isPublicDemo() ||
-    request.method !== "POST" ||
-    !publicRateLimitPaths.has(pathname)
-  ) {
+  if (request.method !== "POST") {
     return false;
   }
 
-  const configuredLimit = Number(process.env.AI_RADIO_PUBLIC_RATE_LIMIT_PER_MINUTE ?? "12");
+  const isQqLoginPath = qqLoginRateLimitPaths.has(pathname);
+  if (!isQqLoginPath && (!isPublicDemo() || !publicRateLimitPaths.has(pathname))) {
+    return false;
+  }
+
+  const configuredLimit = Number(
+    isQqLoginPath
+      ? process.env.AI_RADIO_QQ_LOGIN_RATE_LIMIT_PER_MINUTE ?? "60"
+      : process.env.AI_RADIO_PUBLIC_RATE_LIMIT_PER_MINUTE ?? "12"
+  );
   const limit = Number.isFinite(configuredLimit) && configuredLimit > 0
     ? Math.floor(configuredLimit)
-    : 12;
+    : isQqLoginPath ? 60 : 12;
   const now = Date.now();
   sweepRateLimitBuckets(now);
   const key = `${getClientAddress(request)}:${pathname}`;
@@ -603,27 +610,42 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "POST" && url.pathname === "/api/qq/login/qr") {
-        sendJsonWithCors(response, 200, await createQqQrLogin(), origin);
+        const ownerNonce = createLoginBinding(request, response);
+        sendJsonWithCors(response, 200, await createQqQrLogin(ownerNonce), origin);
         return;
       }
 
       if (
-        request.method === "GET" &&
-        url.pathname.startsWith("/api/qq/login/qr/")
+        request.method === "POST" &&
+        url.pathname === "/api/qq/login/qr/status"
       ) {
-        const sessionId = decodeURIComponent(
-          url.pathname.replace("/api/qq/login/qr/", "")
-        );
-        const result = await pollQqQrLogin(rootDir, sessionId);
+        const body = await readJsonBody(request);
+        const loginId =
+          typeof body === "object" &&
+          body !== null &&
+          "loginId" in body &&
+          typeof body.loginId === "string"
+            ? body.loginId
+            : "";
+        const result = loginId
+          ? await pollQqQrLogin(rootDir, loginId, readLoginBinding(request))
+          : null;
 
-        if (result.state === "complete") {
+        if (!result) {
+          sendJsonWithCors(response, 404, { error: "登录会话不存在" }, origin);
+          return;
+        }
+
+        if (result.state === "ready" && result.user && result.status) {
           setAuthenticatedUser(request, response, result.user);
+          clearLoginBinding(request, response);
           sendJsonWithCors(
             response,
             200,
             {
               state: result.state,
               message: result.message,
+              pollAfterMs: 0,
               status: result.status
             },
             origin
@@ -631,11 +653,23 @@ export function createRouter(rootDir: string): Handler {
           return;
         }
 
-        sendJsonWithCors(response, 200, result, origin);
+        sendJsonWithCors(response, 200, {
+          state: result.state,
+          message: result.message,
+          pollAfterMs: result.pollAfterMs,
+          ...(result.status ? { status: result.status } : {})
+        }, origin);
         return;
       }
 
       if (request.method === "POST" && url.pathname === "/api/qq/login/cookie") {
+        if (isPublicDemo() && !authenticatedUser) {
+          sendJsonWithCors(response, 403, {
+            error: "公开站请使用 QQ 音乐二维码登录"
+          }, origin);
+          return;
+        }
+
         const body = await readJsonBody(request);
         const cookie = readCookieRequest(body);
 
