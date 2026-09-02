@@ -327,7 +327,7 @@ export async function probeAndSaveQqPlayback(
   const status = await getQqLoginStatus(rootDir, user);
   return {
     ...status,
-    message: "已取得播放票据，但探测歌曲当前都不可播放，请稍后重试"
+    message: "账号已确认，但播放验证暂未通过。请稍后刷新二维码重试。"
   };
 }
 

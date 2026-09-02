@@ -3221,7 +3221,7 @@ function LoginModal({
                 <span>{isLoginBusy ? "正在获取二维码…" : "二维码获取失败"}</span>
               )}
             </div>
-            <p className="loginQrCaption" data-node-id="233:773">
+            <p aria-live="polite" className="loginQrCaption" data-node-id="233:773">
               <strong>
                 <img alt="" aria-hidden="true" src={getPublicAssetUrl("/images/qq-music-icon.png")} />
                 QQ音乐
