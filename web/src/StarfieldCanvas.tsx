@@ -306,9 +306,9 @@ function makeCoverTexture() {
 /**
  * 把封面图裁成正方形画进 canvas。
  *
- * 刻意不设置 `img.crossOrigin`：粒子只在着色器里用 texture2D 采样，
- * 不做 getImageData 读像素，因此不受 canvas 污染限制，
- * QQ 音乐等不带 CORS 头的图源也能直接贴图，无需服务端代理。
+ * 只处理同源、data: 或 blob: 图片。跨域图片即使不调用 getImageData，
+ * 经 canvas 上传到 WebGL 纹理时仍会触发浏览器安全限制；QQ 封面的整屏氛围色
+ * 已由 CSS 背景层承担，这里保持中性粒子即可。
  */
 const coverTextureSize = 256;
 
@@ -873,6 +873,23 @@ export function StarfieldCanvas({
       return;
     }
 
+    let resolvedCoverUrl: URL;
+    try {
+      resolvedCoverUrl = new URL(coverUrl, window.location.href);
+    } catch {
+      uniforms.uHasCover.value = 0;
+      return;
+    }
+
+    if (
+      resolvedCoverUrl.origin !== window.location.origin &&
+      resolvedCoverUrl.protocol !== "data:" &&
+      resolvedCoverUrl.protocol !== "blob:"
+    ) {
+      uniforms.uHasCover.value = 0;
+      return;
+    }
+
     let cancelled = false;
     const image = new Image();
     image.decoding = "async";
@@ -900,7 +917,7 @@ export function StarfieldCanvas({
     image.onerror = () => {
       // 封面拉不到就保持当前配色，不要闪回灰色
     };
-    image.src = coverUrl;
+    image.src = resolvedCoverUrl.href;
 
     return () => {
       cancelled = true;
