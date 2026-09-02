@@ -788,9 +788,8 @@ async function resolveQqSongUrl(
     comm: {
       uin,
       format: "json",
-      ct: musicKey ? 19 : 24,
-      cv: 0,
-      ...(musicKey ? { authst: musicKey } : {})
+      ct: 24,
+      cv: 0
     },
     req_0: {
       module: "vkey.GetVkeyServer",
@@ -802,7 +801,8 @@ async function resolveQqSongUrl(
         uin,
         loginflag: 1,
         platform: "20",
-        filename: candidates.map((candidate) => candidate.filename)
+        filename: candidates.map((candidate) => candidate.filename),
+        ...(musicKey ? { authst: musicKey } : {})
       }
     }
   };

@@ -261,6 +261,7 @@ async function completeQqQrLogin(
     );
     addResponseCookies(cookieMap, loginResponse.headers);
     if (!loginResponse.ok) throw new Error("QQ 音乐登录凭据交换失败");
+    addLoginResponseCredentials(cookieMap, await loginResponse.text());
 
     setSessionState(session, "verifying_account", "正在验证 QQ 音乐账号");
     const authentication = await authenticateAndSaveQqCookie(
@@ -366,6 +367,45 @@ function serializeCookies(cookieMap: Map<string, string>) {
     .filter(([name, value]) => name && value)
     .map(([name, value]) => `${name}=${value}`)
     .join("; ");
+}
+
+function addLoginResponseCredentials(cookieMap: Map<string, string>, responseText: string) {
+  let parsed: {
+    code?: number;
+    req?: {
+      code?: number;
+      data?: {
+        musicid?: string | number;
+        strMusicid?: string;
+        musickey?: string;
+      };
+    };
+  };
+
+  try {
+    parsed = JSON.parse(responseText) as typeof parsed;
+  } catch {
+    return;
+  }
+
+  if (Number(parsed.code ?? 0) !== 0 || Number(parsed.req?.code ?? 0) !== 0) {
+    throw new Error("QQ 音乐登录凭据交换失败");
+  }
+
+  const data = parsed.req?.data;
+  const musicId = String(data?.strMusicid ?? data?.musicid ?? "")
+    .replace(/\D/g, "")
+    .replace(/^0+/, "");
+  const musicKey = String(data?.musickey ?? "").trim();
+
+  if (musicId) {
+    cookieMap.set("uin", musicId);
+    cookieMap.set("qqmusic_uin", musicId);
+  }
+  if (musicKey) {
+    cookieMap.set("qqmusic_key", musicKey);
+    cookieMap.set("qm_keyst", musicKey);
+  }
 }
 
 function hash33(value: string) {

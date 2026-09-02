@@ -16,6 +16,7 @@ process.env.AI_RADIO_QQ_LOGIN_RATE_LIMIT_PER_MINUTE = "120";
 const rootDir = await mkdtemp(join(tmpdir(), "redio-qq-login-"));
 const realFetch = globalThis.fetch;
 let upstreamQrPollCount = 0;
+let observedVkeyAuthPlacement = false;
 
 globalThis.fetch = async (input, init) => {
   const url = new URL(typeof input === "string" || input instanceof URL ? input : input.url);
@@ -61,12 +62,15 @@ globalThis.fetch = async (input, init) => {
     const payload = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
 
     if (payload.req) {
-      const headers = new Headers({ "Content-Type": "application/json" });
-      headers.append("Set-Cookie", "uin=o12345; Path=/");
-      headers.append("Set-Cookie", "qm_keyst=test-playback-key; Path=/");
-      return new Response("{}", {
-        status: 200,
-        headers
+      return Response.json({
+        code: 0,
+        req: {
+          code: 0,
+          data: {
+            musicid: 12345,
+            musickey: "test-playback-key"
+          }
+        }
       });
     }
 
@@ -84,6 +88,15 @@ globalThis.fetch = async (input, init) => {
         }
       });
     }
+
+    const comm = payload.comm as { ct?: number; authst?: string } | undefined;
+    const request = payload.req_0 as {
+      param?: { authst?: string };
+    } | undefined;
+    assert.equal(comm?.ct, 24);
+    assert.equal(comm?.authst, undefined);
+    assert.equal(request?.param?.authst, "test-playback-key");
+    observedVkeyAuthPlacement = true;
 
     return Response.json({
       req_0: {
@@ -189,6 +202,7 @@ try {
   assert.equal(ownerResult.state, "ready", ownerResult.message);
   assert.equal(ownerResult.status?.playbackKeyReady, true);
   assert.equal(upstreamQrPollCount, 2);
+  assert.equal(observedVkeyAuthPlacement, true);
 
   const sessionCookie = ownerResponse?.headers
     .getSetCookie()
