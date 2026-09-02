@@ -261,7 +261,17 @@ async function completeQqQrLogin(
     );
     addResponseCookies(cookieMap, loginResponse.headers);
     if (!loginResponse.ok) throw new Error("QQ 音乐登录凭据交换失败");
-    addLoginResponseCredentials(cookieMap, await loginResponse.text());
+    const loginCredentials = addLoginResponseCredentials(
+      cookieMap,
+      await loginResponse.text()
+    );
+    console.info("[qq-login] credential exchange", {
+      bodyMusicId: loginCredentials.musicId,
+      bodyMusicKey: loginCredentials.musicKey,
+      cookieFields: [...cookieMap.keys()].filter((name) =>
+        ["uin", "qqmusic_uin", "qm_keyst", "qqmusic_key", "music_key", "wxskey"].includes(name)
+      )
+    });
 
     setSessionState(session, "verifying_account", "正在验证 QQ 音乐账号");
     const authentication = await authenticateAndSaveQqCookie(
@@ -385,7 +395,7 @@ function addLoginResponseCredentials(cookieMap: Map<string, string>, responseTex
   try {
     parsed = JSON.parse(responseText) as typeof parsed;
   } catch {
-    return;
+    return { musicId: false, musicKey: false };
   }
 
   if (Number(parsed.code ?? 0) !== 0 || Number(parsed.req?.code ?? 0) !== 0) {
@@ -406,6 +416,8 @@ function addLoginResponseCredentials(cookieMap: Map<string, string>, responseTex
     cookieMap.set("qqmusic_key", musicKey);
     cookieMap.set("qm_keyst", musicKey);
   }
+
+  return { musicId: Boolean(musicId), musicKey: Boolean(musicKey) };
 }
 
 function hash33(value: string) {

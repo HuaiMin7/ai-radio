@@ -143,6 +143,8 @@ const server = createServer((request, response) => {
 
 try {
   assert.equal(isAllowedQqAudioUrl(new URL("https://dl.stream.qqmusic.qq.com/a.mp3")), true);
+  assert.equal(isAllowedQqAudioUrl(new URL("https://aqqmusic.tc.qq.com/a.mp3")), true);
+  assert.equal(isAllowedQqAudioUrl(new URL("https://evilaqqmusic.tc.qq.com/a.mp3")), false);
   assert.equal(isAllowedQqAudioUrl(new URL("https://y.qq.com/a.mp3")), false);
   assert.equal(isAllowedQqAudioUrl(new URL("https://evilqq.com/a.mp3")), false);
 

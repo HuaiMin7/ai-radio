@@ -284,20 +284,45 @@ export async function probeAndSaveQqPlayback(
   user: AuthenticatedUser
 ) {
   const cookie = await readQqCookie(rootDir, user);
+  const cookieObj = parseCookieString(cookie);
   const rawStatus = readQqLoginStatusFromCookie(cookie);
+  const diagnostics: NonNullable<PlaybackProbeRecord["diagnostics"]> = {
+    credentialFields: ["qm_keyst", "qqmusic_key", "music_key", "wxskey"].filter(
+      (name) => Boolean(cookieObj[name])
+    ),
+    attempts: []
+  };
 
   if (!rawStatus.playbackKeyReady) {
-    await writePlaybackProbe(rootDir, user, "ticket_missing");
+    await writePlaybackProbe(rootDir, user, "ticket_missing", diagnostics);
     return getQqLoginStatus(rootDir, user);
   }
 
-  for (const track of getPlaybackProbeTracks()) {
+  const probeTracks = getPlaybackProbeTracks();
+  for (const [probeIndex, track] of probeTracks.entries()) {
     try {
       const resolved = await resolveQqPlayableUrl(rootDir, user, track.title, track.artist);
-      if (!resolved.playable) continue;
+      if (!resolved.playable) {
+        diagnostics.attempts.push({
+          probeIndex,
+          stage: "resolve",
+          reason: resolved.reason,
+          qqCode: resolved.qqCode
+        });
+        console.warn("[qq-playback-probe] resolve failed", {
+          probeIndex,
+          reason: resolved.reason,
+          qqCode: resolved.qqCode
+        });
+        continue;
+      }
 
       const audioUrl = new URL(resolved.url);
-      if (!isAllowedQqAudioUrl(audioUrl)) continue;
+      if (!isAllowedQqAudioUrl(audioUrl)) {
+        diagnostics.attempts.push({ probeIndex, stage: "host" });
+        console.warn("[qq-playback-probe] rejected audio host", { probeIndex });
+        continue;
+      }
 
       const response = await fetch(audioUrl, {
         headers: { Range: "bytes=0-1023" },
@@ -315,15 +340,44 @@ export async function probeAndSaveQqPlayback(
         isAudioContent &&
         probeBytes.byteLength > 0
       ) {
-        await writePlaybackProbe(rootDir, user, "ready");
+        diagnostics.attempts.push({
+          probeIndex,
+          stage: "audio",
+          status: response.status,
+          contentType,
+          bytes: probeBytes.byteLength
+        });
+        await writePlaybackProbe(rootDir, user, "ready", diagnostics);
         return getQqLoginStatus(rootDir, user);
       }
-    } catch {
+      diagnostics.attempts.push({
+        probeIndex,
+        stage: "audio",
+        status: response.status,
+        contentType,
+        bytes: probeBytes.byteLength
+      });
+      console.warn("[qq-playback-probe] invalid audio response", {
+        probeIndex,
+        status: response.status,
+        contentType,
+        bytes: probeBytes.byteLength
+      });
+    } catch (error) {
+      diagnostics.attempts.push({
+        probeIndex,
+        stage: "request",
+        error: error instanceof Error ? error.name : "UnknownError"
+      });
+      console.warn("[qq-playback-probe] request failed", {
+        probeIndex,
+        error: error instanceof Error ? error.name : "UnknownError"
+      });
       // Continue through the configured probe set before declaring it unavailable.
     }
   }
 
-  await writePlaybackProbe(rootDir, user, "probe_unavailable");
+  await writePlaybackProbe(rootDir, user, "probe_unavailable", diagnostics);
   const status = await getQqLoginStatus(rootDir, user);
   return {
     ...status,
@@ -1114,6 +1168,19 @@ type PlaybackProbeRecord = {
   version: 1;
   status: "ready" | "ticket_missing" | "probe_unavailable";
   probedAt: number;
+  diagnostics?: {
+    credentialFields: string[];
+    attempts: Array<{
+      probeIndex: number;
+      stage: "resolve" | "host" | "audio" | "request";
+      reason?: string;
+      qqCode?: string | number;
+      status?: number;
+      contentType?: string;
+      bytes?: number;
+      error?: string;
+    }>;
+  };
 };
 
 async function readPlaybackProbe(
@@ -1145,10 +1212,16 @@ async function readPlaybackProbe(
 async function writePlaybackProbe(
   rootDir: string,
   user: AuthenticatedUser,
-  status: PlaybackProbeRecord["status"]
+  status: PlaybackProbeRecord["status"],
+  diagnostics?: PlaybackProbeRecord["diagnostics"]
 ) {
   const userDir = getUserDataDir(rootDir, user);
-  const record: PlaybackProbeRecord = { version: 1, status, probedAt: Date.now() };
+  const record: PlaybackProbeRecord = {
+    version: 1,
+    status,
+    probedAt: Date.now(),
+    ...(diagnostics ? { diagnostics } : {})
+  };
   await mkdir(userDir, { recursive: true, mode: 0o700 });
   await writeTextAtomic(
     join(userDir, playbackProbeFilename),

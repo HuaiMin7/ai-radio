@@ -38,7 +38,7 @@
 | 异步授权 | 扫码确认后进入 `authorizing → verifying_account → verifying_playback → ready/error`；异常成为终态，不重复跑授权交换 |
 | 真实播放探测 | 使用可配置的 3–5 首探测歌曲，必须取得 vkey、QQ CDN URL 和成功的 Range 响应；区分缺票据与探测歌曲均不可用 |
 | Bridge 行为 | 默认二维码模式不再自动检测或同步 Bridge；Bridge 仅在设置页由用户手动触发 |
-| 音频代理 | 从所有 `*.qq.com` 收紧到 `*.stream.qqmusic.qq.com` 与 `*.music.tc.qq.com` |
+| 音频代理 | 从所有 `*.qq.com` 收紧到 `*.stream.qqmusic.qq.com`、`*.music.tc.qq.com` 与已验证的 `aqqmusic.tc.qq.com` |
 | 自动化检查 | 新增 `npm run check:qq-login`，覆盖 A 创建、B 盗用同一 `loginId` 返回 404、轮询节流、异步授权和真实播放探测模拟 |
 
 ## 2. 背景与问题
