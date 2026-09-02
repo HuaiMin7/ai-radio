@@ -83,10 +83,12 @@ Set this value in `.env`:
 AI_RADIO_MUSIC_PROVIDER=qq
 ```
 
-The web app uses Redio Bridge to open QQ Music's official login page and sync
-the resulting QQ login state. The server verifies the account before issuing
-Redio's signed, HttpOnly session. QQ credentials are encrypted per music
-account under `data/users/`; they are never returned by the Redio API.
+The web app displays a server-created QQ login QR code, so normal users do not
+need Redio Bridge. The server binds that QR to its initiating browser, verifies
+the QQ account, probes a real audio Range response, and only then issues Redio's
+signed, HttpOnly session. Bridge remains an explicit fallback in settings.
+QQ credentials are encrypted per music account under `data/users/`; they are
+never returned by the Redio API.
 
 If QQ Music does not return a playable URL, the result remains explicitly
 `failed`; Redio may try another playable taste-sample track, but it does not
@@ -103,6 +105,7 @@ Production requires a stable secret of at least 32 characters:
 
 ```env
 AI_RADIO_SESSION_SECRET=
+AI_RADIO_CREDENTIAL_SECRET=
 AI_RADIO_SECURE_COOKIES=1
 ```
 

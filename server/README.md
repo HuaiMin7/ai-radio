@@ -9,7 +9,7 @@ Local backend modules.
 - `brain.ts` LLM adapter and JSON validation.
 - `music.ts` music search and playback URL resolution.
 - `qq-music.ts` QQ login status, search, lyrics, and vkey playback resolution.
-- `qq-login.ts` retained server-side QQ QR compatibility flow; the web UI uses Redio Bridge.
+- `qq-login.ts` owner-bound QQ QR login state machine and asynchronous authorization flow.
 - `tts.ts` speech generation and cache lookup.
 - `scheduler.ts` planned segments and routine hooks.
 - `state.ts` local state persistence.

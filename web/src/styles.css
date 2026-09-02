@@ -260,6 +260,7 @@ p {
 }
 
 .loginQrPlaceholder {
+  display: grid;
   width: 156px;
   height: 156px;
   flex: 0 0 156px;
@@ -267,11 +268,23 @@ p {
   border-radius: 16px;
   padding: 0;
   background: #fff;
+  overflow: hidden;
+  place-items: center;
 }
 
-.loginQrPlaceholder:hover,
-.loginQrPlaceholder:focus-visible {
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.24);
+.loginQrPlaceholder img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.loginQrPlaceholder span {
+  padding: 16px;
+  color: #555;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
 }
 
 .loginQrCaption {
@@ -285,7 +298,8 @@ p {
   font-size: 14px;
   font-weight: 400;
   line-height: 22px;
-  white-space: nowrap;
+  text-align: center;
+  white-space: normal;
 }
 
 .loginQrCaption strong {

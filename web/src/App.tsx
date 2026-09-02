@@ -194,7 +194,35 @@ type QqLoginStatus = {
   nickname?: string;
   avatarUrl?: string;
   playbackKeyReady: boolean;
+  playbackProbeStatus?: "ready" | "ticket_missing" | "probe_unavailable" | "expired";
+  lastPlaybackProbeAt?: string;
   message?: string;
+};
+
+type QqQrLoginState =
+  | "pending"
+  | "scanned"
+  | "authorizing"
+  | "verifying_account"
+  | "verifying_playback"
+  | "ready"
+  | "expired"
+  | "error";
+
+type QqQrLoginSession = {
+  loginId: string;
+  imageDataUrl: string;
+  expiresAt: string;
+  pollAfterMs: number;
+  state: QqQrLoginState;
+  message: string;
+};
+
+type QqQrLoginPollResult = {
+  state: QqQrLoginState;
+  message: string;
+  pollAfterMs: number;
+  status?: QqLoginStatus;
 };
 
 type LyricLine = {
@@ -317,6 +345,7 @@ const noMusicIntentPattern =
   /(?:先|暂时|现在)?(?:不想|不要|不用|不需要|别)(?:听歌|听音乐|放歌|播放音乐|播歌|推歌|推荐歌曲|推荐音乐)|别(?:给我)?(?:放歌|播歌|推歌|推荐(?:歌|歌曲|音乐))/i;
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? "";
 const appBaseUrl = import.meta.env.BASE_URL.replace(/\/$/, "");
+const isPublicDemo = import.meta.env.VITE_PUBLIC_DEMO === "1";
 
 function getPublicAssetUrl(url: string) {
   return `${appBaseUrl}${url}`;
@@ -999,8 +1028,9 @@ export function App() {
   const audioUnlockElementRef = useRef<HTMLAudioElement | null>(null);
   const playbackToastTimerRef = useRef<number | null>(null);
   const lyricsCacheRef = useRef(new Map<string, LyricLine[]>());
-  const bridgeAutoRefreshInFlightRef = useRef(false);
   const lastSyncedBridgeCookieRef = useRef("");
+  const qqQrPollGenerationRef = useRef(0);
+  const qqQrAbortControllerRef = useRef<AbortController | null>(null);
   const lastAudibleVolumeRef = useRef(0.5);
   const [nowPlaying, setNowPlaying] = useState<NowPlayingState | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
@@ -1031,6 +1061,7 @@ export function App() {
   const [isQqWebLoginBusy, setIsQqWebLoginBusy] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isManualCookieOpen, setIsManualCookieOpen] = useState(false);
+  const [qqQrLogin, setQqQrLogin] = useState<QqQrLoginSession | null>(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeDjText, setActiveDjText] = useState<string | null>(null);
   const [queueTracks, setQueueTracks] = useState<QueueTrack[]>([]);
@@ -1046,8 +1077,8 @@ export function App() {
   const [qqCookieDraft, setQqCookieDraft] = useState("");
   const [redioBridgeStatus, setRedioBridgeStatus] = useState<RedioBridgeStatus>({
     connected: false,
-    checking: true,
-    message: "正在检测 Redio Bridge"
+    checking: false,
+    message: "仅在二维码登录失败时手动检测"
   });
   const [logs, setLogs] = useState<AppLogEntry[]>([
     {
@@ -1211,13 +1242,98 @@ export function App() {
     setError(null);
     setIsManualCookieOpen(false);
     setIsLoginModalOpen(true);
-    void detectRedioBridge();
+    void startQqQrLogin();
   }
 
   function closeLoginModal() {
+    qqQrPollGenerationRef.current += 1;
+    qqQrAbortControllerRef.current?.abort();
+    qqQrAbortControllerRef.current = null;
     setIsLoginModalOpen(false);
     setIsManualCookieOpen(false);
     setIsQqWebLoginBusy(false);
+    setQqQrLogin(null);
+  }
+
+  async function startQqQrLogin() {
+    qqQrAbortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    qqQrAbortControllerRef.current = abortController;
+    const generation = qqQrPollGenerationRef.current + 1;
+    qqQrPollGenerationRef.current = generation;
+    setIsQqWebLoginBusy(true);
+    setQqQrLogin(null);
+    setError(null);
+
+    try {
+      const created = await fetchJson<
+        Omit<QqQrLoginSession, "state" | "message">
+      >("/api/qq/login/qr", {
+        method: "POST",
+        signal: abortController.signal
+      });
+      const session: QqQrLoginSession = {
+        ...created,
+        state: "pending",
+        message: "请使用 QQ 音乐或 QQ 扫码"
+      };
+
+      if (qqQrPollGenerationRef.current !== generation) return;
+      setQqQrLogin(session);
+
+      let pollAfterMs = session.pollAfterMs;
+      while (qqQrPollGenerationRef.current === generation) {
+        await waitForBridgePoll(Math.max(250, pollAfterMs));
+        if (qqQrPollGenerationRef.current !== generation) return;
+        if (document.visibilityState !== "visible") {
+          pollAfterMs = 500;
+          continue;
+        }
+
+        const result = await fetchJson<QqQrLoginPollResult>(
+          "/api/qq/login/qr/status",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ loginId: session.loginId }),
+            signal: abortController.signal
+          }
+        );
+
+        if (qqQrPollGenerationRef.current !== generation) return;
+        setQqQrLogin((current) =>
+          current?.loginId === session.loginId
+            ? { ...current, ...result }
+            : current
+        );
+
+        if (result.state === "ready" && result.status?.playbackKeyReady) {
+          setQqLoginStatus(result.status);
+          resolvingTrackKeysRef.current.clear();
+          setResolvedTrackOverrides({});
+          await loadAuthenticatedData();
+          appendLog("success", "QQ 音乐登录成功", "账号与歌曲播放能力已验证");
+          closeLoginModal();
+          return;
+        }
+
+        if (result.state === "expired" || result.state === "error") {
+          setError(result.message);
+          setIsQqWebLoginBusy(false);
+          return;
+        }
+
+        pollAfterMs = result.pollAfterMs || 1000;
+      }
+    } catch (requestError) {
+      if (abortController.signal.aborted) return;
+      if (qqQrPollGenerationRef.current !== generation) return;
+      const errorMessage =
+        requestError instanceof Error ? requestError.message : "QQ 音乐二维码登录失败。";
+      setError(errorMessage);
+      setIsQqWebLoginBusy(false);
+      appendLog("error", "QQ 音乐二维码登录失败", errorMessage);
+    }
   }
 
   async function detectRedioBridge() {
@@ -1401,19 +1517,6 @@ export function App() {
     } finally {
       setIsQqWebLoginBusy(false);
     }
-  }
-
-  async function openQqLoginFromModal() {
-    if (
-      !redioBridgeStatus.connected ||
-      isRedioBridgeOutdated(redioBridgeStatus.version)
-    ) {
-      window.open("https://y.qq.com/", "_blank", "noopener,noreferrer");
-      setError("请先安装并启用 Redio Bridge，登录后再刷新登录状态。");
-      return;
-    }
-
-    await openQqBridgeLogin();
   }
 
   async function syncQqCookieFromBridge(options: { silent?: boolean } = {}) {
@@ -1993,52 +2096,6 @@ export function App() {
       setIsPlanning(false);
     }
   }
-
-  useEffect(() => {
-    const shouldRefreshBridgeLogin =
-      isLoginModalOpen || (appView === "settings" && isQqSourceOpen);
-
-    if (
-      !shouldRefreshBridgeLogin ||
-      !redioBridgeStatus.connected ||
-      isRedioBridgeOutdated(redioBridgeStatus.version)
-    ) {
-      return;
-    }
-
-    let disposed = false;
-
-    const refreshLoginStatus = () => {
-      if (
-        disposed ||
-        document.visibilityState !== "visible" ||
-        bridgeAutoRefreshInFlightRef.current
-      ) {
-        return;
-      }
-
-      bridgeAutoRefreshInFlightRef.current = true;
-      void syncQqCookieFromBridge({ silent: true }).finally(() => {
-        bridgeAutoRefreshInFlightRef.current = false;
-      });
-    };
-
-    window.addEventListener("focus", refreshLoginStatus);
-    document.addEventListener("visibilitychange", refreshLoginStatus);
-    refreshLoginStatus();
-
-    return () => {
-      disposed = true;
-      window.removeEventListener("focus", refreshLoginStatus);
-      document.removeEventListener("visibilitychange", refreshLoginStatus);
-    };
-  }, [
-    appView,
-    isLoginModalOpen,
-    isQqSourceOpen,
-    redioBridgeStatus.connected,
-    redioBridgeStatus.version
-  ]);
 
   useEffect(() => {
     Promise.all([
@@ -2798,7 +2855,6 @@ export function App() {
   ) : null;
   const loginModal = isLoginModalOpen ? (
     <LoginModal
-      bridgeStatus={redioBridgeStatus}
       cookieDraft={qqCookieDraft}
       error={error}
       isLoginBusy={isQqWebLoginBusy}
@@ -2806,11 +2862,10 @@ export function App() {
       isSaving={isQqSaving}
       onClose={closeLoginModal}
       onCookieChange={setQqCookieDraft}
-      onDetectBridge={() => void detectRedioBridge()}
-      onOpenQqLogin={() => void openQqLoginFromModal()}
-      onRefresh={() => void syncQqCookieFromBridge()}
+      onRefreshQr={() => void startQqQrLogin()}
       onSaveCookie={() => void saveQqCookie()}
       onToggleManualCookie={() => setIsManualCookieOpen((isOpen) => !isOpen)}
+      qrSession={qqQrLogin}
     />
   ) : null;
   const settingsSections = (
@@ -2831,6 +2886,7 @@ export function App() {
         onDetectBridge={() => void detectRedioBridge()}
         onDesktopLogin={() => void openQqDesktopLogin()}
         onBridgeLogin={() => void openQqBridgeLogin()}
+        onLogin={openLoginModal}
         onSave={() => void saveQqCookie()}
         onSyncBridge={() => void syncQqCookieFromBridge()}
         onToggle={() => setIsQqSourceOpen((isOpen) => !isOpen)}
@@ -3086,7 +3142,6 @@ export function App() {
 }
 
 function LoginModal({
-  bridgeStatus,
   cookieDraft,
   error,
   isLoginBusy,
@@ -3094,13 +3149,11 @@ function LoginModal({
   isSaving,
   onClose,
   onCookieChange,
-  onDetectBridge,
-  onOpenQqLogin,
-  onRefresh,
+  onRefreshQr,
   onSaveCookie,
-  onToggleManualCookie
+  onToggleManualCookie,
+  qrSession
 }: {
-  bridgeStatus: RedioBridgeStatus;
   cookieDraft: string;
   error: string | null;
   isLoginBusy: boolean;
@@ -3108,15 +3161,11 @@ function LoginModal({
   isSaving: boolean;
   onClose: () => void;
   onCookieChange: (value: string) => void;
-  onDetectBridge: () => void;
-  onOpenQqLogin: () => void;
-  onRefresh: () => void;
+  onRefreshQr: () => void;
   onSaveCookie: () => void;
   onToggleManualCookie: () => void;
+  qrSession: QqQrLoginSession | null;
 }) {
-  const bridgeReady =
-    bridgeStatus.connected && !isRedioBridgeOutdated(bridgeStatus.version);
-
   return (
     <section
       aria-labelledby="login-modal-title"
@@ -3160,22 +3209,24 @@ function LoginModal({
           </div>
 
           <div className="loginQqBlock" data-node-id="233:763">
-            <button
-              aria-busy={isLoginBusy}
-              aria-label="打开 QQ 音乐登录页"
-              className="loginQrPlaceholder"
+            <div
+              aria-busy={!qrSession && isLoginBusy}
+              aria-label="QQ 音乐登录二维码"
+              className={`loginQrPlaceholder ${qrSession ? "hasQr" : ""}`}
               data-node-id="233:764"
-              disabled={isLoginBusy}
-              onClick={onOpenQqLogin}
-              type="button"
-            />
+            >
+              {qrSession ? (
+                <img alt="QQ 音乐登录二维码" src={qrSession.imageDataUrl} />
+              ) : (
+                <span>{isLoginBusy ? "正在获取二维码…" : "二维码获取失败"}</span>
+              )}
+            </div>
             <p className="loginQrCaption" data-node-id="233:773">
-              <span>点击</span>
               <strong>
                 <img alt="" aria-hidden="true" src={getPublicAssetUrl("/images/qq-music-icon.png")} />
                 QQ音乐
               </strong>
-              <span>{isLoginBusy ? "等待登录" : "扫码登录"}</span>
+              <span>{qrSession?.message ?? "正在准备扫码登录"}</span>
             </p>
           </div>
         </div>
@@ -3184,24 +3235,21 @@ function LoginModal({
 
         <div className="loginModalActions" data-node-id="239:798">
           <button
-            className="loginBridgeCheck"
-            disabled={bridgeStatus.checking}
-            onClick={onDetectBridge}
+            disabled={isLoginBusy && !error}
+            onClick={onRefreshQr}
             type="button"
           >
-            <i className={bridgeReady ? "isReady" : ""} />
-            <span>{bridgeStatus.checking ? "检测中" : "Bridge检测"}</span>
+            {isLoginBusy && !error ? "等待扫码" : "刷新二维码"}
           </button>
-          <button disabled={isSaving || !bridgeReady} onClick={onRefresh} type="button">
-            {isSaving ? "刷新中" : "刷新登录状态"}
-          </button>
-          <button
-            aria-expanded={isManualCookieOpen}
-            onClick={onToggleManualCookie}
-            type="button"
-          >
-            手动导入Cookie
-          </button>
+          {!isPublicDemo ? (
+            <button
+              aria-expanded={isManualCookieOpen}
+              onClick={onToggleManualCookie}
+              type="button"
+            >
+              本地调试：导入 Cookie
+            </button>
+          ) : null}
         </div>
 
         {isManualCookieOpen ? (
@@ -3231,11 +3279,8 @@ function LoginModal({
         ) : null}
 
         <p className="loginBridgeNotice" data-node-id="239:813">
-          网页版通过 Redio Bridge 打开 QQ 音乐官方页面并同步登录态。
-          验证成功后，聊天、推荐、播放记录和反馈只归属于当前音乐账号。
-          <a download href={getPublicAssetUrl("/downloads/redio-bridge.zip")}>
-            点击安装
-          </a>
+          无需安装插件。扫码后 Redio 会自动完成账号和歌曲播放能力验证。
+          当前手机无法识别屏幕中的二维码时，请用另一台设备扫码；Bridge 仅保留在设置中作为手动兜底。
         </p>
       </div>
     </section>
@@ -4625,6 +4670,7 @@ function QqSourceSection({
   onCookieChange,
   onDetectBridge,
   onDesktopLogin,
+  onLogin,
   onSave,
   onSyncBridge,
   onToggle,
@@ -4641,6 +4687,7 @@ function QqSourceSection({
   onCookieChange: (value: string) => void;
   onDetectBridge: () => void;
   onDesktopLogin: () => void;
+  onLogin: () => void;
   onSave: () => void;
   onSyncBridge: () => void;
   onToggle: () => void;
@@ -4657,15 +4704,7 @@ function QqSourceSection({
   const clearButtonLabel = status?.loggedIn ? "退出登录" : "清除 Cookie";
   const bridgeNeedsReload =
     bridgeStatus.connected && isRedioBridgeOutdated(bridgeStatus.version);
-  const primaryLoginLabel = isWebLoginBusy
-    ? "等待扫码"
-    : bridgeNeedsReload
-      ? "请重新加载 Bridge"
-    : bridgeStatus.connected
-      ? "扫码登录 QQ 音乐"
-      : isDesktop
-        ? "桌面端扫码登录"
-        : "安装 Bridge 后登录";
+  const primaryLoginLabel = isWebLoginBusy ? "等待扫码" : "扫码登录 QQ 音乐";
 
   return (
     <section className="sourceSection" aria-label="QQ 音源">
@@ -4676,11 +4715,11 @@ function QqSourceSection({
       {isOpen ? (
         <div className="sourcePanel">
           <p>
-            Redio Bridge 可以读取你在 QQ 音乐官方网页的登录态，并只把必要 Cookie
-            按音乐账号加密保存。未安装 Bridge 时仍可使用桌面端登录或手动导入。
+            直接使用服务端二维码登录，无需安装浏览器插件。Redio 只在账号与实际歌曲播放能力
+            都验证通过后显示登录成功。
           </p>
           <div className="bridgeStatusCard">
-            <span>Redio Bridge</span>
+            <span>手动兜底 · Redio Bridge</span>
             <strong className={bridgeStatus.connected && !bridgeNeedsReload ? "isReady" : ""}>
               {bridgeStatus.checking
                 ? "检测中"
@@ -4698,53 +4737,55 @@ function QqSourceSection({
             <span>账号</span>
             <strong>{status?.nickname ?? status?.userId ?? "未登录"}</strong>
             <span>播放票据</span>
-            <strong>{status?.playbackKeyReady ? "已检测到" : "未检测到"}</strong>
+            <strong>{status?.playbackKeyReady ? "实际播放已验证" : "尚未验证"}</strong>
           </div>
           <div className="sourceLoginBlock">
             <button
               className="sourceLoginButton"
-              disabled={
-                isSaving ||
-                isWebLoginBusy ||
-                bridgeNeedsReload ||
-                (!bridgeStatus.connected && !isDesktop)
-              }
-              onClick={bridgeStatus.connected ? onBridgeLogin : onDesktopLogin}
+              disabled={isSaving || isWebLoginBusy}
+              onClick={onLogin}
               type="button"
             >
               {primaryLoginLabel}
             </button>
             <small>
-              {bridgeStatus.connected
-                ? bridgeNeedsReload
-                  ? "请在 Chrome 扩展管理页重新加载 Redio Bridge，然后刷新当前页面。"
-                  : "点击后会打开 QQ 音乐官方网页，扫码完成后自动同步播放票据。"
-                : isDesktop
-                  ? "未检测到 Bridge，当前会使用桌面客户端登录窗口。"
-                  : "浏览器版需要先加载 bridge-extension 目录，或继续手动粘贴 Cookie。"}
+              二维码失效可直接刷新；扫码完成后页面会自动更新登录状态和账号数据。
             </small>
           </div>
-          <textarea
-            aria-label="QQ 音乐 Cookie"
-            onChange={(event) => onCookieChange(event.target.value)}
-            placeholder="uin=...; qm_keyst=...; qqmusic_key=...; music_key=..."
-            spellCheck={false}
-            value={cookieDraft}
-          />
+          {!isPublicDemo ? (
+            <textarea
+              aria-label="QQ 音乐 Cookie"
+              onChange={(event) => onCookieChange(event.target.value)}
+              placeholder="本地调试：uin=...; qm_keyst=...; qqmusic_key=..."
+              spellCheck={false}
+              value={cookieDraft}
+            />
+          ) : null}
           <div className="sourceActions">
             <button disabled={bridgeStatus.checking} onClick={onDetectBridge} type="button">
               {bridgeStatus.checking ? "检测中" : "重新检测"}
             </button>
             <button
               disabled={isSaving || !bridgeStatus.connected || bridgeNeedsReload}
-              onClick={onSyncBridge}
+              onClick={onBridgeLogin}
               type="button"
             >
-              刷新登录状态
+              Bridge 兜底登录
             </button>
-            <button disabled={isSaving} onClick={onSave} type="button">
-              {isSaving ? "保存中" : "保存 Cookie"}
-            </button>
+            {bridgeStatus.connected ? (
+              <button disabled={isSaving || bridgeNeedsReload} onClick={onSyncBridge} type="button">
+                同步 Bridge 状态
+              </button>
+            ) : isDesktop ? (
+              <button disabled={isSaving} onClick={onDesktopLogin} type="button">
+                桌面端兜底登录
+              </button>
+            ) : null}
+            {!isPublicDemo ? (
+              <button disabled={isSaving} onClick={onSave} type="button">
+                {isSaving ? "保存中" : "保存 Cookie"}
+              </button>
+            ) : null}
             <button disabled={isSaving || !hasSavedLogin} onClick={onClear} type="button">
               {isSaving && hasSavedLogin ? "处理中" : clearButtonLabel}
             </button>

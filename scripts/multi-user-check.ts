@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { createServer } from "node:http";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   createAuthenticatedUser,
   createSessionToken,
   getUserDataDir,
+  assertAuthConfiguration,
   readEncryptedUserSecret,
   readAuthenticatedUser,
   revokeUserSessions,
@@ -21,6 +23,8 @@ import { createRouter } from "../server/router.js";
 
 process.env.AI_RADIO_SESSION_SECRET =
   "redio-multi-user-check-secret-with-at-least-32-characters";
+process.env.AI_RADIO_CREDENTIAL_SECRET =
+  "redio-multi-user-check-credential-secret-at-least-32-characters";
 process.env.AI_RADIO_MUSIC_PROVIDER = "local";
 process.env.AI_RADIO_PUBLIC_DEMO = "0";
 
@@ -71,6 +75,49 @@ try {
     "utf8"
   );
   assert.equal(encryptedFile.includes("secret-playback-key"), false);
+  assert.equal(JSON.parse(encryptedFile).version, 2);
+
+  const legacyValue = "uin=20002; qm_keyst=legacy-playback-key";
+  const legacyIv = randomBytes(12);
+  const legacyKey = createHash("sha256")
+    .update(`redio-user-credential:${process.env.AI_RADIO_SESSION_SECRET}`)
+    .digest();
+  const legacyCipher = createCipheriv("aes-256-gcm", legacyKey, legacyIv);
+  const legacyCiphertext = Buffer.concat([
+    legacyCipher.update(legacyValue, "utf8"),
+    legacyCipher.final()
+  ]);
+  const secondUserDir = getUserDataDir(rootDir, secondUser);
+  await mkdir(secondUserDir, { recursive: true });
+  await writeFile(
+    join(secondUserDir, "qq-cookie.enc.json"),
+    JSON.stringify({
+      version: 1,
+      iv: legacyIv.toString("base64url"),
+      authTag: legacyCipher.getAuthTag().toString("base64url"),
+      ciphertext: legacyCiphertext.toString("base64url")
+    })
+  );
+  assert.equal(
+    await readEncryptedUserSecret(rootDir, secondUser, "qq-cookie"),
+    legacyValue
+  );
+  assert.equal(
+    JSON.parse(await readFile(join(secondUserDir, "qq-cookie.enc.json"), "utf8")).version,
+    2
+  );
+
+  const savedSessionSecret = process.env.AI_RADIO_SESSION_SECRET;
+  const savedCredentialSecret = process.env.AI_RADIO_CREDENTIAL_SECRET;
+  process.env.AI_RADIO_PUBLIC_DEMO = "1";
+  delete process.env.AI_RADIO_SESSION_SECRET;
+  delete process.env.AI_RADIO_CREDENTIAL_SECRET;
+  assert.throws(assertAuthConfiguration, /AI_RADIO_SESSION_SECRET/);
+  process.env.AI_RADIO_SESSION_SECRET = savedSessionSecret;
+  assert.throws(assertAuthConfiguration, /AI_RADIO_CREDENTIAL_SECRET/);
+  process.env.AI_RADIO_CREDENTIAL_SECRET = savedCredentialSecret;
+  assert.doesNotThrow(assertAuthConfiguration);
+  process.env.AI_RADIO_PUBLIC_DEMO = "0";
   const bridgeManifest = JSON.parse(
     await readFile(
       new URL("../bridge-extension/manifest.json", import.meta.url),

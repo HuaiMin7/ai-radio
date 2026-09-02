@@ -92,12 +92,16 @@ http://127.0.0.1:3000
 ```env
 AI_RADIO_BRAIN_PROVIDER=custom-http
 AI_RADIO_SESSION_SECRET=
+AI_RADIO_CREDENTIAL_SECRET=
 AI_RADIO_SECURE_COOKIES=0
 AI_RADIO_MODEL_BASE_URL=https://api.deepseek.com
 AI_RADIO_MODEL_NAME=deepseek-v4-pro
 AI_RADIO_MODEL_API_KEY=
 
 AI_RADIO_MUSIC_PROVIDER=qq
+AI_RADIO_QQ_LOGIN_RATE_LIMIT_PER_MINUTE=60
+AI_RADIO_QQ_PLAYBACK_PROBE_TRACKS=We Never|Hi Noise;月下煮茶|李思潼;来去打工|王以诺
+AI_RADIO_QQ_PLAYBACK_PROBE_MAX_AGE_MS=21600000
 AI_RADIO_NETEASE_API_BASE_URL=http://127.0.0.1:3000
 # Hidden legacy mode. Keep disabled unless explicitly testing the old NetEase adapter.
 AI_RADIO_ENABLE_NETEASE_PROVIDER=0
@@ -122,7 +126,8 @@ DASHSCOPE_API_KEY=
 说明：
 
 - `AI_RADIO_BRAIN_PROVIDER=custom-http`：走 OpenAI-compatible 接口。
-- `AI_RADIO_SESSION_SECRET`：签名本站会话并派生账号凭据加密密钥；公开部署必须使用至少 32 字符的稳定随机值。
+- `AI_RADIO_SESSION_SECRET`：签名本站会话；公开部署必须使用至少 32 字符的稳定随机值。
+- `AI_RADIO_CREDENTIAL_SECRET`：独立加密 QQ 凭据；公开部署同样必须至少 32 字符。
 - `AI_RADIO_SECURE_COOKIES=1`：公开 HTTPS 部署必须启用，确保本站会话 Cookie 只通过 HTTPS 发送。
 - `AI_RADIO_MODEL_BASE_URL`：DeepSeek 官方 OpenAI-compatible base URL。
 - `AI_RADIO_MODEL_NAME`：模型名，默认 `deepseek-v4-pro`。
@@ -151,7 +156,7 @@ GET  /api/weather       # 天气上下文
 GET  /api/audio/proxy   # 代理远端音频并保留 Range 请求
 GET  /api/qq/login/status # QQ 音乐登录状态
 POST /api/qq/login/qr   # 生成服务端 QQ 登录二维码
-GET  /api/qq/login/qr/:id # 轮询并完成 QQ 登录
+POST /api/qq/login/qr/status # 查询二维码状态并在 ready 时签发站内会话
 GET  /api/qq/search     # QQ 音乐搜索
 GET  /api/lyrics        # 当前歌曲歌词
 GET  /api/context       # 当前组装后的 prompt 上下文
