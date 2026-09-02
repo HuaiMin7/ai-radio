@@ -149,19 +149,7 @@ const persistedQqCookieNames = new Set([
   "qm_keyst",
   "qqmusic_key",
   "music_key",
-  "p_skey",
-  "skey",
-  "psrf_qqopenid",
-  "psrf_qqunionid",
-  "psrf_qqaccess_token",
-  "psrf_qqrefresh_token",
-  "wxopenid",
-  "wxunionid",
-  "wxrefresh_token",
-  "wxskey",
-  "p_uin",
-  "ptcz",
-  "RK"
+  "wxskey"
 ]);
 
 export async function authenticateAndSaveQqCookie(

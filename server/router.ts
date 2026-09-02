@@ -663,6 +663,13 @@ export function createRouter(rootDir: string): Handler {
       }
 
       if (request.method === "POST" && url.pathname === "/api/qq/login/cookie") {
+        if (isPublicDemo() && !authenticatedUser) {
+          sendJsonWithCors(response, 403, {
+            error: "公开站请使用 QQ 音乐二维码登录"
+          }, origin);
+          return;
+        }
+
         const body = await readJsonBody(request);
         const cookie = readCookieRequest(body);
 

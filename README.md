@@ -90,6 +90,10 @@ signed, HttpOnly session. Bridge remains an explicit fallback in settings.
 QQ credentials are encrypted per music account under `data/users/`; they are
 never returned by the Redio API.
 
+On the public site, the Cookie compatibility endpoint cannot create a new
+session. It only lets an already authenticated user refresh credentials for the
+same QQ account; first-time sign-in must use the owner-bound QR flow.
+
 If QQ Music does not return a playable URL, the result remains explicitly
 `failed`; Redio may try another playable taste-sample track, but it does not
 present local test audio as the requested song.

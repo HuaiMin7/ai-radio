@@ -179,6 +179,23 @@ try {
     false
   );
 
+  process.env.AI_RADIO_PUBLIC_DEMO = "1";
+  const publicCookieLogin = await realFetch(`${baseUrl}/api/qq/login/cookie`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      cookie: "uin=12345; qm_keyst=forged-playback-key"
+    })
+  });
+  assert.equal(publicCookieLogin.status, 403);
+  assert.equal(
+    publicCookieLogin.headers
+      .getSetCookie()
+      .some((cookie) => cookie.startsWith("redio_session=")),
+    false
+  );
+  process.env.AI_RADIO_PUBLIC_DEMO = "0";
+
   let ownerResult: {
     state: string;
     message?: string;
@@ -219,7 +236,9 @@ try {
   assert.equal(status.loggedIn, true);
   assert.equal(status.playbackKeyReady, true);
 
-  console.log("[ok] owner-bound QR login, async authorization, poll throttling, and playback probe");
+  console.log(
+    "[ok] owner-bound QR login, public Cookie-login guard, async authorization, poll throttling, and playback probe"
+  );
 } finally {
   globalThis.fetch = realFetch;
   await new Promise<void>((resolve) => server.close(() => resolve()));

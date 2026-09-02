@@ -190,7 +190,7 @@ try {
     assert.equal(authenticated.status, 200);
     assert.equal((await authenticated.json() as unknown[]).length, 2);
     assert.equal(health.status, 200);
-    assert.equal(publicBridgeLogin.status, 400);
+    assert.equal(publicBridgeLogin.status, 403);
 
     const sessionToken = createSessionToken(firstUser, Date.now() - 10);
     await revokeUserSessions(rootDir, firstUser);

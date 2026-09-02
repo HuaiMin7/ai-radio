@@ -164,7 +164,7 @@ POST /api/plan          # 根据用户输入生成新节目段落
 POST /api/tts           # 生成 DJ 语音
 POST /api/resolve-track # 解析单曲可播放状态
 POST /api/feedback      # 记录喜欢 / 跳过 / 重播
-POST /api/qq/login/cookie # 仅本地开发可手动保存 QQ Cookie，公开站禁用
+POST /api/qq/login/cookie # 本地可登录；公开站仅允许已登录账号刷新同账号 Bridge 凭据
 POST /api/qq/logout     # 清除本地 QQ Cookie
 ```
 
