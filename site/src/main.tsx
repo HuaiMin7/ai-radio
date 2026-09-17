@@ -118,8 +118,13 @@ function Placeholder({ title }: { title: string }) {
   );
 }
 
-// 底部备案信息（合规展示：工信部 ICP + 后续公安备案）
+// 临时隐藏 ICP 备案信息；需要恢复时将此开关改为 true。
+const SHOW_ICP_FILING = false;
+
+// 底部备案信息（工信部 ICP + 后续公安备案）
 function Footer() {
+  if (!SHOW_ICP_FILING) return null;
+
   return (
     <footer className="w-full py-[1.25rem] px-[1.5rem] flex items-center justify-center gap-[1rem] text-[0.7rem] text-neutral-400">
       <a
