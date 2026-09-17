@@ -1363,7 +1363,7 @@ export default function Carousel() {
       {/* touch-none, or the browser claims the gesture for panning and the
           pointermove stream dies mid-drag. Nothing here scrolls — the swipe
           is the carousel. */}
-      <div ref={containerRef} className="fixed inset-0 touch-none" />
+      <div ref={containerRef} className="absolute inset-0 touch-none" />
 
       {/* Never takes the pointer: the canvas underneath handles the wheel and
           the drag, and the column has no business interrupting a throw that
@@ -1375,7 +1375,7 @@ export default function Carousel() {
         style={{
           fontFamily: '"Satoshi", ui-sans-serif, system-ui, sans-serif',
         }}
-        className="project-index pointer-events-auto fixed right-[12vw] top-[2.4vh] z-10 flex flex-col items-start text-right leading-[1.4] tracking-[0.01em] text-[#0a0a0a] opacity-0 max-sm:hidden"
+        className="project-index pointer-events-auto absolute right-[12vw] top-[2.4vh] z-10 flex flex-col items-start text-right leading-[1.4] tracking-[0.01em] text-[#0a0a0a] opacity-0 max-sm:hidden"
       >
         {PROJECTS.map((p, i) => (
           <li key={p.file}>
@@ -1422,7 +1422,7 @@ export default function Carousel() {
               metaRef.current[side].box = el;
             }}
             aria-hidden="true"
-            className="pointer-events-none fixed top-1/2 z-10 -translate-y-1/2 tracking-[-0.01em] text-[#0a0a0a]"
+            className="pointer-events-none absolute top-1/2 z-10 -translate-y-1/2 tracking-[-0.01em] text-[#0a0a0a]"
           >
             <span
               ref={(el) => {
@@ -1463,7 +1463,7 @@ export default function Carousel() {
       <div
         ref={loaderRef}
         aria-hidden="true"
-        className="pointer-events-none fixed left-1/2 z-10 -translate-x-1/2 tracking-[-0.01em] text-[#0a0a0a]"
+        className="pointer-events-none absolute left-1/2 z-10 -translate-x-1/2 tracking-[-0.01em] text-[#0a0a0a]"
       />
 
       <div ref={liveRef} aria-live="polite" className="sr-only" />
