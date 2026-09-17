@@ -7,10 +7,13 @@
   z-index: 0;
   overflow: hidden;
   background: #fafafa;
+  opacity: 1;
+  will-change: opacity;
+  transform: translateZ(0);
 }
 .projects-gallery .carousel-scene { z-index: 0; }
 .projects-gallery.is-hidden {
-  visibility: hidden;
+  opacity: 0;
   pointer-events: none;
 }
 .projects-gallery .project-index { top: max(5.5rem, 2.4vh); }
