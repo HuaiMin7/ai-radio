@@ -101,7 +101,7 @@ function ProjectsPage({ active }: { active: boolean }) {
       aria-hidden={!active}
     >
       <Suspense fallback={null}>
-        <ProjectsCarousel />
+        <ProjectsCarousel active={active} />
       </Suspense>
     </section>
   );
@@ -165,9 +165,13 @@ function App() {
       <div className={page === "projects" ? "fixed inset-x-0 top-0 z-30" : "relative z-30"}>
         <NavBar page={page} go={go} />
       </div>
-      {page === "radio" && <Hero />}
+      <div className={`site-page-layer${page === "radio" ? " is-active" : ""}`} aria-hidden={page !== "radio"}>
+        <Hero />
+      </div>
       {hasOpenedProjects && <ProjectsPage active={page === "projects"} />}
-      {page === "info" && <Placeholder title="Info" />}
+      <div className={`site-page-layer${page === "info" ? " is-active" : ""}`} aria-hidden={page !== "info"}>
+        <Placeholder title="Info" />
+      </div>
       <div className={page === "projects" ? "fixed inset-x-0 bottom-0 z-30" : "relative z-30 mt-auto"}>
         <Footer />
       </div>

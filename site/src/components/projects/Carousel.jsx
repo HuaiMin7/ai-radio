@@ -39,11 +39,13 @@ const blankTexture = () => {
   return t;
 };
 
-export default function Carousel() {
+export default function Carousel({ active = true }) {
   const [detail, setDetail] = useState(() => ({ open: false, project: "" }));
   const closeDetail = useCallback(() => {
     setDetail({ open: false, project: "" });
   }, []);
+  const activeRef = useRef(active);
+  const transitionApiRef = useRef(null);
   const containerRef = useRef(null);
   const listRef = useRef(null);
   const itemsRef = useRef([]);
@@ -57,6 +59,11 @@ export default function Carousel() {
     left: { box: null, goo: null, layers: [], plain: null },
     right: { box: null, goo: null, layers: [], plain: null },
   });
+
+  useEffect(() => {
+    activeRef.current = active;
+    transitionApiRef.current?.(active);
+  }, [active]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -73,6 +80,10 @@ export default function Carousel() {
     // spin:     whole-ring rotation, radians
     // shift:    the ring moves off centre and resizes
     const state = { progress: 0, launch: 0, spread: 0, spin: 0, shift: 0 };
+    // A restrained version of the full page transition. It lives in the
+    // ring's own coordinate system: no CSS scale/rotation is applied to the
+    // canvas. 0 = normal Projects state, 1 = parked just outside the page.
+    const pageTransition = { amount: activeRef.current ? 0 : 1, spin: 0 };
     // Read-only panel readouts, so an invalid ring is visible rather than
     // silent and the reference window can be matched to the live one.
     const info = { restingGap: 0, window: "", scale: 1, band: "wide" };
@@ -145,6 +156,7 @@ export default function Carousel() {
       uTagP: { value: new THREE.Vector4() },
       uTagQ: { value: new THREE.Vector4() },
       uPage: { value: new THREE.Color("#fafafa") },
+      uSceneOpacity: { value: activeRef.current ? 1 : 0 },
     };
 
     const mesh = new THREE.Mesh(
@@ -660,8 +672,16 @@ export default function Carousel() {
       // The stage transform. Everything in plane-pixels goes through g, which
       // is why the window fit rides in here rather than on a dozen params.
       const shift = clamp01(state.shift);
-      const g = (1 + (endScale - 1) * shift) * fit;
-      const cx = posX * viewW * 0.5 * shift;
+      const transition = clamp01(pageTransition.amount);
+      uniforms.uSceneOpacity.value = 1 - transition;
+      // Half-strength exit: widen the real orbit 16%, enlarge cards only 2%,
+      // and carry the ring centre 3vw farther out. Keeping radius/card scale
+      // separate is what makes it read as a ring moving through space rather
+      // than a flat canvas being zoomed.
+      const g = (1 + (endScale - 1) * shift) * fit * (1 + 0.02 * transition);
+      const baseCx = posX * viewW * 0.5 * shift;
+      const direction = Math.sign(baseCx || -1);
+      const cx = baseCx + direction * viewW * 0.03 * transition;
       const cy = params.posY * viewH * 0.5 * shift;
 
       // Screen-space centre, for pointer maths. World Y is up, page Y is down.
@@ -686,7 +706,7 @@ export default function Carousel() {
       const sepExtent = params.radial ? H : W;
       const faceEdge = params.radial ? W : H;
 
-      const R = params.ringRadius * radiusK * g;
+      const R = params.ringRadius * radiusK * g * (1 + 0.16 * transition);
       const restingGap = 2 * R * Math.sin(step / 2) - sepExtent;
       info.restingGap = Math.round((restingGap / g) * 10) / 10;
       // The whole stretch plays out across this, so it is the yardstick.
@@ -755,7 +775,8 @@ export default function Carousel() {
         const u = i === 0 ? clamp01(state.progress) : travel[n];
         const cell = cellOf(sIdx);
 
-        const angle = seedAngle + Math.sign(sIdx) * step * cum[n] + state.spin;
+        const angle =
+          seedAngle + Math.sign(sIdx) * step * cum[n] + state.spin + pageTransition.spin;
         const px = Math.cos(angle) * Rnow + cx;
         const py = Math.sin(angle) * Rnow + cy;
         rest[i].set(px, py);
@@ -1037,7 +1058,7 @@ export default function Carousel() {
       const tl = gsap.timeline({
         delay: 0.25,
         onComplete: () => {
-          interactive = true;
+          interactive = activeRef.current && pageTransition.amount < 0.001;
         },
       });
 
@@ -1156,6 +1177,35 @@ export default function Carousel() {
     styleMeta();
 
     let tl = null;
+    let transitionTween = null;
+    const setPageActive = (nextActive) => {
+      transitionTween?.kill();
+      spinVel = 0;
+      settling = false;
+      dragging = false;
+      stopPick();
+
+      // A rapid click in the other direction starts from the current amount;
+      // it never resets the ring or allocates another WebGL context.
+      const target = nextActive ? 0 : 1;
+      const distance = Math.abs(target - pageTransition.amount);
+      if (distance < 0.001) return;
+      interactive = false;
+      const slot = TAU / Math.max(1, Math.round(params.count));
+      transitionTween = gsap.to(pageTransition, {
+        amount: target,
+        spin: target * slot * 0.4,
+        duration: (nextActive ? 0.52 : 0.36) * Math.max(0.2, distance),
+        ease: nextActive ? "expo.out" : "power3.in",
+        overwrite: true,
+        onComplete: () => {
+          transitionTween = null;
+          interactive = nextActive;
+        },
+      });
+    };
+    transitionApiRef.current = setPageActive;
+
     const replay = () => {
       tl?.kill();
       tl = build();
@@ -1318,6 +1368,8 @@ export default function Carousel() {
 
     return () => {
       disposed = true;
+      transitionApiRef.current = null;
+      transitionTween?.kill();
       clearTimeout(holdTimer);
       clearTimeout(fontFallback);
       renderer.setAnimationLoop(null);

@@ -58,6 +58,7 @@ export const fragmentShader = /* glsl */ `
   uniform vec2  uGrid;         // atlas cells across, down
   uniform float uBlend;        // px over which neighbouring art crossfades
   uniform float uTextured;
+  uniform float uSceneOpacity;
 
   // --- pointer -------------------------------------------------------------
   // Nothing is ever drawn at the cursor. It only changes how the ring behaves
@@ -429,6 +430,6 @@ export const fragmentShader = /* glsl */ `
     // returns the authored sRGB values, and this shader adds no output
     // encoding of its own — decoding on read without encoding on write is
     // what darkens everything.
-    gl_FragColor = vec4(col, alpha);
+    gl_FragColor = vec4(col, alpha * uSceneOpacity);
   }
 `;
