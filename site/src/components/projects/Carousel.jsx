@@ -1242,8 +1242,8 @@ export default function Carousel({ active = true, onExitComplete }) {
       )
       .to(
         pageTransition,
-        { fade: 1, duration: 0.7, ease: "power1.inOut" },
-        1.3,
+        { fade: 1, duration: 1.5, ease: "power1.inOut" },
+        0.5,
       );
 
     const setPageActive = (nextActive) => {
