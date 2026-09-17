@@ -9,7 +9,7 @@ import { textVertexShader, textFragmentShader } from "../shaders/textShaders";
  * `chars` are the reveal uniforms and `fades` the opacity ones; the entry
  * timeline tweens both as arrays.
  */
-export function createSplitText(group, params, sceneOpacity) {
+export function createSplitText(group, params) {
   let chars = [];
   let fades = [];
 
@@ -77,7 +77,6 @@ export function createSplitText(group, params, sceneOpacity) {
             uReveal: { value: 0 },
             uColor: { value: new THREE.Color(params.textColor) },
             uOpacity: { value: 1 },
-            uSceneOpacity: sceneOpacity,
           },
           transparent: true,
           depthTest: false,

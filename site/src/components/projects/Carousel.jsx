@@ -39,14 +39,11 @@ const blankTexture = () => {
   return t;
 };
 
-export default function Carousel({ active = true, onExitComplete }) {
+export default function Carousel() {
   const [detail, setDetail] = useState(() => ({ open: false, project: "" }));
   const closeDetail = useCallback(() => {
     setDetail({ open: false, project: "" });
   }, []);
-  const activeRef = useRef(active);
-  const onExitCompleteRef = useRef(onExitComplete);
-  const transitionApiRef = useRef(null);
   const containerRef = useRef(null);
   const listRef = useRef(null);
   const itemsRef = useRef([]);
@@ -60,15 +57,6 @@ export default function Carousel({ active = true, onExitComplete }) {
     left: { box: null, goo: null, layers: [], plain: null },
     right: { box: null, goo: null, layers: [], plain: null },
   });
-
-  useEffect(() => {
-    onExitCompleteRef.current = onExitComplete;
-  }, [onExitComplete]);
-
-  useEffect(() => {
-    activeRef.current = active;
-    transitionApiRef.current?.(active);
-  }, [active]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -85,15 +73,6 @@ export default function Carousel({ active = true, onExitComplete }) {
     // spin:     whole-ring rotation, radians
     // shift:    the ring moves off centre and resizes
     const state = { progress: 0, launch: 0, spread: 0, spin: 0, shift: 0 };
-    // The page transition continues the ring's established spatial motion.
-    // It lives in the ring's own coordinate system: no CSS scale/rotation is
-    // applied to the canvas. 0 = normal Projects, 1 = beyond the viewport.
-    const pageTransition = {
-      radius: activeRef.current ? 0 : 1,
-      spin: activeRef.current ? 0 : TAU,
-      fade: activeRef.current ? 0 : 1,
-      chrome: activeRef.current ? 0 : 1,
-    };
     // Read-only panel readouts, so an invalid ring is visible rather than
     // silent and the reference window can be matched to the live one.
     const info = { restingGap: 0, window: "", scale: 1, band: "wide" };
@@ -166,10 +145,8 @@ export default function Carousel({ active = true, onExitComplete }) {
       uTagP: { value: new THREE.Vector4() },
       uTagQ: { value: new THREE.Vector4() },
       uPage: { value: new THREE.Color("#fafafa") },
-      uSceneOpacity: { value: activeRef.current ? 1 : 0 },
     };
 
-    const headingSceneOpacity = { value: activeRef.current ? 1 : 0 };
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.ShaderMaterial({
@@ -187,7 +164,7 @@ export default function Carousel({ active = true, onExitComplete }) {
     const textGroup = new THREE.Group();
     scene.add(textGroup);
 
-    const splitText = createSplitText(textGroup, params, headingSceneOpacity);
+    const splitText = createSplitText(textGroup, params);
     const tag = createTag(params, uniforms);
     const meta = createMeta(
       {
@@ -683,20 +660,6 @@ export default function Carousel({ active = true, onExitComplete }) {
       // The stage transform. Everything in plane-pixels goes through g, which
       // is why the window fit rides in here rather than on a dozen params.
       const shift = clamp01(state.shift);
-      const transition = clamp01(pageTransition.radius);
-      uniforms.uSceneOpacity.value = 1 - clamp01(pageTransition.fade);
-      const chromeOpacity = 1 - clamp01(pageTransition.chrome);
-      const chromeFilter =
-        chromeOpacity > 0.999 ? "" : `opacity(${chromeOpacity})`;
-      if (listEl) listEl.style.filter = chromeFilter;
-      for (const side of ["left", "right"]) {
-        const box = metaRef.current[side]?.box;
-        if (box) box.style.filter = chromeFilter;
-      }
-      headingSceneOpacity.value = 1 - clamp01(pageTransition.fade);
-      // Continue directly from the final composition: the ring centre and the
-      // cards keep their settled size while only the orbit expands. That makes
-      // this the next movement of the same mechanism, not a canvas zoom.
       const g = (1 + (endScale - 1) * shift) * fit;
       const cx = posX * viewW * 0.5 * shift;
       const cy = params.posY * viewH * 0.5 * shift;
@@ -723,19 +686,7 @@ export default function Carousel({ active = true, onExitComplete }) {
       const sepExtent = params.radial ? H : W;
       const faceEdge = params.radial ? W : H;
 
-      // The exit radius is derived from the live viewport: at full progress
-      // even the closest card centre is beyond the farthest screen corner,
-      // with half a card of safety. This avoids residual cards on ultrawide or
-      // tall displays without scaling the cards themselves.
-      const baseR = params.ringRadius * radiusK * g;
-      const farthestCorner = Math.max(
-        Math.hypot(-viewW * 0.5 - cx, viewH * 0.5 - cy),
-        Math.hypot(viewW * 0.5 - cx, viewH * 0.5 - cy),
-        Math.hypot(-viewW * 0.5 - cx, -viewH * 0.5 - cy),
-        Math.hypot(viewW * 0.5 - cx, -viewH * 0.5 - cy),
-      );
-      const exitR = Math.max(baseR, farthestCorner + Math.max(W, H) * 0.7);
-      const R = baseR + (exitR - baseR) * transition;
+      const R = params.ringRadius * radiusK * g;
       const restingGap = 2 * R * Math.sin(step / 2) - sepExtent;
       info.restingGap = Math.round((restingGap / g) * 10) / 10;
       // The whole stretch plays out across this, so it is the yardstick.
@@ -804,8 +755,7 @@ export default function Carousel({ active = true, onExitComplete }) {
         const u = i === 0 ? clamp01(state.progress) : travel[n];
         const cell = cellOf(sIdx);
 
-        const angle =
-          seedAngle + Math.sign(sIdx) * step * cum[n] + state.spin + pageTransition.spin;
+        const angle = seedAngle + Math.sign(sIdx) * step * cum[n] + state.spin;
         const px = Math.cos(angle) * Rnow + cx;
         const py = Math.sin(angle) * Rnow + cy;
         rest[i].set(px, py);
@@ -1068,11 +1018,9 @@ export default function Carousel({ active = true, onExitComplete }) {
     // Bumped per build, so a hold left waiting on a run that has since been
     // replaced cannot resume a timeline nobody is watching.
     let entryGen = 0;
-    let entryComplete = false;
 
     const build = () => {
       interactive = false;
-      entryComplete = false;
       announced = -1;
       spinVel = 0;
       dragging = false;
@@ -1089,8 +1037,7 @@ export default function Carousel({ active = true, onExitComplete }) {
       const tl = gsap.timeline({
         delay: 0.25,
         onComplete: () => {
-          entryComplete = true;
-          interactive = activeRef.current && pageTransition.radius < 0.001;
+          interactive = true;
         },
       });
 
@@ -1136,10 +1083,6 @@ export default function Carousel({ active = true, onExitComplete }) {
       );
 
       const stageStart = spreadStart + params.stageAt * params.spreadTime;
-      // This label is the exact figure-2 keyframe: the ring has just fully
-      // opened and the original spin + spatial rebuild into figure 3 begins.
-      // Tab return reuses this timeline range instead of recreating it.
-      tl.addLabel("figure2", stageStart);
       tl.to(
         state,
         {
@@ -1203,7 +1146,6 @@ export default function Carousel({ active = true, onExitComplete }) {
         );
       }
 
-      tl.addLabel("figure3", tl.duration());
       return tl;
     };
 
@@ -1214,83 +1156,6 @@ export default function Carousel({ active = true, onExitComplete }) {
     styleMeta();
 
     let tl = null;
-    let pageTl = null;
-    const stopPageTransition = () => {
-      pageTl?.kill();
-      pageTl = null;
-    };
-    const lockRing = () => {
-      interactive = false;
-      spinVel = 0;
-      settling = false;
-      dragging = false;
-      stopPick();
-    };
-    const setPageActive = (nextActive) => {
-      stopPageTransition();
-      lockRing();
-
-      if (nextActive) {
-        // Reuse the original entry itself. figure2 is the exact source
-        // keyframe and figure3 is its settled endpoint; tweenFromTo advances
-        // that same playhead, so state.spin/state.shift/text/list keep the
-        // original easing, overlap and sequencing. Only playback duration is
-        // compressed to the requested 1.5s after the 0.5s reveal.
-        pageTransition.radius = 0;
-        pageTransition.spin = 0;
-        pageTransition.fade = 1;
-        pageTransition.chrome = 1;
-        if (!tl) return;
-        tl.pause("figure2", true);
-        const entryStage = tl.tweenFromTo("figure2", "figure3", {
-          duration: 1.5,
-          ease: "none",
-        });
-        entryStage.pause(0);
-        entryStage.parent?.remove(entryStage);
-
-        pageTl = gsap.timeline({
-          onComplete: () => {
-            pageTl = null;
-            entryComplete = true;
-            interactive = activeRef.current;
-          },
-        });
-        pageTl
-          .to(
-            pageTransition,
-            { fade: 0, chrome: 0, duration: 0.5, ease: "power1.out" },
-            0,
-          )
-          .add(entryStage, 0.5);
-        entryStage.paused(false);
-        return;
-      }
-
-      // Exit continues the figure-3 ring for one complete revolution. The
-      // orbit expands for the full two seconds; fading begins at 0.5s.
-      pageTl = gsap.timeline({
-        onComplete: () => {
-          pageTl = null;
-          interactive = false;
-          if (!activeRef.current) onExitCompleteRef.current?.();
-        },
-      });
-      pageTl
-        .to(pageTransition, { chrome: 1, duration: 0.3, ease: "power2.in" }, 0)
-        .to(
-          pageTransition,
-          { radius: 1, spin: TAU, duration: 2, ease: params.spinEase },
-          0,
-        )
-        .to(
-          pageTransition,
-          { fade: 1, duration: 1.5, ease: "power1.inOut" },
-          0.5,
-        );
-    };
-    transitionApiRef.current = setPageActive;
-
     const replay = () => {
       tl?.kill();
       tl = build();
@@ -1453,8 +1318,6 @@ export default function Carousel({ active = true, onExitComplete }) {
 
     return () => {
       disposed = true;
-      transitionApiRef.current = null;
-      stopPageTransition();
       clearTimeout(holdTimer);
       clearTimeout(fontFallback);
       renderer.setAnimationLoop(null);

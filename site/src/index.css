@@ -37,37 +37,6 @@
   /* 保留系统鼠标（不隐藏），黑圆只是在旁边跟随 */
 }
 
-/* ---- page hand-off: always loaded, including before the Projects chunk ---- */
-.site-page-layer {
-  position: fixed;
-  inset: 4.5rem 0 3.5rem;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  opacity: 0;
-  transform: translateY(10px);
-  pointer-events: none;
-  transition:
-    opacity 180ms ease,
-    transform 240ms cubic-bezier(0.55, 0, 1, 0.45);
-}
-
-.site-page-layer.is-active {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
-  transition:
-    opacity 280ms ease,
-    transform 420ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .site-page-layer {
-    transition-duration: 1ms !important;
-    transition-delay: 0ms !important;
-  }
-}
-
 /* ---- 自定义跟随黑圆 + 颜色反相 ---- */
 .custom-cursor {
   position: fixed;

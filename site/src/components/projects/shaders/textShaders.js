@@ -21,7 +21,6 @@ export const textFragmentShader = /* glsl */ `
   uniform float uReveal;
   uniform vec3  uColor;
   uniform float uOpacity;
-  uniform float uSceneOpacity;
 
   void main() {
     float gy = vUv.y + 1.0 - uReveal;
@@ -30,6 +29,6 @@ export const textFragmentShader = /* glsl */ `
     float a = texture2D(uTex, vec2(vUv.x, gy)).a;
     if (a <= 0.001) discard;
 
-    gl_FragColor = vec4(uColor, a * uOpacity * uSceneOpacity);
+    gl_FragColor = vec4(uColor, a * uOpacity);
   }
 `;
