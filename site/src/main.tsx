@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { Cover } from "@/components/ui/cover";
 import { CustomCursor } from "@/components/ui/custom-cursor";
 
 type Page = "projects" | "info" | "radio";
+
+const ProjectsCarousel = lazy(() => import("@/components/projects/Carousel"));
+
 
 /**
  * ⭐ 电台入口（预留口子）
@@ -61,6 +64,7 @@ function NavBar({ page, go }: { page: Page; go: (p: Page) => void }) {
           <button data-cursor="link" onClick={() => go("info")} className={navLinkClass(page === "info")}>Info</button>
           {/* TuneChat tab：默认选中，显示 Hero（不再是电台入口） */}
           <button data-cursor="link" onClick={() => go("radio")} className={navLinkClass(page === "radio")}>TuneChat</button>
+          <a data-cursor="link" href="/wheel/" className={navLinkClass(false)}>Wheel</a>
         </nav>
       </div>
       <div className="flex items-center gap-[2px] text-[1rem] font-[590] leading-none">
@@ -89,6 +93,16 @@ function Hero() {
 }
 
 // 内页占位（居中文字）
+function ProjectsPage() {
+  return (
+    <section className="projects-gallery" aria-label="Projects gallery">
+      <Suspense fallback={null}>
+        <ProjectsCarousel />
+      </Suspense>
+    </section>
+  );
+}
+
 function Placeholder({ title }: { title: string }) {
   return (
     <section className="flex-1 flex flex-col items-center justify-center px-[1.5rem] -mt-[4.5rem]">
@@ -136,13 +150,17 @@ function App() {
   const [page, setPage] = useState<Page>("radio");
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-transparent">
+    <div className="site-shell relative isolate min-h-screen w-full flex flex-col bg-transparent">
       <CustomCursor />
-      <NavBar page={page} go={setPage} />
+      <div className="relative z-30">
+        <NavBar page={page} go={setPage} />
+      </div>
       {page === "radio" && <Hero />}
-      {page === "projects" && <Placeholder title="Projects" />}
+      {page === "projects" && <ProjectsPage />}
       {page === "info" && <Placeholder title="Info" />}
-      <Footer />
+      <div className="relative z-30 mt-auto">
+        <Footer />
+      </div>
     </div>
   );
 }
