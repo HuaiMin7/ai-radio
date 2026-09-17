@@ -1,10 +1,13 @@
-import React, { useState } from "react";
+import React, { lazy, Suspense, useState } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { Cover } from "@/components/ui/cover";
 import { CustomCursor } from "@/components/ui/custom-cursor";
 
 type Page = "projects" | "info" | "radio";
+
+const ProjectsCarousel = lazy(() => import("@/components/projects/Carousel"));
+
 
 /**
  * ⭐ 电台入口（预留口子）
@@ -61,6 +64,7 @@ function NavBar({ page, go }: { page: Page; go: (p: Page) => void }) {
           <button data-cursor="link" onClick={() => go("info")} className={navLinkClass(page === "info")}>Info</button>
           {/* TuneChat tab：默认选中，显示 Hero（不再是电台入口） */}
           <button data-cursor="link" onClick={() => go("radio")} className={navLinkClass(page === "radio")}>TuneChat</button>
+          <a data-cursor="link" href="/wheel/" className={navLinkClass(false)}>Wheel</a>
         </nav>
       </div>
       <div className="flex items-center gap-[2px] text-[1rem] font-[590] leading-none">
@@ -89,6 +93,20 @@ function Hero() {
 }
 
 // 内页占位（居中文字）
+function ProjectsPage({ active }: { active: boolean }) {
+  return (
+    <section
+      className={`projects-gallery${active ? "" : " is-hidden"}`}
+      aria-label="Projects gallery"
+      aria-hidden={!active}
+    >
+      <Suspense fallback={null}>
+        <ProjectsCarousel active={active} />
+      </Suspense>
+    </section>
+  );
+}
+
 function Placeholder({ title }: { title: string }) {
   return (
     <section className="flex-1 flex flex-col items-center justify-center px-[1.5rem] -mt-[4.5rem]">
@@ -100,8 +118,13 @@ function Placeholder({ title }: { title: string }) {
   );
 }
 
-// 底部备案信息（合规展示：工信部 ICP + 后续公安备案）
+// 临时隐藏 ICP 备案信息；需要恢复时将此开关改为 true。
+const SHOW_ICP_FILING = false;
+
+// 底部备案信息（工信部 ICP + 后续公安备案）
 function Footer() {
+  if (!SHOW_ICP_FILING) return null;
+
   return (
     <footer className="w-full py-[1.25rem] px-[1.5rem] flex items-center justify-center gap-[1rem] text-[0.7rem] text-neutral-400">
       <a
@@ -134,15 +157,25 @@ function Footer() {
 
 function App() {
   const [page, setPage] = useState<Page>("radio");
+  const [hasOpenedProjects, setHasOpenedProjects] = useState(false);
+
+  const go = (nextPage: Page) => {
+    if (nextPage === "projects") setHasOpenedProjects(true);
+    setPage(nextPage);
+  };
 
   return (
-    <div className="min-h-screen w-full flex flex-col bg-transparent">
+    <div className={`site-shell relative isolate min-h-screen w-full flex flex-col bg-transparent${page === "projects" ? " projects-active" : ""}`}>
       <CustomCursor />
-      <NavBar page={page} go={setPage} />
+      <div className={page === "projects" ? "fixed inset-x-0 top-0 z-30" : "relative z-30"}>
+        <NavBar page={page} go={go} />
+      </div>
       {page === "radio" && <Hero />}
-      {page === "projects" && <Placeholder title="Projects" />}
+      {hasOpenedProjects && <ProjectsPage active={page === "projects"} />}
       {page === "info" && <Placeholder title="Info" />}
-      <Footer />
+      <div className={page === "projects" ? "fixed inset-x-0 bottom-0 z-30" : "relative z-30 mt-auto"}>
+        <Footer />
+      </div>
     </div>
   );
 }

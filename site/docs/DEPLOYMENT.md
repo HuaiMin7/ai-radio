@@ -20,7 +20,7 @@
 | HTTP | 80 端口 301 跳转到 HTTPS |
 | SSL | Let's Encrypt，certbot 自动续期 |
 | 证书路径 | `/etc/letsencrypt/live/halou.net.cn/` |
-| ICP 备案 | 皖ICP备2026023953号（已展示在页面底部） |
+| ICP 备案 | 皖ICP备2026023953号（页面暂时隐藏；恢复开关见 `site/src/main.tsx` 的 `SHOW_ICP_FILING`） |
 | 公安备案 | 办理中，代码位置已在 `main.tsx` 的 Footer 预留 |
 
 ## 路径分流（关键约定）
