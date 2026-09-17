@@ -1,4 +1,4 @@
-import React, { lazy, Suspense, useState } from "react";
+import React, { lazy, Suspense, useCallback, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import { Cover } from "@/components/ui/cover";
@@ -93,7 +93,13 @@ function Hero() {
 }
 
 // 内页占位（居中文字）
-function ProjectsPage({ active }: { active: boolean }) {
+function ProjectsPage({
+  active,
+  onExitComplete,
+}: {
+  active: boolean;
+  onExitComplete: () => void;
+}) {
   return (
     <section
       className={`projects-gallery${active ? "" : " is-hidden"}`}
@@ -101,7 +107,7 @@ function ProjectsPage({ active }: { active: boolean }) {
       aria-hidden={!active}
     >
       <Suspense fallback={null}>
-        <ProjectsCarousel active={active} />
+        <ProjectsCarousel active={active} onExitComplete={onExitComplete} />
       </Suspense>
     </section>
   );
@@ -152,27 +158,55 @@ function Footer() {
 
 function App() {
   const [page, setPage] = useState<Page>("radio");
+  const [visiblePage, setVisiblePage] = useState<Page>("radio");
   const [hasOpenedProjects, setHasOpenedProjects] = useState(false);
+  const pendingPageRef = useRef<Page | null>(null);
 
   const go = (nextPage: Page) => {
-    if (nextPage === "projects") setHasOpenedProjects(true);
+    if (nextPage === page && pendingPageRef.current === null) return;
+    if (nextPage === "projects") {
+      pendingPageRef.current = null;
+      setHasOpenedProjects(true);
+      setVisiblePage("projects");
+      setPage("projects");
+      return;
+    }
+    if (visiblePage === "projects") {
+      pendingPageRef.current = nextPage;
+      setPage(nextPage);
+      return;
+    }
+    pendingPageRef.current = null;
+    setVisiblePage(nextPage);
     setPage(nextPage);
   };
 
+  const completeProjectsExit = useCallback(() => {
+    const nextPage = pendingPageRef.current;
+    if (!nextPage) return;
+    pendingPageRef.current = null;
+    setVisiblePage(nextPage);
+  }, []);
+
+  const projectsActive = page === "projects";
+  const projectsStageVisible = visiblePage === "projects";
+
   return (
-    <div className={`site-shell relative isolate min-h-screen w-full flex flex-col bg-transparent${page === "projects" ? " projects-active" : ""}`}>
+    <div className={`site-shell relative isolate min-h-screen w-full flex flex-col bg-transparent${projectsStageVisible ? " projects-active" : ""}`}>
       <CustomCursor />
-      <div className={page === "projects" ? "fixed inset-x-0 top-0 z-30" : "relative z-30"}>
-        <NavBar page={page} go={go} />
+      <div className={projectsStageVisible ? "fixed inset-x-0 top-0 z-30" : "relative z-30"}>
+        <NavBar page={visiblePage} go={go} />
       </div>
-      <div className={`site-page-layer${page === "radio" ? " is-active" : ""}`} aria-hidden={page !== "radio"}>
+      <div className={`site-page-layer${visiblePage === "radio" ? " is-active" : ""}`} aria-hidden={visiblePage !== "radio"}>
         <Hero />
       </div>
-      {hasOpenedProjects && <ProjectsPage active={page === "projects"} />}
-      <div className={`site-page-layer${page === "info" ? " is-active" : ""}`} aria-hidden={page !== "info"}>
+      {hasOpenedProjects && (
+        <ProjectsPage active={projectsActive} onExitComplete={completeProjectsExit} />
+      )}
+      <div className={`site-page-layer${visiblePage === "info" ? " is-active" : ""}`} aria-hidden={visiblePage !== "info"}>
         <Placeholder title="Info" />
       </div>
-      <div className={page === "projects" ? "fixed inset-x-0 bottom-0 z-30" : "relative z-30 mt-auto"}>
+      <div className={projectsStageVisible ? "fixed inset-x-0 bottom-0 z-30" : "relative z-30 mt-auto"}>
         <Footer />
       </div>
     </div>
