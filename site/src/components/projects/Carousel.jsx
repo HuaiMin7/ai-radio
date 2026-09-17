@@ -170,6 +170,7 @@ export default function Carousel({ active = true, onExitComplete }) {
       uSceneOpacity: { value: activeRef.current ? 1 : 0 },
     };
 
+    const headingSceneOpacity = { value: activeRef.current ? 1 : 0 };
     const mesh = new THREE.Mesh(
       new THREE.PlaneGeometry(1, 1),
       new THREE.ShaderMaterial({
@@ -187,7 +188,7 @@ export default function Carousel({ active = true, onExitComplete }) {
     const textGroup = new THREE.Group();
     scene.add(textGroup);
 
-    const splitText = createSplitText(textGroup, params);
+    const splitText = createSplitText(textGroup, params, headingSceneOpacity);
     const tag = createTag(params, uniforms);
     const meta = createMeta(
       {
@@ -686,17 +687,23 @@ export default function Carousel({ active = true, onExitComplete }) {
       const returnPose = clamp01(pageTransition.returnPose);
       // returnPose=1 recreates the earlier figure-2 composition; resolving it
       // to zero repeats the original spatial rebuild into the settled figure 3.
-      const shift = settledShift * (1 - 0.52 * returnPose);
+      const shift = settledShift * (1 - returnPose);
       const transition = clamp01(pageTransition.radius);
       uniforms.uSceneOpacity.value = 1 - clamp01(pageTransition.fade);
       const chromeOpacity = 1 - clamp01(pageTransition.chrome);
-      const chromeFilter =
-        chromeOpacity > 0.999 ? "" : `opacity(${chromeOpacity})`;
-      if (listEl) listEl.style.filter = chromeFilter;
+      if (listEl) {
+        listEl.style.filter =
+          chromeOpacity > 0.999 ? "" : `opacity(${chromeOpacity})`;
+      }
+      const metaOpacity = chromeOpacity * (1 - returnPose);
+      const metaFilter =
+        metaOpacity > 0.999 ? "" : `opacity(${metaOpacity})`;
       for (const side of ["left", "right"]) {
         const box = metaRef.current[side]?.box;
-        if (box) box.style.filter = chromeFilter;
+        if (box) box.style.filter = metaFilter;
       }
+      // Figure 2 carries the original centred heading; figure 3 does not.
+      headingSceneOpacity.value = 1 - clamp01(pageTransition.fade);
       // Continue directly from the final composition: the ring centre and the
       // cards keep their settled size while only the orbit expands. That makes
       // this the next movement of the same mechanism, not a canvas zoom.
@@ -1239,6 +1246,7 @@ export default function Carousel({ active = true, onExitComplete }) {
           chrome: 1,
           returnPose: 1,
         });
+        gsap.set(splitText.fades, { value: 1 });
         pageTl = gsap.timeline({
           onComplete: () => {
             pageTl = null;
@@ -1257,7 +1265,8 @@ export default function Carousel({ active = true, onExitComplete }) {
             },
             0.5,
           )
-          .to(pageTransition, { chrome: 0, duration: 0.42, ease: "power2.out" }, 1.2);
+          .to(pageTransition, { chrome: 0, duration: 0.5, ease: "power2.out" }, 0)
+          .to(splitText.fades, { value: 0, duration: 0.7, ease: "power2.in" }, 1.3);
         return;
       }
 
