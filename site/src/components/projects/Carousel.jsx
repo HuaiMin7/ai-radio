@@ -93,7 +93,6 @@ export default function Carousel({ active = true, onExitComplete }) {
       spin: activeRef.current ? 0 : TAU,
       fade: activeRef.current ? 0 : 1,
       chrome: activeRef.current ? 0 : 1,
-      returnPose: 0,
     };
     // Read-only panel readouts, so an invalid ring is visible rather than
     // silent and the reference window can be matched to the live one.
@@ -683,26 +682,17 @@ export default function Carousel({ active = true, onExitComplete }) {
 
       // The stage transform. Everything in plane-pixels goes through g, which
       // is why the window fit rides in here rather than on a dozen params.
-      const settledShift = clamp01(state.shift);
-      const returnPose = clamp01(pageTransition.returnPose);
-      // returnPose=1 recreates the earlier figure-2 composition; resolving it
-      // to zero repeats the original spatial rebuild into the settled figure 3.
-      const shift = settledShift * (1 - returnPose);
+      const shift = clamp01(state.shift);
       const transition = clamp01(pageTransition.radius);
       uniforms.uSceneOpacity.value = 1 - clamp01(pageTransition.fade);
       const chromeOpacity = 1 - clamp01(pageTransition.chrome);
-      if (listEl) {
-        listEl.style.filter =
-          chromeOpacity > 0.999 ? "" : `opacity(${chromeOpacity})`;
-      }
-      const metaOpacity = chromeOpacity * (1 - returnPose);
-      const metaFilter =
-        metaOpacity > 0.999 ? "" : `opacity(${metaOpacity})`;
+      const chromeFilter =
+        chromeOpacity > 0.999 ? "" : `opacity(${chromeOpacity})`;
+      if (listEl) listEl.style.filter = chromeFilter;
       for (const side of ["left", "right"]) {
         const box = metaRef.current[side]?.box;
-        if (box) box.style.filter = metaFilter;
+        if (box) box.style.filter = chromeFilter;
       }
-      // Figure 2 carries the original centred heading; figure 3 does not.
       headingSceneOpacity.value = 1 - clamp01(pageTransition.fade);
       // Continue directly from the final composition: the ring centre and the
       // cards keep their settled size while only the orbit expands. That makes
@@ -1146,6 +1136,10 @@ export default function Carousel({ active = true, onExitComplete }) {
       );
 
       const stageStart = spreadStart + params.stageAt * params.spreadTime;
+      // This label is the exact figure-2 keyframe: the ring has just fully
+      // opened and the original spin + spatial rebuild into figure 3 begins.
+      // Tab return reuses this timeline range instead of recreating it.
+      tl.addLabel("figure2", stageStart);
       tl.to(
         state,
         {
@@ -1209,6 +1203,7 @@ export default function Carousel({ active = true, onExitComplete }) {
         );
       }
 
+      tl.addLabel("figure3", tl.duration());
       return tl;
     };
 
@@ -1236,37 +1231,39 @@ export default function Carousel({ active = true, onExitComplete }) {
       lockRing();
 
       if (nextActive) {
-        // Return is not the exit reversed. Start at the figure-2 composition:
-        // a formed, smaller/centred ring. First reveal it for 0.5s, then replay
-        // the original spatial rebuild into figure 3 over the remaining 1.5s.
-        gsap.set(pageTransition, {
-          radius: 0,
-          spin: -TAU,
-          fade: 1,
-          chrome: 1,
-          returnPose: 1,
+        // Reuse the original entry itself. figure2 is the exact source
+        // keyframe and figure3 is its settled endpoint; tweenFromTo advances
+        // that same playhead, so state.spin/state.shift/text/list keep the
+        // original easing, overlap and sequencing. Only playback duration is
+        // compressed to the requested 1.5s after the 0.5s reveal.
+        pageTransition.radius = 0;
+        pageTransition.spin = 0;
+        pageTransition.fade = 1;
+        pageTransition.chrome = 1;
+        if (!tl) return;
+        tl.pause("figure2", true);
+        const entryStage = tl.tweenFromTo("figure2", "figure3", {
+          duration: 1.5,
+          ease: "none",
         });
-        gsap.set(splitText.fades, { value: 1 });
+        entryStage.pause(0);
+        entryStage.parent?.remove(entryStage);
+
         pageTl = gsap.timeline({
           onComplete: () => {
             pageTl = null;
-            interactive = activeRef.current && entryComplete;
+            entryComplete = true;
+            interactive = activeRef.current;
           },
         });
         pageTl
-          .to(pageTransition, { fade: 0, duration: 0.5, ease: "power1.out" }, 0)
           .to(
             pageTransition,
-            {
-              returnPose: 0,
-              spin: 0,
-              duration: 1.5,
-              ease: params.spinEase,
-            },
-            0.5,
+            { fade: 0, chrome: 0, duration: 0.5, ease: "power1.out" },
+            0,
           )
-          .to(pageTransition, { chrome: 0, duration: 0.5, ease: "power2.out" }, 0)
-          .to(splitText.fades, { value: 0, duration: 0.7, ease: "power2.in" }, 1.3);
+          .add(entryStage, 0.5);
+        entryStage.paused(false);
         return;
       }
 
