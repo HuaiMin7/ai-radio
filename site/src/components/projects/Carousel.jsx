@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import DetailOverlay from "./DetailOverlay";
 import "./projects.css";
 import * as THREE from "three";
@@ -39,11 +39,14 @@ const blankTexture = () => {
   return t;
 };
 
-export default function Carousel() {
+export default function Carousel({ active = true }) {
   const [detail, setDetail] = useState(() => ({ open: false, project: "" }));
   const closeDetail = useCallback(() => {
     setDetail({ open: false, project: "" });
   }, []);
+  const activeRef = useRef(active);
+  const hasActivatedRef = useRef(active);
+  const returnApiRef = useRef(null);
   const containerRef = useRef(null);
   const listRef = useRef(null);
   const itemsRef = useRef([]);
@@ -57,6 +60,12 @@ export default function Carousel() {
     left: { box: null, goo: null, layers: [], plain: null },
     right: { box: null, goo: null, layers: [], plain: null },
   });
+
+  useLayoutEffect(() => {
+    activeRef.current = active;
+    if (active && hasActivatedRef.current) returnApiRef.current?.();
+    if (active) hasActivatedRef.current = true;
+  }, [active]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -1083,6 +1092,7 @@ export default function Carousel() {
       );
 
       const stageStart = spreadStart + params.stageAt * params.spreadTime;
+      tl.addLabel("figure2", stageStart);
       tl.to(
         state,
         {
@@ -1146,6 +1156,7 @@ export default function Carousel() {
         );
       }
 
+      tl.addLabel("figure3", tl.duration());
       return tl;
     };
 
@@ -1156,7 +1167,52 @@ export default function Carousel() {
     styleMeta();
 
     let tl = null;
+    let returnTween = null;
+    const playReturn = () => {
+      if (!tl) return;
+      interactive = false;
+      spinVel = 0;
+      settling = false;
+      dragging = false;
+      stopPick();
+      returnTween?.kill();
+      tl.pause("figure2", true);
+      gsap.set(container, { opacity: 0 });
+      if (listEl) gsap.set(listEl, { opacity: 0 });
+      for (const side of ["left", "right"]) {
+        const box = metaRef.current[side]?.box;
+        if (box) gsap.set(box, { opacity: 0 });
+      }
+      const stageTween = tl.tweenFromTo("figure2", "figure3", {
+        duration: 1.5,
+        ease: "none",
+      });
+      stageTween.pause(0);
+      stageTween.parent?.remove(stageTween);
+      returnTween = gsap.timeline({
+        onComplete: () => {
+          for (const side of ["left", "right"]) {
+            const box = metaRef.current[side]?.box;
+            if (box) gsap.set(box, { opacity: 1 });
+          }
+          returnTween = null;
+          interactive = activeRef.current;
+        },
+      });
+      returnTween
+        .to(
+          [container, listEl].filter(Boolean),
+          { opacity: 1, duration: 0.5, ease: "power1.out" },
+          0,
+        )
+        .add(stageTween, 0.5);
+      stageTween.paused(false);
+    };
+    returnApiRef.current = playReturn;
+
     const replay = () => {
+      returnTween?.kill();
+      returnTween = null;
       tl?.kill();
       tl = build();
     };
@@ -1318,6 +1374,8 @@ export default function Carousel() {
 
     return () => {
       disposed = true;
+      returnApiRef.current = null;
+      returnTween?.kill();
       clearTimeout(holdTimer);
       clearTimeout(fontFallback);
       renderer.setAnimationLoop(null);

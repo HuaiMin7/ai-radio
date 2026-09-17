@@ -101,7 +101,7 @@ function ProjectsPage({ active }: { active: boolean }) {
       aria-hidden={!active}
     >
       <Suspense fallback={null}>
-        <ProjectsCarousel />
+        <ProjectsCarousel active={active} />
       </Suspense>
     </section>
   );
