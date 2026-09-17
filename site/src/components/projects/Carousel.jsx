@@ -1184,7 +1184,7 @@ export default function Carousel({ active = true }) {
         if (box) gsap.set(box, { opacity: 0 });
       }
       const stageTween = tl.tweenFromTo("figure2", "figure3", {
-        duration: 1.5,
+        duration: 2,
         ease: "none",
       });
       stageTween.pause(0);
@@ -1205,7 +1205,7 @@ export default function Carousel({ active = true }) {
           { opacity: 1, duration: 0.5, ease: "power1.out" },
           0,
         )
-        .add(stageTween, 0.5);
+        .add(stageTween, 0);
       stageTween.paused(false);
     };
     returnApiRef.current = playReturn;
