@@ -93,6 +93,7 @@ export default function Carousel({ active = true, onExitComplete }) {
       spin: activeRef.current ? 0 : TAU,
       fade: activeRef.current ? 0 : 1,
       chrome: activeRef.current ? 0 : 1,
+      returnPose: 0,
     };
     // Read-only panel readouts, so an invalid ring is visible rather than
     // silent and the reference window can be matched to the live one.
@@ -681,7 +682,11 @@ export default function Carousel({ active = true, onExitComplete }) {
 
       // The stage transform. Everything in plane-pixels goes through g, which
       // is why the window fit rides in here rather than on a dozen params.
-      const shift = clamp01(state.shift);
+      const settledShift = clamp01(state.shift);
+      const returnPose = clamp01(pageTransition.returnPose);
+      // returnPose=1 recreates the earlier figure-2 composition; resolving it
+      // to zero repeats the original spatial rebuild into the settled figure 3.
+      const shift = settledShift * (1 - 0.52 * returnPose);
       const transition = clamp01(pageTransition.radius);
       uniforms.uSceneOpacity.value = 1 - clamp01(pageTransition.fade);
       const chromeOpacity = 1 - clamp01(pageTransition.chrome);
@@ -1207,48 +1212,76 @@ export default function Carousel({ active = true, onExitComplete }) {
     styleMeta();
 
     let tl = null;
-    const transitionTl = gsap.timeline({
-      paused: true,
-      onStart: () => {
-        interactive = false;
-        spinVel = 0;
-        settling = false;
-        dragging = false;
-        stopPick();
-      },
-      onComplete: () => {
-        interactive = false;
-        if (!activeRef.current) onExitCompleteRef.current?.();
-      },
-      onReverseComplete: () => {
-        interactive = activeRef.current && entryComplete;
-      },
-    });
-    // Continue the established figure-2 movement for one complete revolution.
-    // The orbit expands for the full two seconds while cards keep their settled
-    // size. Opacity starts shortly after launch and drains through the move.
-    const tabTransitionDuration = 2;
-    transitionTl
-      .to(pageTransition, { chrome: 1, duration: 0.3, ease: "power2.in" }, 0)
-      .to(
-        pageTransition,
-        {
-          radius: 1,
-          spin: TAU,
-          duration: tabTransitionDuration,
-          ease: params.spinEase,
-        },
-        0,
-      )
-      .to(
-        pageTransition,
-        { fade: 1, duration: 1.5, ease: "power1.inOut" },
-        0.5,
-      );
-
+    let pageTl = null;
+    const stopPageTransition = () => {
+      pageTl?.kill();
+      pageTl = null;
+    };
+    const lockRing = () => {
+      interactive = false;
+      spinVel = 0;
+      settling = false;
+      dragging = false;
+      stopPick();
+    };
     const setPageActive = (nextActive) => {
-      if (nextActive) transitionTl.reverse();
-      else transitionTl.play();
+      stopPageTransition();
+      lockRing();
+
+      if (nextActive) {
+        // Return is not the exit reversed. Start at the figure-2 composition:
+        // a formed, smaller/centred ring. First reveal it for 0.5s, then replay
+        // the original spatial rebuild into figure 3 over the remaining 1.5s.
+        gsap.set(pageTransition, {
+          radius: 0,
+          spin: -TAU,
+          fade: 1,
+          chrome: 1,
+          returnPose: 1,
+        });
+        pageTl = gsap.timeline({
+          onComplete: () => {
+            pageTl = null;
+            interactive = activeRef.current && entryComplete;
+          },
+        });
+        pageTl
+          .to(pageTransition, { fade: 0, duration: 0.5, ease: "power1.out" }, 0)
+          .to(
+            pageTransition,
+            {
+              returnPose: 0,
+              spin: 0,
+              duration: 1.5,
+              ease: params.spinEase,
+            },
+            0.5,
+          )
+          .to(pageTransition, { chrome: 0, duration: 0.42, ease: "power2.out" }, 1.2);
+        return;
+      }
+
+      // Exit continues the figure-3 ring for one complete revolution. The
+      // orbit expands for the full two seconds; fading begins at 0.5s.
+      pageTl = gsap.timeline({
+        onComplete: () => {
+          pageTl = null;
+          interactive = false;
+          if (!activeRef.current) onExitCompleteRef.current?.();
+        },
+      });
+      pageTl
+        .to(pageTransition, { chrome: 1, duration: 0.3, ease: "power2.in" }, 0)
+        .to(
+          pageTransition,
+          { radius: 1, spin: TAU, duration: 2, ease: params.spinEase },
+          0,
+        )
+        .to(
+          pageTransition,
+          { fade: 1, duration: 1.5, ease: "power1.inOut" },
+          0.5,
+        );
     };
     transitionApiRef.current = setPageActive;
 
@@ -1415,7 +1448,7 @@ export default function Carousel({ active = true, onExitComplete }) {
     return () => {
       disposed = true;
       transitionApiRef.current = null;
-      transitionTl.kill();
+      stopPageTransition();
       clearTimeout(holdTimer);
       clearTimeout(fontFallback);
       renderer.setAnimationLoop(null);
