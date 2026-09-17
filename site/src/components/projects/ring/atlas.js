@@ -12,7 +12,7 @@ const load = (src, priority) =>
     if (priority) img.fetchPriority = priority;
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error(`failed to load ${src}`));
-    img.src = `/projects${src}`;
+    img.src = `${import.meta.env.BASE_URL}projects${src}`;
   });
 
 /**

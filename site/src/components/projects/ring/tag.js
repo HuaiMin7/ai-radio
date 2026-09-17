@@ -78,7 +78,7 @@ export function createTag(params, uniforms) {
       arrowReady = true;
       onReady?.();
     };
-    arrow.src = "/projects/arrow-top-right-svgrepo-com.svg";
+    arrow.src = `${import.meta.env.BASE_URL}projects/arrow-top-right-svgrepo-com.svg`;
   };
 
   const dispose = () => {
