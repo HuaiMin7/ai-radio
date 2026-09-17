@@ -1039,9 +1039,11 @@ export default function Carousel({ active = true }) {
     // Bumped per build, so a hold left waiting on a run that has since been
     // replaced cannot resume a timeline nobody is watching.
     let entryGen = 0;
+    let entryComplete = false;
 
     const build = () => {
       interactive = false;
+      entryComplete = false;
       announced = -1;
       spinVel = 0;
       dragging = false;
@@ -1058,6 +1060,7 @@ export default function Carousel({ active = true }) {
       const tl = gsap.timeline({
         delay: 0.25,
         onComplete: () => {
+          entryComplete = true;
           interactive = activeRef.current && pageTransition.amount < 0.001;
         },
       });
@@ -1200,7 +1203,7 @@ export default function Carousel({ active = true }) {
         overwrite: true,
         onComplete: () => {
           transitionTween = null;
-          interactive = nextActive;
+          interactive = nextActive && entryComplete;
         },
       });
     };
