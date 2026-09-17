@@ -2,14 +2,14 @@
 @font-face { font-family: "Satoshi"; src: url("/projects/Satoshi-Medium.otf") format("opentype"); font-weight: 500; font-style: normal; font-display: swap; }
 @font-face { font-family: "Geist"; src: url("/projects/Geist-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
 .projects-gallery {
-  position: relative;
+  position: fixed;
+  inset: 0;
   z-index: 0;
-  flex: 1 1 auto;
-  min-height: 0;
   overflow: hidden;
   background: #fafafa;
 }
 .projects-gallery .carousel-scene { z-index: 0; }
+.projects-gallery .project-index { top: max(5.5rem, 2.4vh); }
 .project-nav-item {
   appearance: none;
   border: 0;

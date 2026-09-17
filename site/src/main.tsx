@@ -150,15 +150,15 @@ function App() {
   const [page, setPage] = useState<Page>("radio");
 
   return (
-    <div className="site-shell relative isolate min-h-screen w-full flex flex-col bg-transparent">
+    <div className={`site-shell relative isolate min-h-screen w-full flex flex-col bg-transparent${page === "projects" ? " projects-active" : ""}`}>
       <CustomCursor />
-      <div className="relative z-30">
+      <div className={page === "projects" ? "fixed inset-x-0 top-0 z-30" : "relative z-30"}>
         <NavBar page={page} go={setPage} />
       </div>
       {page === "radio" && <Hero />}
       {page === "projects" && <ProjectsPage />}
       {page === "info" && <Placeholder title="Info" />}
-      <div className="relative z-30 mt-auto">
+      <div className={page === "projects" ? "fixed inset-x-0 bottom-0 z-30" : "relative z-30 mt-auto"}>
         <Footer />
       </div>
     </div>
