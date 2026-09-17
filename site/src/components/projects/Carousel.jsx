@@ -1224,20 +1224,26 @@ export default function Carousel({ active = true, onExitComplete }) {
         interactive = activeRef.current && entryComplete;
       },
     });
-    // Match the established figure-2 movement: one complete revolution using
-    // the same 2.6s power2.inOut curve. The orbit expands for the whole turn,
-    // while the cards keep their settled size. Opacity joins only near the end.
+    // Continue the established figure-2 movement for one complete revolution.
+    // The orbit expands for the full two seconds while cards keep their settled
+    // size. Opacity starts shortly after launch and drains through the move.
+    const tabTransitionDuration = 2;
     transitionTl
       .to(pageTransition, { chrome: 1, duration: 0.3, ease: "power2.in" }, 0)
       .to(
         pageTransition,
-        { radius: 1, spin: TAU, duration: params.spinTime, ease: params.spinEase },
+        {
+          radius: 1,
+          spin: TAU,
+          duration: tabTransitionDuration,
+          ease: params.spinEase,
+        },
         0,
       )
       .to(
         pageTransition,
-        { fade: 1, duration: 0.58, ease: "power2.in" },
-        params.spinTime - 0.58,
+        { fade: 1, duration: 1.5, ease: "power1.inOut" },
+        0.35,
       );
 
     const setPageActive = (nextActive) => {
