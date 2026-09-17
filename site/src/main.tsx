@@ -156,8 +156,8 @@ function Footer() {
 }
 
 function App() {
-  const [page, setPage] = useState<Page>("radio");
-  const [hasOpenedProjects, setHasOpenedProjects] = useState(false);
+  const [page, setPage] = useState<Page>("projects");
+  const [hasOpenedProjects, setHasOpenedProjects] = useState(true);
 
   const go = (nextPage: Page) => {
     if (nextPage === "projects") setHasOpenedProjects(true);
