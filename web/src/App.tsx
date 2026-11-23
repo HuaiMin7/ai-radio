@@ -20,6 +20,7 @@ import {
   StarfieldCanvas
 } from "./StarfieldCanvas";
 import { QueueCardTilt } from "./QueueCardTilt";
+import { useRadioNavigation, type RadioSection } from "./useRadioNavigation";
 
 // 调参面板只在体验版（VITE_MOCK=1）挂载
 const isTuningPanelEnabled = import.meta.env.VITE_MOCK === "1";
@@ -269,8 +270,6 @@ type Track = {
   title: string;
   artist: string;
 };
-
-type AppView = "radio" | "settings" | "agent";
 
 type PlayableTrack = Track & {
   audioLabel: string;
@@ -532,30 +531,6 @@ function formatPlaybackTime(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = Math.floor(seconds % 60);
   return `${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`;
-}
-
-function formatClock() {
-  return new Intl.DateTimeFormat("zh-CN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false
-  }).format(new Date());
-}
-
-function formatToday() {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "long",
-    day: "numeric",
-    weekday: "long"
-  }).format(new Date());
-}
-
-function formatWeatherLabel(weather: WeatherSnapshot) {
-  if (weather.status === "not-configured") {
-    return "天气未配置";
-  }
-
-  return `${weather.text} ${weather.temperature}°C`;
 }
 
 function formatHistoryTime(createdAt: string) {
@@ -888,66 +863,6 @@ function MicIcon() {
   );
 }
 
-function StatisticsIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="statisticsIcon"
-      fill="none"
-      height="24"
-      viewBox="0 0 24 24"
-      width="24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <g filter="url(#statistics-shadow)">
-        <path
-          d="M14.3658 3C14.8628 3 15.2658 3.40294 15.2658 3.9V20.1C15.2658 20.5971 14.8628 21 14.3658 21C13.8687 21 13.4658 20.5971 13.4658 20.1V3.9C13.4658 3.40294 13.8687 3 14.3658 3Z"
-          fill="#00AB47"
-        />
-        <path
-          d="M5.8 8.9C5.8 8.40294 5.39706 8 4.9 8C4.40294 8 4 8.40294 4 8.9V20.1C4 20.5971 4.40294 21 4.9 21C5.39706 21 5.8 20.5971 5.8 20.1V8.9Z"
-          fill="#00AB47"
-        />
-        <path
-          d="M10.5329 12.9C10.5329 12.4029 10.1299 12 9.63288 12C9.13582 12 8.73288 12.4029 8.73288 12.9V20.1C8.73288 20.5971 9.13582 21 9.63288 21C10.1299 21 10.5329 20.5971 10.5329 20.1V12.9Z"
-          fill="#00AB47"
-        />
-        <path
-          d="M19.9986 9.9C19.9986 9.40294 19.5957 9 19.0986 9C18.6016 9 18.1986 9.40294 18.1986 9.9V20.1C18.1986 20.5971 18.6016 21 19.0986 21C19.5957 21 19.9986 20.5971 19.9986 20.1V9.9Z"
-          fill="#00AB47"
-        />
-      </g>
-      <defs>
-        <filter
-          colorInterpolationFilters="sRGB"
-          filterUnits="userSpaceOnUse"
-          height="28"
-          id="statistics-shadow"
-          width="28"
-          x="-2"
-          y="-2"
-        >
-          <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feColorMatrix
-            in="SourceAlpha"
-            result="hardAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-          />
-          <feOffset />
-          <feGaussianBlur stdDeviation="1" />
-          <feColorMatrix
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0"
-          />
-          <feBlend in2="BackgroundImageFix" mode="normal" result="effect1_dropShadow" />
-          <feBlend in="SourceGraphic" in2="effect1_dropShadow" mode="normal" result="shape" />
-        </filter>
-      </defs>
-    </svg>
-  );
-}
-
 function PreviousIcon() {
   return (
     <svg
@@ -1049,11 +964,10 @@ export function App() {
   } | null>(null);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(0.5);
-  const [isVolumeOpen, setIsVolumeOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isPlanning, setIsPlanning] = useState(false);
   const [planningCopy, setPlanningCopy] = useState(getPlanningCopy(""));
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const navigation = useRadioNavigation();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isLogOpen, setIsLogOpen] = useState(false);
   const [isQqSourceOpen, setIsQqSourceOpen] = useState(false);
@@ -1067,12 +981,9 @@ export function App() {
   const [queueTracks, setQueueTracks] = useState<QueueTrack[]>([]);
   const [historyEntries, setHistoryEntries] = useState<PlaybackHistoryEntry[]>([]);
   const [feedbackEntries, setFeedbackEntries] = useState<TrackFeedbackEntry[]>([]);
-  const [hasEnteredRadio, setHasEnteredRadio] = useState(false);
-  const [appView, setAppView] = useState<AppView>("radio");
   const [resolvedTrackOverrides, setResolvedTrackOverrides] = useState<
     Record<string, PlayableTrack>
   >({});
-  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [qqLoginStatus, setQqLoginStatus] = useState<QqLoginStatus | null>(null);
   const [qqCookieDraft, setQqCookieDraft] = useState("");
   const [redioBridgeStatus, setRedioBridgeStatus] = useState<RedioBridgeStatus>({
@@ -1194,8 +1105,7 @@ export function App() {
   }
 
   async function loadWeather() {
-    const snapshot = await fetchJson<WeatherSnapshot>("/api/weather");
-    setWeather(snapshot);
+    await fetchJson<WeatherSnapshot>("/api/weather");
   }
 
   async function loadQqLoginStatus() {
@@ -1625,9 +1535,7 @@ export function App() {
 
       setQqLoginStatus(status);
       resetAuthenticatedData();
-      setHasEnteredRadio(false);
-      setAppView("radio");
-      setIsChatOpen(false);
+      navigation.reset();
       lastSyncedBridgeCookieRef.current = "";
       resolvingTrackKeysRef.current.clear();
       setResolvedTrackOverrides({});
@@ -1958,7 +1866,7 @@ export function App() {
     }
 
     setIsPlanning(true);
-    setIsChatOpen(true);
+    navigation.showChat();
     setError(null);
     setDraftMessage("");
     appendLog("info", "提交节目生成请求", userMessage);
@@ -2194,7 +2102,6 @@ export function App() {
     activeLyrics?.trackKey === selectedTrackKey
       ? getCurrentLyricText(activeLyrics.lines, currentTime) ?? selectedTrack.artist
       : selectedTrack.artist;
-  const progressPercent = duration > 0 ? (currentTime / duration) * 100 : 0;
 
   useEffect(() => {
     if (!isSessionRestored || resumeSeekRef.current !== null) {
@@ -2500,23 +2407,6 @@ export function App() {
     });
   }
 
-  function selectTrack(index: number) {
-    const track = tracks[index];
-
-    if (!track) {
-      return;
-    }
-
-    if (!isTrackPlayable(track)) {
-      stopPlaybackForUnavailableTrack();
-      showTrackPlaybackFailure(track, "这首歌暂时没有可播放 QQ 音源。");
-    } else {
-      clearPlaybackToast();
-    }
-
-    setSelectedTrackId(getPlayableTrackIdentity(track, index));
-  }
-
   function playTrackAt(index: number, shouldStartPlayback = true) {
     const track = tracks[index];
 
@@ -2820,20 +2710,16 @@ export function App() {
     </>
   );
 
-  const chatWindow = isChatOpen ? (
+  const chatWindow = navigation.chatOpen ? (
     <ChatWindow
       error={error}
       isLoading={isLoading}
-      isLandingChat={!hasEnteredRadio}
+      isLandingChat
       isPlanning={isPlanning}
       message={draftMessage}
       messages={messages}
-      onClose={() => setIsChatOpen(false)}
-      onOpenAgentProfile={() => {
-        setHasEnteredRadio(true);
-        setIsChatOpen(false);
-        setAppView("agent");
-      }}
+      onClose={navigation.closeChat}
+      onOpenAgentProfile={navigation.showAbout}
       onMessageChange={setDraftMessage}
       onMessageAnimationComplete={(messageId) => {
         setMessages((currentMessages) =>
@@ -2902,91 +2788,21 @@ export function App() {
       />
     </>
   );
-  const enterRadioView = (view: AppView) => {
-    setAppView(view);
-    setHasEnteredRadio(true);
-    setIsChatOpen(false);
-  };
-
-  if (!hasEnteredRadio) {
-    return (
-      <>
-        {qqLoginStatus?.loggedIn ? sharedAudioPlayers : null}
-        {playbackToast ? (
-          <p aria-live="assertive" className="playbackToast" role="alert">
-            {playbackToast}
-          </p>
-        ) : null}
-        {isSpeaking && activeDjText ? <DjSpeechBubble text={activeDjText} /> : null}
-        <LandingPage
-          chatWindow={chatWindow}
-          error={playbackToast ? null : error}
-          hasPlaybackToast={Boolean(playbackToast)}
-          isLoginBusy={isQqWebLoginBusy}
-          onEnter={enterRadioView}
-          onLogin={openLoginModal}
-          onLogout={() => void clearQqCookie()}
-          onOpenChat={() => setIsChatOpen(true)}
-          player={{
-            currentCaption,
-            currentTime,
-            duration,
-            introReady: isSessionRestored,
-            isLiked: isTrackFeedbackActive("like"),
-            isPlaying,
-            onLike: () => void recordTrackFeedback("like"),
-            onNext: playNextTrack,
-            onPrevious: playPreviousTrack,
-            onSeek: seekPlayback,
-            onSelectTrack: (index) => playTrackAt(index),
-            onToggleMute: toggleMute,
-            onTogglePlayback: () => void togglePlayback(),
-            onVolumeChange: changeVolume,
-            selectedTrack,
-            selectedTrackIndex,
-            tracks,
-            volume
-          }}
-          settingsContent={settingsSections}
-          status={qqLoginStatus}
-        />
-        {loginModal}
-      </>
-    );
-  }
-
   return (
     <>
-      <main className="pageShell">
-        <section className="radioFrame">
-        {qqLoginStatus?.loggedIn ? sharedAudioPlayers : null}
-
-        <header className={`radioTop ${appView === "agent" ? "agentTop" : ""}`}>
-          {appView === "agent" ? (
-            <button
-              aria-label="返回电台"
-              className="agentBackButton"
-              onClick={() => setAppView("radio")}
-              type="button"
-            >
-              <BackIcon />
-            </button>
-          ) : (
-            <>
-              <h1>Redio</h1>
-              <button
-                className="settingsTopButton"
-                onClick={() => setAppView((view) => (view === "settings" ? "radio" : "settings"))}
-                type="button"
-              >
-                {appView === "settings" ? "BACK" : "SETTING"}
-              </button>
-            </>
-          )}
-          <span>{formatClock()}</span>
-        </header>
-
-        {appView === "agent" ? (
+      {qqLoginStatus?.loggedIn ? sharedAudioPlayers : null}
+      {playbackToast ? (
+        <p aria-live="assertive" className="playbackToast" role="alert">
+          {playbackToast}
+        </p>
+      ) : null}
+      {isSpeaking && activeDjText ? <DjSpeechBubble text={activeDjText} /> : null}
+      <LandingPage
+        chatWindow={chatWindow}
+        error={playbackToast ? null : error}
+        hasPlaybackToast={Boolean(playbackToast)}
+        isLoginBusy={isQqWebLoginBusy}
+        aboutContent={
           <AgentProfilePage
             genreTags={agentGenreTags}
             isLoginBusy={isQqWebLoginBusy}
@@ -2995,147 +2811,38 @@ export function App() {
             onLogin={openLoginModal}
             status={qqLoginStatus}
           />
-        ) : appView === "settings" ? (
-          <section className="settingsPage" aria-label="设置">
-            <div className="settingsIntro">
-              <p>SETTING</p>
-              <span>播放记录、QQ 授权和运行状态都放在这里。</span>
-            </div>
-
-            <div className="settingsScrollArea">
-              {settingsSections}
-            </div>
-          </section>
-        ) : (
-          <>
-            <section className="environmentStrip" aria-label="环境信息">
-              <span>{formatToday()}</span>
-              <span>{weather ? formatWeatherLabel(weather) : "天气读取中"}</span>
-            </section>
-
-            {error ? <p className="statusNotice">{error}</p> : null}
-
-            <section className="playerBlock" aria-label="当前播放">
-              <section className="playerCard">
-                <div className="timePanel">
-                  <p className="bigTime">{formatClock()}</p>
-                </div>
-                <div className="songNow">
-                  <StatisticsIcon />
-                  <div className="songInfo">
-                    <strong title={selectedTrack.title}>{selectedTrack.title}</strong>
-                    <small title={selectedTrack.artist}>{selectedTrack.artist}</small>
-                  </div>
-                </div>
-              </section>
-
-              <section className="mediaControls" aria-label="播放控制">
-                <div className="controlButtons">
-                  <button aria-label="上一首" onClick={playPreviousTrack} type="button">
-                    <PreviousIcon />
-                  </button>
-                  <button
-                    aria-label={isPlaying ? "暂停" : "播放"}
-                    onClick={togglePlayback}
-                    type="button"
-                  >
-                    {isPlaying ? <PauseTransportIcon /> : <PlayTransportIcon />}
-                  </button>
-                  <button aria-label="下一首" onClick={playNextTrack} type="button">
-                    <NextIcon />
-                  </button>
-                </div>
-                <div className="progressRow">
-                  <span>{formatPlaybackTime(currentTime)}</span>
-                  <input
-                    aria-label="播放进度"
-                    className="progressTrack"
-                    disabled={duration <= 0}
-                    max={duration || 0}
-                    min="0"
-                    onInput={(event) => seekPlayback(Number(event.currentTarget.value))}
-                    step="0.1"
-                    style={
-                      {
-                        "--progress-percent": `${progressPercent}%`
-                      } as CSSProperties
-                    }
-                    type="range"
-                    value={duration > 0 ? currentTime : 0}
-                  />
-                  <span>{formatPlaybackTime(duration)}</span>
-                  <div className="volumeControl">
-                    <button
-                      aria-expanded={isVolumeOpen}
-                      aria-label="调整音量"
-                      className="volumeButton"
-                      onClick={() => setIsVolumeOpen((isOpen) => !isOpen)}
-                      type="button"
-                    >
-                      <VolumeIcon />
-                    </button>
-                    {isVolumeOpen ? (
-                      <div className="volumePopover">
-                        <input
-                          aria-label="音量"
-                          max="1"
-                          min="0"
-                          onChange={(event) => changeVolume(Number(event.target.value))}
-                          step="0.01"
-                          type="range"
-                          value={volume}
-                        />
-                        <strong>{Math.round(volume * 100)}%</strong>
-                        <span className="volumePopoverIcon">
-                          <VolumeIcon color="#555" />
-                        </span>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </section>
-            </section>
-
-            <section className="queueSection">
-              <div className="queueTitle">
-                <span>QUEUE</span>
-                <span>{tracks.length} TRACKS</span>
-              </div>
-              <div className="queueList">
-                {tracks.map((track, index) => (
-                  <button
-                    className={`queueItem ${index === selectedTrackIndex ? "isSelected" : ""} ${
-                      !isTrackPlayable(track) ? "isUnavailable" : ""
-                    }`}
-                    key={`${track.title}-${index}`}
-                    onClick={() => selectTrack(index)}
-                    type="button"
-                  >
-                    <span className="queueIndex">{index === selectedTrackIndex ? "" : index + 1}</span>
-                    <strong>{track.title}</strong>
-                    <em title={getPlaybackStatusLabel(track)}>{track.artist}</em>
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            {!isChatOpen ? (
-              <AskDock
-                disabled={isPlanning}
-                isPlanning={isPlanning}
-                message={draftMessage}
-                planningInputText={planningCopy.input}
-                onFocus={() => setIsChatOpen(true)}
-                onMessageChange={setDraftMessage}
-                onSend={generateSegment}
-              />
-            ) : null}
-
-            {chatWindow}
-          </>
-        )}
-        </section>
-      </main>
+        }
+        aboutOpen={navigation.aboutOpen}
+        activeSection={qqLoginStatus?.loggedIn ? navigation.section : "home"}
+        onBackFromAbout={navigation.closeAbout}
+        onOpenAbout={navigation.showAbout}
+        onSelectSection={navigation.showSection}
+        onLogin={openLoginModal}
+        onLogout={() => void clearQqCookie()}
+        onOpenChat={navigation.showChat}
+        player={{
+          currentCaption,
+          currentTime,
+          duration,
+          introReady: isSessionRestored,
+          isLiked: isTrackFeedbackActive("like"),
+          isPlaying,
+          onLike: () => void recordTrackFeedback("like"),
+          onNext: playNextTrack,
+          onPrevious: playPreviousTrack,
+          onSeek: seekPlayback,
+          onSelectTrack: (index) => playTrackAt(index),
+          onToggleMute: toggleMute,
+          onTogglePlayback: () => void togglePlayback(),
+          onVolumeChange: changeVolume,
+          selectedTrack,
+          selectedTrackIndex,
+          tracks,
+          volume
+        }}
+        settingsContent={settingsSections}
+        status={qqLoginStatus}
+      />
       {loginModal}
     </>
   );
@@ -3372,11 +3079,16 @@ function DjSpeechBubble({ text }: { text: string }) {
 }
 
 export function LandingPage({
+  aboutContent,
+  aboutOpen,
+  activeSection,
   chatWindow,
   error,
   hasPlaybackToast,
   isLoginBusy,
-  onEnter,
+  onBackFromAbout,
+  onOpenAbout,
+  onSelectSection,
   onLogin,
   onLogout,
   onOpenChat,
@@ -3384,11 +3096,16 @@ export function LandingPage({
   settingsContent,
   status
 }: {
+  aboutContent: ReactNode;
+  aboutOpen: boolean;
+  activeSection: RadioSection;
   chatWindow: ReactNode;
   error: string | null;
   hasPlaybackToast: boolean;
   isLoginBusy: boolean;
-  onEnter: (view: AppView) => void;
+  onBackFromAbout: () => void;
+  onOpenAbout: () => void;
+  onSelectSection: (section: RadioSection) => void;
   onLogin: () => void;
   onLogout: () => void;
   onOpenChat: () => void;
@@ -3405,7 +3122,11 @@ export function LandingPage({
   const starfieldView = useStarfieldViewTuning();
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [activeSection, setActiveSection] = useState<"home" | "settings">("home");
+  const aboutBackRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (aboutOpen) aboutBackRef.current?.focus({ preventScroll: true });
+  }, [aboutOpen]);
   // 开始页闸门（设计稿 372:451）：新进页面一律先落在开始页，
   // 必须点一次「点击进入」才进电台主界面。这一次点击同时充当浏览器
   // 自动播放所需的用户手势，避免开始页阶段就有声音冒出来。
@@ -3506,16 +3227,27 @@ export function LandingPage({
     >
       <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
         <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
-          {/* 设计稿 372:451 的品牌名（Outfit 600 / 24px）；点击回官网首页，
-              取代原先的返回箭头 icon */}
-          <a
-            aria-label="返回 halou.net.cn 首页"
-            className="landingBrand"
-            data-node-id="372:452"
-            href="https://www.halou.net.cn/"
-          >
-            TuneChat
-          </a>
+          {aboutOpen ? (
+            <button
+              aria-label={chatWindow && isLoggedIn ? "返回聊天" : activeSection === "settings" ? "返回设置" : "返回 Home"}
+              className="landingAboutBack"
+              onClick={onBackFromAbout}
+              ref={aboutBackRef}
+              type="button"
+            >
+              <BackIcon />
+              返回
+            </button>
+          ) : (
+            <a
+              aria-label="返回 halou.net.cn 首页"
+              className="landingBrand"
+              data-node-id="372:452"
+              href="https://www.halou.net.cn/"
+            >
+              TuneChat
+            </a>
+          )}
         </div>
 
         <nav
@@ -3524,9 +3256,9 @@ export function LandingPage({
           data-node-id={isLoggedIn ? "239:870" : "232:737"}
         >
           <button
-            aria-current={activeSection === "home" ? "page" : undefined}
+            aria-current={!aboutOpen && activeSection === "home" ? "page" : undefined}
             data-node-id={isLoggedIn ? "239:871" : "232:738"}
-            onClick={() => setActiveSection("home")}
+            onClick={() => onSelectSection("home")}
             type="button"
           >
             Home
@@ -3539,11 +3271,11 @@ export function LandingPage({
             Chat
           </button>
           <button
-            aria-current={activeSection === "settings" ? "page" : undefined}
+            aria-current={!aboutOpen && activeSection === "settings" ? "page" : undefined}
             data-node-id={isLoggedIn ? "239:873" : "232:740"}
             onClick={() => {
               if (isLoggedIn) {
-                setActiveSection("settings");
+                onSelectSection("settings");
               } else {
                 onLogin();
               }
@@ -3554,7 +3286,8 @@ export function LandingPage({
           </button>
           <button
             data-node-id={isLoggedIn ? "239:874" : "232:741"}
-            onClick={() => onEnter("agent")}
+            aria-current={aboutOpen ? "page" : undefined}
+            onClick={onOpenAbout}
             type="button"
           >
             About
@@ -3566,7 +3299,7 @@ export function LandingPage({
             <>
               <div className="landingChatAnchor">
                 <AskAnythingButton onClick={onOpenChat} />
-                {chatWindow}
+                <div hidden={aboutOpen}>{chatWindow}</div>
               </div>
               <div className="landingAccountMenuAnchor" ref={accountMenuRef}>
                 <button
@@ -3616,7 +3349,7 @@ export function LandingPage({
                       data-node-id="262:729"
                       onClick={() => {
                         setIsAccountMenuOpen(false);
-                        setActiveSection("settings");
+                        onSelectSection("settings");
                       }}
                       role="menuitem"
                       type="button"
@@ -3660,13 +3393,15 @@ export function LandingPage({
         {error ? <p className="landingStatusNotice">{error}</p> : null}
       </div>
 
+      {aboutOpen && aboutContent}
       {activeSection === "settings" ? (
-        <section className="landingSettingsPage" aria-label="设置">
+        <section className="landingSettingsPage" aria-label="设置" style={aboutOpen ? { display: "none" } : undefined}>
           <div className="landingSettingsScroll">{settingsContent}</div>
         </section>
       ) : (
         <section
           className="landingHero"
+          style={aboutOpen ? { display: "none" } : undefined}
           data-node-id={isRadioStage ? "271:1283" : "372:456"}
         >
           {isRadioStage ? (
@@ -4543,57 +4278,42 @@ function AgentProfilePage({
     : "登录";
 
   return (
-    <section className="agentProfilePage" aria-label="DJ Agent 资料页">
-      <section className="agentIdentity">
-        <div className="agentPortrait" aria-hidden="true" />
-        <div className="agentNameBlock">
-          <h2>Redio</h2>
-          <p>
-            <i />
-            <span>一开机我就打碟</span>
-          </p>
-        </div>
-      </section>
+    <section className="landingSettingsPage" aria-labelledby="djProfileTitle">
+      <div className="landingSettingsScroll landingAboutProfile">
+        <header className="aboutIdentity">
+          <img alt="" src={getPublicAssetUrl("/images/agent-dj.png")} />
+          <div>
+            <p className="aboutOnAir">一开机我就打碟</p>
+            <h1 id="djProfileTitle">Redio</h1>
+            <p className="aboutBio">{listenerName}的私人 DJ，会打碟的 taste.md 🎧</p>
+            <p className="aboutMotto" lang="en">Your mood is my prompt. I hate algorithm. I have taste.</p>
+          </div>
+        </header>
 
-      <section className="agentBio" aria-label="DJ 简介">
-        <p>{listenerName}的私人DJ，会打碟的taste.md 🎧</p>
-        <span>Your mood is my prompt.</span>
-        <span>I hate algorithm. I have taste.</span>
-      </section>
+        <dl className="aboutCard aboutStats" aria-label="DJ 数据">
+          <div><dt>播出时间</dt><dd>24/7</dd></div>
+          <div><dt>曲风</dt><dd>∞</dd></div>
+          <div><dt>听众</dt><dd>{listenerCount}</dd></div>
+        </dl>
 
-      <section className="agentStats" aria-label="DJ 数据">
-        <div>
-          <span>ON AIR</span>
-          <strong>24/7</strong>
-        </div>
-        <div>
-          <span>GENRES</span>
-          <strong>∞</strong>
-        </div>
-        <div>
-          <span>LISTENER</span>
-          <strong>{listenerCount}</strong>
-        </div>
-      </section>
+        <section className="aboutCard" aria-labelledby="djGenresTitle">
+          <h2 id="djGenresTitle">擅长风格</h2>
+          <ul className="aboutGenres">
+            {genreTags.map((tag) => <li key={tag}>{tag}</li>)}
+          </ul>
+        </section>
 
-      <section className="agentGenreTags" aria-label="擅长风格">
-        {genreTags.map((tag) => (
-          <span key={tag}>{tag}</span>
-        ))}
-      </section>
-
-      <section className="agentLogin" aria-label="登录">
-        <h3>登录</h3>
-        <button
-          className={status?.loggedIn ? "isLoggedIn" : ""}
-          disabled={isLoginBusy}
-          onClick={status?.loggedIn ? undefined : onLogin}
-          type="button"
-        >
-          <i />
-          <span>{isLoginBusy ? "等待扫码" : accountLabel}</span>
-        </button>
-      </section>
+        <section className="aboutCard aboutAccount" aria-labelledby="djAccountTitle">
+          <h2 id="djAccountTitle">音乐账号</h2>
+          {status?.loggedIn ? (
+            <span className="aboutAccountName">{accountLabel}</span>
+          ) : (
+            <button className="landingJoin" disabled={isLoginBusy} onClick={onLogin} type="button">
+              {isLoginBusy ? "等待扫码" : "登录"}
+            </button>
+          )}
+        </section>
+      </div>
     </section>
   );
 }
