@@ -3728,7 +3728,7 @@ body.isStarfieldDragging * {
   opacity: 1;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 780px) {
   .landingNav {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
@@ -3771,7 +3771,9 @@ body.isStarfieldDragging * {
     height: auto;
     border-radius: 24px;
   }
+}
 
+@media (max-width: 720px) {
   .landingSettingsPage {
     width: 100%;
     padding-right: 24px;
