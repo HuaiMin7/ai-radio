@@ -810,6 +810,7 @@ p {
   outline-offset: -1px;
 }
 
+.landingBrand:focus-visible,
 .landingLinks button:focus-visible,
 .landingJoin:focus-visible,
 .landingAccount:focus-visible {
@@ -2050,11 +2051,6 @@ body.isStarfieldDragging * {
   background: transparent;
 }
 
-.backIcon {
-  display: block;
-  width: 24px;
-  height: 24px;
-}
 
 .chatHeader h2 {
   margin-bottom: 0;
@@ -2164,217 +2160,137 @@ body.isStarfieldDragging * {
   background-clip: padding-box;
 }
 
-.agentProfilePage {
+.landingAboutProfile {
+  width: min(100%, 860px);
+  margin-inline: auto;
+  font-family: "Outfit", "Inter", "PingFang SC", sans-serif;
+  overflow-wrap: anywhere;
+}
+
+.aboutIdentity {
   display: flex;
-  overflow-y: auto;
-  flex: 1 1 auto;
-  min-height: 0;
-  flex-direction: column;
-  padding: 10px 0 40px;
-  scrollbar-color: rgba(246, 245, 241, 0.28) transparent;
-  scrollbar-width: thin;
-}
-
-.agentProfilePage::-webkit-scrollbar {
-  width: 8px;
-}
-
-.agentProfilePage::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.agentProfilePage::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: rgba(246, 245, 241, 0.28);
-  background-clip: padding-box;
-}
-
-.agentIdentity {
-  display: flex;
+  gap: clamp(16px, 3vw, 32px);
   align-items: center;
-  gap: 20px;
-  min-height: 82px;
+  padding: 0 0 12px;
 }
 
-.agentPortrait {
-  display: grid;
-  width: 82px;
-  height: 82px;
-  flex: 0 0 82px;
-  place-items: center;
-  border: 1px solid rgba(246, 245, 241, 0.16);
+.aboutIdentity img {
+  width: clamp(84px, 14vw, 144px);
+  aspect-ratio: 1;
+  flex: none;
+  border: 1px solid #292929;
   border-radius: 50%;
-  background: url("/images/agent-dj.png") 50% 36% / 170% auto no-repeat;
-  box-shadow: inset 0 0 0 8px rgba(0, 0, 0, 0.08);
+  object-fit: cover;
 }
 
-.agentNameBlock {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
+.aboutIdentity h1 {
+  margin: 2px 0 8px;
+  font-size: clamp(48px, 7vw, 80px);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 1;
 }
 
-.agentNameBlock h2 {
+.aboutIdentity p {
   margin: 0;
-  color: #f6f5f1;
-  font-family: "Doto", "SF Mono", "Cascadia Mono", "Roboto Mono", ui-monospace,
-    Menlo, Monaco, Consolas, monospace;
-  font-size: 44px;
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: 0;
+  line-height: 1.55;
 }
 
-.agentNameBlock p {
-  display: flex;
+.aboutBio {
+  font-size: clamp(16px, 1.5vw, 20px);
+}
+
+.aboutOnAir,
+.aboutMotto,
+.aboutStats dt {
+  color: #b4b4b4;
+  font-size: 13px;
+}
+
+.aboutOnAir,
+.aboutAccountName {
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin: 0;
-  color: rgba(246, 245, 241, 0.72);
-  font-family: "PingFang SC", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  font-size: 12px;
-  line-height: 17px;
+  gap: 8px;
 }
 
-.agentNameBlock i,
-.agentLogin button i {
-  display: block;
-  width: 8px;
-  height: 8px;
-  flex: 0 0 auto;
+.aboutOnAir::before,
+.aboutAccountName::before {
+  width: 7px;
+  height: 7px;
+  flex: none;
   border-radius: 50%;
-  background: #00ec78;
-  box-shadow: 0 0 14px rgba(0, 236, 120, 0.72);
-}
-
-.agentBio {
-  display: grid;
-  gap: 6px;
-  margin-top: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid rgba(246, 245, 241, 0.12);
-  font-family: "PingFang SC", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-}
-
-.agentBio p {
-  margin: 0;
-  color: #f6f5f1;
-  font-size: 13px;
-  line-height: 17px;
-}
-
-.agentBio span {
-  color: rgba(246, 245, 241, 0.48);
-  font-size: 13px;
-  line-height: 17px;
-}
-
-.agentStats {
-  display: grid;
-  grid-template-columns: 120px 67px 1fr;
-  gap: 32px;
-  margin-top: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid rgba(246, 245, 241, 0.12);
-}
-
-.agentStats div {
-  display: grid;
-  position: relative;
-  gap: 4px;
-  min-height: 64px;
-  align-content: start;
-}
-
-.agentStats div:not(:last-child)::after {
-  position: absolute;
-  top: 8px;
-  right: -16px;
-  width: 1px;
-  height: 48px;
-  background: rgba(246, 245, 241, 0.14);
+  background: #67e39b;
   content: "";
 }
 
-.agentStats span {
-  color: rgba(246, 245, 241, 0.54);
-  font-family: "PingFang SC", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 12px;
+.aboutCard {
+  min-width: 0;
+  margin: 0;
+  border: 1px solid #1b1b1b;
+  border-radius: 16px;
+  padding: clamp(16px, 2.5vw, 24px);
+  background: rgba(0, 0, 0, 0.62);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
 }
 
-.agentStats strong {
-  color: #f6f5f1;
-  font-family: "Doto", "SF Mono", "Cascadia Mono", "Roboto Mono", ui-monospace,
-    Menlo, Monaco, Consolas, monospace;
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 48px;
+.aboutCard h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
 }
 
-.agentGenreTags {
+.aboutStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.aboutStats > div + div {
+  border-inline-start: 1px solid #292929;
+  padding-inline-start: clamp(12px, 3vw, 32px);
+}
+
+.aboutStats dd {
+  margin: 4px 0 0;
+  font-size: clamp(26px, 4vw, 42px);
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.aboutGenres {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 24px;
-  padding-bottom: 24px;
-  border-bottom: 1px solid rgba(246, 245, 241, 0.12);
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
 }
 
-.agentGenreTags span {
-  display: inline-flex;
-  min-height: 30px;
-  align-items: center;
-  border: 1px solid rgba(246, 245, 241, 0.16);
+.aboutGenres li {
+  max-width: 100%;
+  border: 1px solid #303030;
   border-radius: 999px;
-  padding: 7px 16px;
-  color: #f6f5f1;
-  background: rgba(255, 255, 255, 0.04);
-  font-family: "Doto", "SF Mono", "Cascadia Mono", "Roboto Mono", ui-monospace,
-    Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 14px;
-}
-
-.agentLogin {
-  display: grid;
-  gap: 20px;
-  margin-top: 24px;
-}
-
-.agentLogin h3 {
-  margin: 0;
-  color: rgba(246, 245, 241, 0.76);
-  font-family: "PingFang SC", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  padding: 5px 12px;
+  color: #ddd;
+  background: rgba(255, 255, 255, 0.035);
   font-size: 13px;
-  font-weight: 700;
-  line-height: 17px;
 }
 
-.agentLogin button {
-  display: inline-flex;
-  width: fit-content;
-  min-height: 30px;
+.aboutAccount {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  border: 1px solid rgba(246, 245, 241, 0.16);
-  border-radius: 999px;
-  padding: 7px 16px;
-  color: #f6f5f1;
-  background: rgba(255, 255, 255, 0.04);
-  font-family: "Doto", "SF Mono", "Cascadia Mono", "Roboto Mono", ui-monospace,
-    Menlo, Monaco, Consolas, monospace;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 14px;
+  justify-content: space-between;
+  gap: 16px;
 }
 
-.agentLogin button:not(.isLoggedIn):hover {
-  border-color: rgba(0, 236, 120, 0.52);
-  background: rgba(0, 236, 120, 0.12);
+.aboutAccount h2 {
+  flex: none;
+}
+
+.aboutAccountName {
+  min-width: 0;
+  font-size: 15px;
 }
 
 .playerBlock {
@@ -3790,10 +3706,42 @@ body.isStarfieldDragging * {
   opacity: 1;
 }
 
-@media (max-width: 720px) {
+@media (max-width: 780px) {
+  .landingNav {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "brand actions" "tabs tabs";
+    gap: 4px 12px;
+    padding: 12px 24px 0;
+  }
+
+  .landingNavLeft {
+    grid-area: brand;
+  }
+
+  .landingNavRight {
+    grid-area: actions;
+    gap: 8px;
+  }
+
+  .landingLinks {
+    grid-area: tabs;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .landingLinks button {
+    min-height: 44px;
+    padding-inline: 4px;
+  }
+
+  .djSpeechBubble {
+    top: 108px;
+  }
+
   .landingChatAnchor .chatWindow.isLandingChat {
     position: fixed;
-    top: 72px;
+    top: 106px;
     right: 24px;
     bottom: 24px;
     left: 24px;
@@ -3801,7 +3749,9 @@ body.isStarfieldDragging * {
     height: auto;
     border-radius: 24px;
   }
+}
 
+@media (max-width: 720px) {
   .landingSettingsPage {
     width: 100%;
     padding-right: 24px;
@@ -3840,24 +3790,18 @@ body.isStarfieldDragging * {
   }
 
   .djSpeechBubble {
-    top: 84px;
     left: 24px;
     width: calc(100vw - 48px);
-  }
-
-  .landingNav {
-    height: 72px;
-    flex-basis: 72px;
-    gap: 16px;
-    padding: 12px 24px;
   }
 
   .landingBrand {
     font-size: 24px;
   }
 
-  .landingLinks {
-    display: none;
+  .aboutIdentity {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
   }
 
   .landingJoin {
@@ -3933,9 +3877,10 @@ body.isStarfieldDragging * {
   }
 
   .landingAskAnythingSlot .button-gradient {
+    width: 112px;
     height: 40px;
     min-height: 40px;
-    padding: 8px 16px;
+    padding: 8px;
   }
 
   .landingHeroCopy {
