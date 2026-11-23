@@ -44,7 +44,7 @@ export function useRadioNavigation() {
 
     // About opens a detail page. Its preceding history entry retains the tab and chat.
     const push = !replace && next.aboutOpen !== current.aboutOpen;
-    const state = { ...window.history.state, redioNavigation: next, redioAboutEntry: push && next.aboutOpen };
+    const state = { ...window.history.state, redioNavigation: next };
     const url = new URL(window.location.href);
     if (next.aboutOpen) url.hash = "about";
     else if (url.hash === "#about") url.hash = "";
@@ -62,10 +62,6 @@ export function useRadioNavigation() {
       if (current.aboutOpen) return;
       aboutTrigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
       navigate({ ...current, aboutOpen: true });
-    },
-    closeAbout() {
-      if (window.history.state?.redioAboutEntry) window.history.back();
-      else navigate(home, true);
     },
     reset: () => navigate(home, true)
   };

@@ -718,28 +718,6 @@ function getPlanningCopy(message: string) {
   };
 }
 
-function BackIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="backIcon"
-      fill="none"
-      height="24"
-      viewBox="0 0 24 24"
-      width="24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M15.5 4.75L8.25 12L15.5 19.25"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="2.4"
-      />
-    </svg>
-  );
-}
-
 function VolumeIcon({
   color = "currentColor",
   muted = false
@@ -2814,7 +2792,6 @@ export function App() {
         }
         aboutOpen={navigation.aboutOpen}
         activeSection={qqLoginStatus?.loggedIn ? navigation.section : "home"}
-        onBackFromAbout={navigation.closeAbout}
         onOpenAbout={navigation.showAbout}
         onSelectSection={navigation.showSection}
         onLogin={openLoginModal}
@@ -3086,7 +3063,6 @@ export function LandingPage({
   error,
   hasPlaybackToast,
   isLoginBusy,
-  onBackFromAbout,
   onOpenAbout,
   onSelectSection,
   onLogin,
@@ -3103,7 +3079,6 @@ export function LandingPage({
   error: string | null;
   hasPlaybackToast: boolean;
   isLoginBusy: boolean;
-  onBackFromAbout: () => void;
   onOpenAbout: () => void;
   onSelectSection: (section: RadioSection) => void;
   onLogin: () => void;
@@ -3122,11 +3097,6 @@ export function LandingPage({
   const starfieldView = useStarfieldViewTuning();
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const aboutBackRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    if (aboutOpen) aboutBackRef.current?.focus({ preventScroll: true });
-  }, [aboutOpen]);
   // 开始页闸门（设计稿 372:451）：新进页面一律先落在开始页，
   // 必须点一次「点击进入」才进电台主界面。这一次点击同时充当浏览器
   // 自动播放所需的用户手势，避免开始页阶段就有声音冒出来。
@@ -3227,27 +3197,21 @@ export function LandingPage({
     >
       <header className="landingNav" data-node-id={isLoggedIn ? "239:867" : "232:744"}>
         <div className="landingNavLeft" data-node-id={isLoggedIn ? "239:868" : "232:735"}>
-          {aboutOpen ? (
-            <button
-              aria-label={chatWindow && isLoggedIn ? "返回聊天" : activeSection === "settings" ? "返回设置" : "返回 Home"}
-              className="landingAboutBack"
-              onClick={onBackFromAbout}
-              ref={aboutBackRef}
-              type="button"
-            >
-              <BackIcon />
-              返回
-            </button>
-          ) : (
-            <a
-              aria-label="返回 halou.net.cn 首页"
-              className="landingBrand"
-              data-node-id="372:452"
-              href="https://www.halou.net.cn/"
-            >
-              TuneChat
-            </a>
-          )}
+          <a
+            aria-label="TuneChat 首页"
+            className="landingBrand"
+            data-node-id="372:452"
+            href={import.meta.env.BASE_URL}
+            onClick={(event) => {
+              if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                return;
+              }
+              event.preventDefault();
+              onSelectSection("home");
+            }}
+          >
+            TuneChat
+          </a>
         </div>
 
         <nav
@@ -4273,6 +4237,11 @@ function AgentProfilePage({
   onLogin: () => void;
   status: QqLoginStatus | null;
 }) {
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    titleRef.current?.focus({ preventScroll: true });
+  }, []);
+
   const accountLabel = status?.loggedIn
     ? status.nickname ?? status.userId ?? "账号昵称"
     : "登录";
@@ -4284,7 +4253,7 @@ function AgentProfilePage({
           <img alt="" src={getPublicAssetUrl("/images/agent-dj.png")} />
           <div>
             <p className="aboutOnAir">一开机我就打碟</p>
-            <h1 id="djProfileTitle">Redio</h1>
+            <h1 id="djProfileTitle" ref={titleRef} tabIndex={-1}>Redio</h1>
             <p className="aboutBio">{listenerName}的私人 DJ，会打碟的 taste.md 🎧</p>
             <p className="aboutMotto" lang="en">Your mood is my prompt. I hate algorithm. I have taste.</p>
           </div>

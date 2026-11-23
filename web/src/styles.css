@@ -810,6 +810,7 @@ p {
   outline-offset: -1px;
 }
 
+.landingBrand:focus-visible,
 .landingLinks button:focus-visible,
 .landingJoin:focus-visible,
 .landingAccount:focus-visible {
@@ -2050,11 +2051,6 @@ body.isStarfieldDragging * {
   background: transparent;
 }
 
-.backIcon {
-  display: block;
-  width: 24px;
-  height: 24px;
-}
 
 .chatHeader h2 {
   margin-bottom: 0;
@@ -2162,24 +2158,6 @@ body.isStarfieldDragging * {
   border-radius: 999px;
   background: rgba(246, 245, 241, 0.28);
   background-clip: padding-box;
-}
-
-.landingAboutBack {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  gap: 6px;
-  border: 0;
-  padding: 0 4px;
-  color: #fff;
-  background: transparent;
-  font: inherit;
-}
-
-.landingAboutBack:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 2px;
-  border-radius: 6px;
 }
 
 .landingAboutProfile {
